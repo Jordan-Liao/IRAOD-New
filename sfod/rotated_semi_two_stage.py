@@ -3,6 +3,8 @@
 """
 semi-supervised two stage detector
 """
+import os
+
 import torch
 
 from mmrotate.core import rbbox2result
@@ -30,11 +32,34 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
 
     @torch.no_grad()
     def inference_unlabeled(self, img, img_metas, rescale=True, return_feat=False):
-        ema_model = self.ema_model.module
-        try:
-            bbox_results = ema_model.simple_test(img, img_metas, with_cga = True, rescale = rescale)
-        except:
-            bbox_results = ema_model.simple_test(img, img_metas, rescale = rescale)
+        ema_model = getattr(self.ema_model, 'module', self.ema_model)
+        cga_scorer = os.environ.get("CGA_SCORER", "").strip().lower()
+
+        if cga_scorer in ("", "none", "false", "0", "raw"):
+            bbox_results = ema_model.simple_test(img, img_metas, rescale=rescale)
+        elif cga_scorer in ("sarclip", "clip", "openai", "optical", "optical_clip"):
+            try:
+                bbox_results = ema_model.simple_test(
+                    img, img_metas, with_cga=True, rescale=rescale
+                )
+            except Exception as e:
+                if not hasattr(self, "_cga_fallback_count"):
+                    self._cga_fallback_count = 0
+                self._cga_fallback_count += 1
+
+                if self._cga_fallback_count == 1 or self._cga_fallback_count % 50 == 0:
+                    print(
+                        f"[CGA][WARN] with_cga=True failed "
+                        f"(count={self._cga_fallback_count}), "
+                        f"fallback to raw simple_test. err={repr(e)}"
+                    )
+
+                bbox_results = ema_model.simple_test(
+                    img, img_metas, rescale=rescale
+                )
+        else:
+            bbox_results = ema_model.simple_test(img, img_metas, rescale=rescale)
+
         return bbox_results
             
     def simple_test(self, img, img_metas, proposals=None, rescale=False):

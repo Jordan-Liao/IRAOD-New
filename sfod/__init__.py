@@ -1,5 +1,8 @@
+from .compat import patch_mmrotate_multiclass_nms_rotated
+patch_mmrotate_multiclass_nms_rotated()
+
 from .semi_dior_dataset import SemiDIORDataset
-# from .semi_dota_dataset import SemiDOTADataset
+from .semi_dota_dataset import DOTADataset, SemiDOTADataset
 
 from .dior import DIORDataset
 from .dense_teacher_rand_aug import *

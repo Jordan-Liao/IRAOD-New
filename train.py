@@ -27,7 +27,7 @@ from mmdet import __version__
 from mmdet.apis import init_random_seed, set_random_seed
 from mmdet.utils import get_device
 # from mmrotate.apis import train_detector
-from mmdet_extension.apis import train_detector
+from mmdet_extension.apis import train_detector #使用自定义mmdet_extension.apis
 from mmrotate.datasets import build_dataset
 from mmrotate.models import build_detector
 from mmrotate.utils import (collect_env, get_root_logger,
@@ -93,7 +93,7 @@ def parse_args():
 
 
 def main():
-    args = parse_args()
+    args = parse_args()#获取解析后的命令行参数
 
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
@@ -114,7 +114,7 @@ def main():
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join('./work_dirs',
                                 osp.splitext(osp.basename(args.config))[0])
-    cfg = patch_config(cfg)#add
+    cfg = patch_config(cfg)#调用patch_config函数对配置对象进行修改或增强
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
     cfg.auto_resume = args.auto_resume
@@ -149,9 +149,9 @@ def main():
     logger = get_root_logger(log_file=log_file, log_level=cfg.log_level)
 
     # init the meta dict to record some important information such as
-    # environment info and seed, which will be logged
+    # environment info and seed, which will be logged  创建 meta 字典用于记录重要信息，如环境信息和随机种子等
     meta = dict()
-    # log env info
+    # log env info 调用 collect_env() 收集环境信 将环境信息格式化为字符串并记录到日志中 使用虚线分隔符美化日志输出格式 将环境信息存储到 meta 字典中
     env_info_dict = collect_env()
     env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
     dash_line = '-' * 60 + '\n'
@@ -189,15 +189,15 @@ def main():
     model.init_weights()
     
     datasets = [build_dataset(cfg.data.train)]
-    if len(cfg.workflow) == 2:
-        val_dataset = copy.deepcopy(cfg.data.val)
-        val_dataset.pipeline = cfg.data.train.pipeline
-        datasets.append(build_dataset(val_dataset))
-    if cfg.checkpoint_config is not None:
+    if len(cfg.workflow) == 2:#如果workflow中有val，则将val数据集也加入datasets中
+        val_dataset = copy.deepcopy(cfg.data.val)#创建val数据集的副本
+        val_dataset.pipeline = cfg.data.train.pipeline#将val数据集的管道设置为训练数据集的管道
+        datasets.append(build_dataset(val_dataset))#将val数据集加入datasets中
+    if cfg.checkpoint_config is not None:#如果checkpoint_config不为空，则将checkpoint_config中的meta信息加入meta字典中
         # save mmdet version, config file content and class names in
         # checkpoints as meta data
         cfg.checkpoint_config.meta = dict(
-            mmdet_version=__version__ + get_git_hash()[:7],
+            mmdet_version=__version__ + get_git_hash()[:7],#获取git仓库的hash值前7位
             CLASSES=datasets[0].CLASSES)
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES

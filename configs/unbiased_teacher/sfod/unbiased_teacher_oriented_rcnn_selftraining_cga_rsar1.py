@@ -8,15 +8,21 @@ total_epoch = 1
 test_interval = 1
 save_interval = 1
 
-classes = ('airplane', 'airport', 'baseballfield','basketballcourt', 'bridge', 'chimney', 'dam', 'Expressway-Service-area','Expressway-toll-station', 'golffield', 'groundtrackfield', 'harbor', 'overpass', 'ship','stadium', 'storagetank', 'tenniscourt', 'trainstation', 'vehicle', 'windmill')
+classes = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 
-data_root = '/home/storageSDA1/Dataset/DIOR/'
-data_root_l = data_root+'JPEGImages'
-data_root_u = data_root+'Corruption/JPEGImages-${corrupt}'
-ann_file_l = data_root+'ImageSets/train.txt'
-ann_file_u = data_root+'ImageSets/val.txt'
-ann_file_test = data_root+'ImageSets/test.txt'
-ann_subdir = data_root+'Annotations/Oriented Bounding Boxes'
+data_root = '/home/storageSDA1/liaojr/dataset/RSAR/'
+
+train_img = data_root + 'train/images/'
+train_ann = data_root + 'train/annfiles/'
+
+val_img = data_root + 'val/images/'
+val_ann = data_root + 'val/annfiles/'
+
+test_img = data_root + 'test/images/'
+test_ann = data_root + 'test/annfiles/'
+
+target_val_img = data_root + 'corruptions/${corrupt}/val/images/'
+target_test_img = data_root + 'corruptions/${corrupt}/test/images/'
 
 angle_version = 'le90'
 # # -------------------------dataset------------------------------
@@ -105,27 +111,24 @@ data = dict(
     samples_per_gpu=samples_per_gpu,
     workers_per_gpu=2,
     train=dict(
-        type='SemiDIORDataset',
-        ann_file=ann_file_l,
-        ann_file_u=ann_file_u,
-        ann_subdir=ann_subdir,
+        type='SemiDOTADataset',
+        ann_file=train_ann,
+        ann_file_u=val_ann,
         pipeline=sup_pipeline, pipeline_u_share=unsup_pipeline_share,
         pipeline_u=unsup_pipeline_weak, pipeline_u_1=unsup_pipeline_strong,
-        img_prefix=data_root_l, img_prefix_u=data_root_u,
+        img_prefix=train_img, img_prefix_u=target_val_img,
         classes=classes
     ),
     val=dict(
-        type='DIORDataset',
-        ann_file=ann_file_test,
-        ann_subdir=ann_subdir,
-        img_prefix=data_root_u,
+        type='DOTADataset',
+        ann_file=test_ann,
+        img_prefix=target_test_img,
         classes=classes,
         pipeline=test_pipeline),
     test=dict(
-        type='DIORDataset',
-        ann_file=ann_file_test,
-        ann_subdir=ann_subdir,
-        img_prefix=data_root_u,
+        type='DOTADataset',
+        ann_file=test_ann,
+        img_prefix=target_test_img,
         classes=classes,
         pipeline=test_pipeline))
 
@@ -165,10 +168,10 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 resume_from = None
 
-load_from = f'baseline/baseline.pth'
+load_from = 'baseline/rsar_oriented_rcnn_epoch_12_mmcv_compat.pth'
 workflow = [('train', 1)]
 
-ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_dior_cga.py'
+ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga.py'
 # # -------------------------model------------------------------
 model = dict(
     type='UnbiasedTeacher',
@@ -231,7 +234,7 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=20,
+            num_classes=6,
             bbox_coder=dict(
                 type='DeltaXYWHAOBBoxCoder',
                 angle_range=angle_version,
