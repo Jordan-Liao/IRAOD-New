@@ -124,3 +124,21 @@ tmp
 .codex/
 *.pth
 debug_vis.jpg
+
+# Ignore work directories and large files
+work_dirs/
+*.ckpt
+*.pt
+*.h5
+*.npz
+*.tar
+*.tar.gz
+*.zip
+*.bin
+data/
+weights/
+models/
+logs/
+outputs/
+*.pth.tar
+*.snapshot
