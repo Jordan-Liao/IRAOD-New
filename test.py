@@ -1,4 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from iraod_runtime import ensure_iraod_runtime
+
+ensure_iraod_runtime()
+
 import argparse
 import os
 import os.path as osp

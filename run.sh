@@ -11,4 +11,3 @@ python test.py \
 python test.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftaining_cga_rsar.py \
   work_dirs/unbiased_teacher_oriented_rcnn_selftaining_cga_rsar/latest.pth --eval mAP \
    --show-dir vis_rsar_smoketest
-

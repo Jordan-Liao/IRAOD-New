@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -17,11 +18,35 @@ CLASSES = RSAR_CLASSES
 save_img = False
 
 
+def _prepend_sys_path(path):
+    path = str(path)
+    if path in sys.path:
+        sys.path.remove(path)
+    sys.path.insert(0, path)
+
+
 def _ensure_sarclip_importable():
-    sarclip_dir = os.environ.get("SARCLIP_DIR", "/home/storageSDA1/liaojr/SARCLIP")
-    if sarclip_dir and sarclip_dir not in sys.path:
-        sys.path.insert(0, sarclip_dir)
-    import sar_clip
+    repo_root = Path(__file__).resolve().parents[1]
+    search_roots = [repo_root]
+
+    sarclip_dir = os.environ.get("SARCLIP_DIR")
+    if sarclip_dir:
+        override_root = Path(sarclip_dir).expanduser().resolve()
+        if not override_root.exists():
+            raise FileNotFoundError(f"SARCLIP_DIR does not exist: {override_root}")
+        search_roots.insert(0, override_root)
+
+    for root in reversed(search_roots):
+        _prepend_sys_path(root)
+
+    try:
+        import sar_clip
+    except ImportError as exc:
+        raise ImportError(
+            "Unable to import sar_clip. Expected the vendored package at "
+            f"{repo_root / 'sar_clip'} or set SARCLIP_DIR explicitly."
+        ) from exc
+
     print("[CGA/SARCLIP] sar_clip imported from:", sar_clip.__file__)
     return sar_clip
 

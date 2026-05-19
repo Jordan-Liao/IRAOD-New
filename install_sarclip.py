@@ -1,40 +1,21 @@
 """
-SARCLIP 安装检查和设置脚本
+SARCLIP 环境检查脚本
 """
 
 import sys
-import subprocess
-import importlib.util
 
-def check_and_install_sarclip():
-    """检查并安装SARCLIP"""
-    print("检查SARCLIP是否已安装...")
+def check_sarclip():
+    """检查仓库内置 SARCLIP 是否可导入"""
+    print("检查SARCLIP是否可导入...")
     
-    # 尝试导入sar_clip
     try:
         import sar_clip
-        print("✓ SARCLIP 已安装")
+        print(f"✓ SARCLIP 可用: {sar_clip.__file__}")
         return True
-    except ImportError:
-        print("× SARCLIP 未安装，开始安装...")
-        
-        # 尝试通过pip安装
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "sarclip"])
-            print("✓ SARCLIP 安装成功")
-            return True
-        except subprocess.CalledProcessError:
-            print("× SARCLIP pip安装失败")
-            
-            # 如果pip安装失败，提示用户手动安装
-            print("\n请按照以下步骤安装SARCLIP:")
-            print("1. 从官方仓库下载SARCLIP代码:")
-            print("   git clone https://github.com/username/sarclip.git  # 替换为实际仓库地址")
-            print("2. 进入目录并安装:")
-            print("   cd sarclip")
-            print("   pip install -e .")
-            print("\n或者，如果您有本地的SARCLIP包，请确保其路径已添加到PYTHONPATH中。")
-            return False
+    except ImportError as exc:
+        print(f"× SARCLIP 导入失败: {exc}")
+        print("请确认当前工作目录是 IRAOD-New，或已将仓库根目录加入 PYTHONPATH。")
+        return False
 
 def check_sarclip_components():
     """检查SARCLIP的关键组件"""
@@ -62,12 +43,10 @@ def check_sarclip_components():
         return False
 
 def main():
-    print("SARCLIP 安装检查工具")
+    print("SARCLIP 环境检查工具")
     print("="*40)
     
-    # 检查并安装SARCLIP
-    if check_and_install_sarclip():
-        # 检查组件
+    if check_sarclip():
         check_sarclip_components()
         
         print("\n✓ SARCLIP 环境检查完成")

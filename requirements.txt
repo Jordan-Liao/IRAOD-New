@@ -7,6 +7,13 @@ tqdm
 albumentations
 pympler
 timm
+ftfy
+regex
+transformers
+safetensors
+huggingface-hub
+fsspec
+fvcore
 dataclasses
 seaborn
 imgaug

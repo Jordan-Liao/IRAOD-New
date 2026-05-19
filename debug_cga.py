@@ -2,8 +2,6 @@
 # 单图调试：调用 sfod.cga 里的 SARCLIP 版 CGA 做重打分
 
 import os
-import sys
-sys.path.insert(0, "/home/storageSDA1/liaojr/SARCLIP")  # 指向包含 sar_clip/ 的目录
 import sar_clip
 print("sar_clip at:", sar_clip.__file__)
 
