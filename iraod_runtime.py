@@ -19,7 +19,13 @@ def ensure_iraod_runtime():
     if os.environ.get(_READY_ENV) == "1":
         return
 
-    prefix = Path(os.environ.get("IRAOD_CONDA_PREFIX", _DEFAULT_PREFIX)).expanduser()
+    prefix_value = os.environ.get("IRAOD_CONDA_PREFIX")
+    if not prefix_value:
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        conda_env = os.environ.get("CONDA_DEFAULT_ENV")
+        if conda_prefix and conda_env and conda_env != "base":
+            prefix_value = conda_prefix
+    prefix = Path(prefix_value or _DEFAULT_PREFIX).expanduser()
     python_bin = prefix / "bin" / "python"
     lib_dir = prefix / "lib"
 

@@ -12,6 +12,17 @@ from mmrotate.models.detectors import RotatedTwoStageDetector
 from .rotated_semi_base import SemiBaseDetector
 
 
+def _log_cga_info(message):
+    print(message, flush=True)
+    try:
+        from mmrotate.utils import get_root_logger
+
+        logger = get_root_logger()
+        logger.warning(message)
+    except Exception:
+        pass
+
+
 class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
     def __init__(self,
                  backbone,
@@ -34,10 +45,22 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
     def inference_unlabeled(self, img, img_metas, rescale=True, return_feat=False):
         ema_model = getattr(self.ema_model, 'module', self.ema_model)
         cga_scorer = os.environ.get("CGA_SCORER", "").strip().lower()
+        if not hasattr(self, "_cga_entry_logged"):
+            self._cga_entry_logged = True
+            _log_cga_info(
+                "[CGA] inference_unlabeled "
+                f"scorer={cga_scorer or '<unset>'}, "
+                f"backend={os.environ.get('CGA_BACKEND', '<unset>')}, "
+                f"lora={os.environ.get('SARCLIP_LORA', '<unset>')}, "
+                f"ema_model={ema_model.__class__.__module__}.{ema_model.__class__.__name__}"
+            )
 
         if cga_scorer in ("", "none", "false", "0", "raw"):
             bbox_results = ema_model.simple_test(img, img_metas, rescale=rescale)
         elif cga_scorer in ("sarclip", "clip", "openai", "optical", "optical_clip"):
+            if not hasattr(self, "_cga_with_cga_logged"):
+                self._cga_with_cga_logged = True
+                _log_cga_info("[CGA] calling ema_model.simple_test(with_cga=True)")
             try:
                 bbox_results = ema_model.simple_test(
                     img, img_metas, with_cga=True, rescale=rescale
@@ -48,7 +71,7 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                 self._cga_fallback_count += 1
 
                 if self._cga_fallback_count == 1 or self._cga_fallback_count % 50 == 0:
-                    print(
+                    _log_cga_info(
                         f"[CGA][WARN] with_cga=True failed "
                         f"(count={self._cga_fallback_count}), "
                         f"fallback to raw simple_test. err={repr(e)}"

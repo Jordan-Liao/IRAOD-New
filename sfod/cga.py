@@ -25,6 +25,17 @@ def _prepend_sys_path(path):
     sys.path.insert(0, path)
 
 
+def _log_cga_info(message):
+    print(message, flush=True)
+    try:
+        from mmrotate.utils import get_root_logger
+
+        logger = get_root_logger()
+        logger.warning(message)
+    except Exception:
+        pass
+
+
 def _ensure_sarclip_importable():
     repo_root = Path(__file__).resolve().parents[1]
     search_roots = [repo_root]
@@ -89,6 +100,70 @@ def _parse_exclude_ids(value):
     if value is None or value.strip() == "":
         return None
     return [int(v.strip()) for v in value.split(",") if v.strip()]
+
+
+def _env_float(name, default):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return float(default)
+    return float(value)
+
+
+def _env_int(name, default):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return int(default)
+    return int(value)
+
+
+def _new_cga_diag_window(num_classes):
+    return {
+        "calls": 0,
+        "total": 0,
+        "agree": 0,
+        "dropped": 0,
+        "blended": 0,
+        "multiplied": 0,
+        "label_probs": [],
+        "pred_counts": np.zeros(num_classes, dtype=np.int64),
+        "det_total": np.zeros(num_classes, dtype=np.int64),
+        "det_agree": np.zeros(num_classes, dtype=np.int64),
+        "det_drop": np.zeros(num_classes, dtype=np.int64),
+    }
+
+
+def _format_class_counts(counts, class_names):
+    parts = []
+    for idx, count in enumerate(counts):
+        count = int(count)
+        if count <= 0:
+            continue
+        name = class_names[idx] if idx < len(class_names) else str(idx)
+        parts.append(f"{name}:{count}")
+    return ",".join(parts) if parts else "none"
+
+
+def _format_detector_diag(total, agree, dropped, class_names):
+    parts = []
+    for idx, count in enumerate(total):
+        count = int(count)
+        if count <= 0:
+            continue
+        name = class_names[idx] if idx < len(class_names) else str(idx)
+        parts.append(
+            f"{name}:n={count},agree={int(agree[idx])},drop={int(dropped[idx])}"
+        )
+    return ";".join(parts) if parts else "none"
+
+
+def _format_label_prob_percentiles(values):
+    if not values:
+        return "none"
+    qs = np.percentile(np.asarray(values, dtype=np.float32), [0, 25, 50, 75, 100])
+    return (
+        f"min={qs[0]:.4f},p25={qs[1]:.4f},p50={qs[2]:.4f},"
+        f"p75={qs[3]:.4f},max={qs[4]:.4f}"
+    )
 
 
 def _normalize_optical_clip_model_name(model):
@@ -169,6 +244,22 @@ class CGA:
             cache_dir=cache_dir,
             output_dict=True,
         )
+        lora_path = os.environ.get("SARCLIP_LORA")
+        if lora_path:
+            lora_path = os.path.expanduser(lora_path)
+            if not os.path.exists(lora_path):
+                raise FileNotFoundError(f"SARCLIP_LORA does not exist: {lora_path}")
+            print(f"[CGA/SARCLIP] using SARCLIP_LORA={lora_path}")
+            from sarclip_adapter import load_adapter_checkpoint
+            adapter_info = load_adapter_checkpoint(
+                self.clip,
+                lora_path,
+                map_location=self.device,
+            )
+            print(
+                "[CGA/SARCLIP] loaded SARCLIP_LORA "
+                f"adapter_type={adapter_info.get('adapter_type')}"
+            )
         self.clip.eval()
 
         self.tokenizer = sar_clip.get_tokenizer(model, cache_dir=cache_dir)
@@ -300,6 +391,21 @@ class TestMixins:
             "true",
             "yes",
         )
+        self.cga_filter_mode = os.environ.get("CGA_FILTER_MODE", "legacy").strip().lower()
+        self.cga_gate_prob_thr = _env_float("CGA_GATE_PROB_THR", 0.5)
+        self.cga_drop_score = _env_float("CGA_DROP_SCORE", 0.0)
+        self.cga_blend_detector_weight = _env_float("CGA_BLEND_DET_WEIGHT", 0.7)
+        self.cga_filter_log_every = _env_int("CGA_FILTER_LOG_EVERY", 500)
+        lora_path = os.environ.get("SARCLIP_LORA", "").strip()
+        _log_cga_info(
+            "[CGA] init "
+            f"scorer={scorer or '<unset>'}, "
+            f"backend={backend}, "
+            f"lora={os.path.expanduser(lora_path) if lora_path else '<unset>'}, "
+            f"filter_mode={self.cga_filter_mode}, "
+            f"gate_prob_thr={self.cga_gate_prob_thr}, "
+            f"drop_score={self.cga_drop_score}"
+        )
 
         if backend == "clip":
             model = os.environ.get("CLIP_MODEL", os.environ.get("CGA_CLIP_MODEL", "RN50x64"))
@@ -350,6 +456,8 @@ class TestMixins:
     def refine_test(self, results, img_metas):
         if getattr(self, "cga", None) is None:
             self.cga, self.exclude_ids = self._build_cga(len(results[0]))
+        if not hasattr(self, "_cga_diag_window"):
+            self._cga_diag_window = _new_cga_diag_window(len(results[0]))
 
         boxes_list, scores_list, labels_list = [], [], []
         for cls_id, result in enumerate(results[0]):
@@ -369,10 +477,129 @@ class TestMixins:
 
         logits, _ = self.cga(img_metas[0]["filename"], boxes_list, scores_list, labels_list)
 
+        mode = getattr(self, "cga_filter_mode", "legacy")
+        gate_prob_thr = getattr(self, "cga_gate_prob_thr", 0.5)
+        drop_score = getattr(self, "cga_drop_score", 0.0)
+        det_weight = getattr(self, "cga_blend_detector_weight", 0.7)
+        if mode in ("blend", "rescore"):
+            mode = "legacy"
+        valid_modes = {
+            "legacy",
+            "disagree_gate",
+            "gate",
+            "agree_gate",
+            "strict_gate",
+            "prob_gate",
+            "label_prob_gate",
+            "multiply",
+            "prob_multiply",
+        }
+        if mode not in valid_modes:
+            _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")
+            mode = "legacy"
+
+        stats = {
+            "total": len(logits),
+            "agree": 0,
+            "dropped": 0,
+            "blended": 0,
+            "multiplied": 0,
+            "prob_sum": 0.0,
+            "label_probs": [],
+            "pred_counts": np.zeros(len(results[0]), dtype=np.int64),
+            "det_total": np.zeros(len(results[0]), dtype=np.int64),
+            "det_agree": np.zeros(len(results[0]), dtype=np.int64),
+            "det_drop": np.zeros(len(results[0]), dtype=np.int64),
+        }
         for i, prob in enumerate(logits):
-            pred = np.argmax(prob)
-            if labels_list[i] != pred and labels_list[i] not in self.exclude_ids:
-                scores_list[i] = scores_list[i] * 0.7 + float(prob[labels_list[i]]) * 0.3
+            label = int(labels_list[i])
+            pred = int(np.argmax(prob))
+            label_prob = float(prob[label])
+            stats["prob_sum"] += label_prob
+            stats["label_probs"].append(label_prob)
+            if 0 <= pred < len(results[0]):
+                stats["pred_counts"][pred] += 1
+            if 0 <= label < len(results[0]):
+                stats["det_total"][label] += 1
+            if label == pred:
+                stats["agree"] += 1
+                if 0 <= label < len(results[0]):
+                    stats["det_agree"][label] += 1
+            if label in self.exclude_ids:
+                continue
+
+            dropped = False
+            if mode == "legacy":
+                if label != pred:
+                    scores_list[i] = scores_list[i] * det_weight + label_prob * (1.0 - det_weight)
+                    stats["blended"] += 1
+            elif mode in ("multiply", "prob_multiply"):
+                scores_list[i] = scores_list[i] * label_prob
+                stats["multiplied"] += 1
+            elif mode in ("disagree_gate", "gate"):
+                if label != pred and label_prob < gate_prob_thr:
+                    scores_list[i] = drop_score
+                    stats["dropped"] += 1
+                    dropped = True
+                elif label != pred:
+                    scores_list[i] = scores_list[i] * det_weight + label_prob * (1.0 - det_weight)
+                    stats["blended"] += 1
+            elif mode in ("agree_gate", "strict_gate"):
+                if label != pred or label_prob < gate_prob_thr:
+                    scores_list[i] = drop_score
+                    stats["dropped"] += 1
+                    dropped = True
+            elif mode in ("prob_gate", "label_prob_gate"):
+                if label_prob < gate_prob_thr:
+                    scores_list[i] = drop_score
+                    stats["dropped"] += 1
+                    dropped = True
+            if dropped and 0 <= label < len(results[0]):
+                stats["det_drop"][label] += 1
+
+        self._cga_filter_calls = getattr(self, "_cga_filter_calls", 0) + 1
+        diag_window = getattr(self, "_cga_diag_window", None)
+        if diag_window is None or len(diag_window["pred_counts"]) != len(results[0]):
+            diag_window = _new_cga_diag_window(len(results[0]))
+        diag_window["calls"] += 1
+        diag_window["total"] += stats["total"]
+        diag_window["agree"] += stats["agree"]
+        diag_window["dropped"] += stats["dropped"]
+        diag_window["blended"] += stats["blended"]
+        diag_window["multiplied"] += stats["multiplied"]
+        diag_window["label_probs"].extend(stats["label_probs"])
+        diag_window["pred_counts"] += stats["pred_counts"]
+        diag_window["det_total"] += stats["det_total"]
+        diag_window["det_agree"] += stats["det_agree"]
+        diag_window["det_drop"] += stats["det_drop"]
+        self._cga_diag_window = diag_window
+
+        log_every = getattr(self, "cga_filter_log_every", 500)
+        if stats["total"] > 0 and (self._cga_filter_calls == 1 or (log_every > 0 and self._cga_filter_calls % log_every == 0)):
+            mean_prob = stats["prob_sum"] / stats["total"]
+            _log_cga_info(
+                "[CGA] filter "
+                f"mode={mode}, calls={self._cga_filter_calls}, total={stats['total']}, "
+                f"agree={stats['agree']}, dropped={stats['dropped']}, "
+                f"blended={stats['blended']}, multiplied={stats['multiplied']}, "
+                f"mean_label_prob={mean_prob:.4f}"
+            )
+            class_names = getattr(self.cga, "class_names", self._get_cga_class_names(len(results[0])))
+            diag_mean = (
+                sum(diag_window["label_probs"]) / len(diag_window["label_probs"])
+                if diag_window["label_probs"] else 0.0
+            )
+            _log_cga_info(
+                "[CGA] diag_window "
+                f"calls={diag_window['calls']}, total={diag_window['total']}, "
+                f"agree={diag_window['agree']}, dropped={diag_window['dropped']}, "
+                f"blended={diag_window['blended']}, multiplied={diag_window['multiplied']}, "
+                f"mean_label_prob={diag_mean:.4f}, "
+                f"label_prob_pct={_format_label_prob_percentiles(diag_window['label_probs'])}, "
+                f"argmax={_format_class_counts(diag_window['pred_counts'], class_names)}, "
+                f"detector={_format_detector_diag(diag_window['det_total'], diag_window['det_agree'], diag_window['det_drop'], class_names)}"
+            )
+            self._cga_diag_window = _new_cga_diag_window(len(results[0]))
 
         j = 0
         for i in range(len(results[0])):
