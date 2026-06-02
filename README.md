@@ -1,7 +1,7 @@
 # IRAOD-New Environment Setup
 
-This document records the environment layout used by this project and the
-recommended workflow for the SARCLIP-LoRA rescoring experiments.
+This document records the unified `iraod` environment used by this project and
+the recommended workflow for the SARCLIP-LoRA rescoring experiments.
 
 ## 1. Enter the Project
 
@@ -9,45 +9,45 @@ recommended workflow for the SARCLIP-LoRA rescoring experiments.
 cd /home/storageSDA1/liaojr/IRAOD-New
 ```
 
-## 2. Detector Environment: `iraod`
+## 2. Unified Environment: `iraod`
 
-Use this environment for the IRAOD/MMRotate detector code.
+Use `iraod` for both the IRAOD/MMRotate detector code and SARCLIP/SARCLIP-LoRA
+rescoring. The old separate `cliptorch` environment is only a historical backup
+and is not required for the current workflow.
 
 ```bash
 conda create -n iraod python=3.10 -y
 conda activate iraod
 ```
 
-Install the CUDA 11.8 PyTorch build used by the detector:
+Install the CUDA 11.8 PyTorch build and project dependencies:
 
 ```bash
 pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --index-url https://download.pytorch.org/whl/cu118
 pip install -r /home/storageSDA1/liaojr/IRAOD-New/requirements.txt
 ```
 
-Raw self-training on RSAR chaff:
+Install the SARCLIP-side packages in the same environment. Keep the detector
+stack versions fixed; do not upgrade PyTorch/MMCV/MMRotate just for SARCLIP.
+
+```bash
+pip install "transformers<4.56" timm safetensors peft
+```
+
+Before running SARCLIP utilities, make the active `iraod` environment explicit:
 
 ```bash
 conda activate iraod
+export IRAOD_CONDA_PREFIX="$CONDA_PREFIX"
+```
+
+Raw self-training on RSAR chaff:
+
+```bash
 python train.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_rsar1.py --cfg-options corrupt="chaff"
 ```
 
-## 3. SARCLIP Environment: `cliptorch`
-
-Use this environment for SARCLIP patch extraction, SARCLIP zero-shot evaluation,
-and SARCLIP-LoRA fine-tuning/evaluation.
-
-The SARCLIP utilities in `tools/` default to:
-
-```bash
-IRAOD_CONDA_PREFIX=/home/liaojr/anaconda3/envs/cliptorch
-```
-
-Override it if your SARCLIP-compatible environment is somewhere else:
-
-```bash
-export IRAOD_CONDA_PREFIX=/path/to/your/cliptorch
-```
+## 3. SARCLIP-LoRA Workflow
 
 The expected SARCLIP paths are:
 
@@ -117,10 +117,8 @@ python train.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_sel
 ```
 
 Do not mix packages from `cliptorch` directly into `iraod`. The two environments
-use different core dependency versions, and mixing them can break either the
-detector stack or SARCLIP. If online CGA/SARCLIP is required during detector
-training, prefer creating a new clean environment that supports both the
-detector and SARCLIP, then set `IRAOD_CONDA_PREFIX` or activate that environment.
+were used during earlier debugging and may have different core dependency
+versions. The current project workflow expects SARCLIP to run inside `iraod`.
 
 ## 5. Releasing Weights vs. Releasing Precomputed Scores
 
@@ -128,7 +126,7 @@ Publishing `lora_rsar.pth` is enough for users who can run SARCLIP. They still
 need the SARCLIP code, the SARCLIP base checkpoint, and a SARCLIP-compatible
 Python environment to compute rescoring results.
 
-If users should avoid the SARCLIP environment entirely, release precomputed
+If users should avoid running SARCLIP entirely, release precomputed
 rescoring artifacts instead. This is only valid for the exact dataset split,
 corruption setting, teacher checkpoint, detector predictions, crop mode, and
 class order used to generate the scores. A different detector checkpoint or
@@ -136,14 +134,16 @@ pseudo-label set requires recomputing the SARCLIP scores.
 
 Current code supports loading the fine-tuned adapter for online SARCLIP rescoring
 through `SARCLIP_LORA`. It does not yet include a detector-side cache reader for
-fully precomputed CGA scores. To make detector training run only in `iraod`
-without importing SARCLIP, add an offline score cache/export step and a matching
-cache lookup path in `sfod/cga.py`.
+fully precomputed CGA scores. To make detector training avoid importing SARCLIP
+at runtime, add an offline score cache/export step and a matching cache lookup
+path in `sfod/cga.py`.
 
 ## 6. Notes
 
-- `iraod` is the stable detector environment.
-- `cliptorch` is the stable SARCLIP/SARCLIP-LoRA environment.
-- SARCLIP utility scripts automatically switch to `IRAOD_CONDA_PREFIX`.
+- `iraod` is the stable environment for both detector training and SARCLIP
+  rescoring.
+- `cliptorch` is only a historical backup environment.
+- Set `IRAOD_CONDA_PREFIX="$CONDA_PREFIX"` when running SARCLIP utilities from
+  an activated `iraod` shell.
 - The LoRA adapter keeps releases small, but it is not a standalone model; it
   must be loaded together with the SARCLIP base checkpoint.
