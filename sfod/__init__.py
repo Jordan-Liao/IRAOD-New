@@ -12,3 +12,4 @@ from .rotated_semi_base import SemiBaseDetector
 from .rotated_unbiased_teacher import UnbiasedTeacher
 
 from .oriented_rcnn_cga import OrientedRCNN_CGA
+from .semantic_weighted_roi_head import SemanticWeightedOrientedStandardRoIHead

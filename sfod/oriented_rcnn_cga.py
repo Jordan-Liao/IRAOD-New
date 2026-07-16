@@ -32,9 +32,11 @@ class OrientedRCNN_CGA(RotatedTwoStageDetector, TestMixins):
             pretrained=pretrained,
             init_cfg=init_cfg)
         
-    def simple_test(self, img, img_metas, with_cga = False, proposals = None, rescale = False):
+    def simple_test(self, img, img_metas, with_cga=False, return_cga_meta=False,
+                    proposals=None, rescale=False):
         bbox_results = super().simple_test(img, img_metas, proposals, rescale)
         if with_cga:
-            return self.refine_test(bbox_results, img_metas)
-        else:
-            return bbox_results
+            return self.refine_test(
+                bbox_results, img_metas, return_cga_meta=return_cga_meta)
+        # Normal validation/test path is completely unaffected.
+        return bbox_results

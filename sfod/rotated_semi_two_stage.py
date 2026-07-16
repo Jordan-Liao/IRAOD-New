@@ -42,7 +42,16 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                                   train_cfg=train_cfg, test_cfg=test_cfg, neck=neck, pretrained=pretrained)
 
     @torch.no_grad()
-    def inference_unlabeled(self, img, img_metas, rescale=True, return_feat=False):
+    def inference_unlabeled(self, img, img_metas, rescale=True,
+                            return_feat=False, return_cga_meta=False):
+        """Run the EMA teacher on unlabeled images.
+
+        When ``return_cga_meta`` is True (only meaningful with a SARCLIP CGA
+        scorer, e.g. ``CGA_FILTER_MODE=semantic_reweight``) this returns
+        ``(bbox_results, cga_meta)`` via an explicit return value rather than
+        any hidden global state.  ``cga_meta`` is ``None`` when CGA is disabled
+        or fell back to a raw pass, and callers must tolerate that.
+        """
         ema_model = getattr(self.ema_model, 'module', self.ema_model)
         cga_scorer = os.environ.get("CGA_SCORER", "").strip().lower()
         if not hasattr(self, "_cga_entry_logged"):
@@ -55,6 +64,7 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                 f"ema_model={ema_model.__class__.__module__}.{ema_model.__class__.__name__}"
             )
 
+        cga_meta = None
         if cga_scorer in ("", "none", "false", "0", "raw"):
             bbox_results = ema_model.simple_test(img, img_metas, rescale=rescale)
         elif cga_scorer in ("sarclip", "clip", "openai", "optical", "optical_clip"):
@@ -62,9 +72,15 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                 self._cga_with_cga_logged = True
                 _log_cga_info("[CGA] calling ema_model.simple_test(with_cga=True)")
             try:
-                bbox_results = ema_model.simple_test(
-                    img, img_metas, with_cga=True, rescale=rescale
-                )
+                if return_cga_meta:
+                    bbox_results, cga_meta = ema_model.simple_test(
+                        img, img_metas, with_cga=True,
+                        return_cga_meta=True, rescale=rescale
+                    )
+                else:
+                    bbox_results = ema_model.simple_test(
+                        img, img_metas, with_cga=True, rescale=rescale
+                    )
             except Exception as e:
                 if not hasattr(self, "_cga_fallback_count"):
                     self._cga_fallback_count = 0
@@ -77,12 +93,15 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                         f"fallback to raw simple_test. err={repr(e)}"
                     )
 
+                cga_meta = None
                 bbox_results = ema_model.simple_test(
                     img, img_metas, rescale=rescale
                 )
         else:
             bbox_results = ema_model.simple_test(img, img_metas, rescale=rescale)
 
+        if return_cga_meta:
+            return bbox_results, cga_meta
         return bbox_results
             
     def simple_test(self, img, img_metas, proposals=None, rescale=False):

@@ -1,4 +1,4 @@
-custom_imports = dict(imports=['sfod'], allow_failed_imports=False)
+custom_imports = dict(imports=['sfod', 'mmdet_extension'], allow_failed_imports=False)
 import torchvision.transforms as transforms
 
 gpu = 1
@@ -168,10 +168,10 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 resume_from = None
 
-load_from = 'baseline/rsar_oriented_rcnn_epoch_12_mmcv_compat.pth'
+load_from = 'work_dirs/oriented_rcnn_orthonet_rsar/epoch_100.pth'
 workflow = [('train', 1)]
 
-ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga.py'
+ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py'
 # # -------------------------model------------------------------
 model = dict(
     type='UnbiasedTeacher',
@@ -185,15 +185,16 @@ model = dict(
         use_bbox_reg=False,
     ),
     backbone=dict(
-        type='ResNet',
+        type='OrthoNet',
         depth=50,
+        reduction=16,
+        in_channels=3,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
-        norm_cfg=dict(type='BN', requires_grad=True),
         norm_eval=True,
         style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
+        init_cfg=None),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],

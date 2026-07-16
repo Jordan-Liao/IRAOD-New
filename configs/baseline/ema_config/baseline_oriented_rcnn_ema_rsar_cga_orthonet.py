@@ -1,17 +1,10 @@
-_base_ = './unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py'
+_base_ = './baseline_oriented_rcnn_ema_rsar_cga.py'
 
 custom_imports = dict(
     imports=['sfod', 'mmdet_extension'],
     allow_failed_imports=False)
 
-# This checkpoint should be trained from an OrthoNet RSAR source baseline first.
-load_from = 'baseline/rsar_orthonet_oriented_rcnn_cga_epoch_12.pth'
-
-ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py'
-
 model = dict(
-    ema_config=ema_config,
-    ema_ckpt=load_from,
     backbone=dict(
         _delete_=True,
         type='OrthoNet',

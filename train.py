@@ -10,17 +10,6 @@ import os.path as osp
 import time
 import warnings
 import torch
-import numpy as np
-import random
-
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
-torch.cuda.manual_seed_all(42)  # if you are using multi-GPU.
-os.environ['PYTHONHASHSEED'] = str(42)
-np.random.seed(42)
-random.seed(42)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False  
 
 import mmcv
 import torch.distributed as dist
@@ -167,20 +156,12 @@ def main():
     logger.info(f'Distributed training: {distributed}')
     logger.info(f'Config:\n{cfg.pretty_text}')
 
-    # # set random seeds
-    # seed = init_random_seed(args.seed)
-    # seed = seed + dist.get_rank() if args.diff_seed else seed
-    # logger.info(f'Set random seed to {seed}, '
-    #             f'deterministic: {args.deterministic}')
-    # set_random_seed(seed, deterministic=args.deterministic)
-    # cfg.seed = seed
-    # meta['seed'] = seed
-    # set random seed to fix
-    seed = 42
-    deterministic = True
-    set_random_seed(seed, deterministic=deterministic)
+    # set random seeds
+    seed = init_random_seed(args.seed)
+    seed = seed + dist.get_rank() if args.diff_seed else seed
     logger.info(f'Set random seed to {seed}, '
-                f'deterministic: {deterministic}')
+                f'deterministic: {args.deterministic}')
+    set_random_seed(seed, deterministic=args.deterministic)
     cfg.seed = seed
     meta['seed'] = seed
 

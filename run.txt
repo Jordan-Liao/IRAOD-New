@@ -1,0 +1,73 @@
+export PYTHONNOUSERSITE=1
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+export CGA_SCORER=sarclip
+export CGA_BACKEND=sarclip
+export CGA_FILTER_MODE=disagree_gate
+export CGA_GATE_PROB_THR=0.3
+export CGA_DROP_SCORE=0.0
+export CGA_FILTER_LOG_EVERY=500
+
+LORA_DIR=work_dirs/sarclip_lora_rsar_train_corrupt_aabb_v1
+export SARCLIP_LORA="$LORA_DIR/lora_rsar.pth"
+
+CFG_DIR=configs/unbiased_teacher/sfod
+CFG="$CFG_DIR/unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py"
+
+WD=work_dirs/cga_thr082_sarclip_iraod_gate03
+
+CUDA_VISIBLE_DEVICES=2 python train.py "$CFG" \
+--cfg-options \
+corrupt=chaff \
+model.cfg.score_thr=0.82 \
+work_dir="$WD"
+
+#=== veto_soft: 对抗 chaff 域漂移。只在 SARCLIP 高置信反对时 drop，protect detector 高置信框，其余软降权 ===#
+conda activate iraod
+cd /home/storageSDA1/liaojr/IRAOD-New
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+export CGA_SCORER=sarclip
+export CGA_BACKEND=sarclip
+export CGA_FILTER_MODE=veto_soft
+export CGA_DROP_SCORE=0.0
+export CGA_FILTER_LOG_EVERY=500
+# veto_soft 专用阈值
+export CGA_VETO_PRED_THR=0.7        # SARCLIP 对"别的类"的置信 ≥ 此值才考虑 veto
+export CGA_VETO_LABEL_THR=0.1       # 且 SARCLIP 对 detector 标签置信 < 此值
+export CGA_PROTECT_DET_SCORE=0.9    # detector 分数 ≥ 此值绝不删，只软降权
+export CGA_BLEND_DET_WEIGHT=0.7     # 软降权时 detector 分数权重
+
+export SARCLIP_LORA=work_dirs/sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth
+
+CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py
+WD=work_dirs/orthonet_cga_thr082_sarclip_chaff_veto_soft
+
+CUDA_VISIBLE_DEVICES=2 python train.py "$CFG" \
+--cfg-options \
+corrupt=chaff \
+model.cfg.score_thr=0.82 \
+work_dir="$WD"
+
+#下面是 point_target 不用 CGA 的对照命令。关键是 CGA_SCORER=none，并清掉 SARCLIP 相关环境变量#
+conda activate iraod
+cd /home/storageSDA1/liaojr/IRAOD-New
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+unset CGA_BACKEND
+unset CGA_FILTER_MODE
+unset CGA_GATE_PROB_THR
+unset CGA_DROP_SCORE
+unset CGA_FILTER_LOG_EVERY
+unset SARCLIP_LORA
+export CGA_SCORER=none
+
+CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py
+WD=work_dirs/raw_thr082_iraod_point_target_no_cga
+OPTS="corrupt=point_target model.cfg.score_thr=0.82 work_dir=$WD"
+
+python train.py "$CFG" --cfg-options $OPTS

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -16,6 +17,26 @@ DIOR_CLASSES = (
 )
 CLASSES = RSAR_CLASSES
 save_img = False
+
+# Visually-similar RSAR class groups (SAR crops). Within a group SARCLIP's
+# class disagreement is NOT reliable evidence (ship/car/tank/aircraft look
+# alike in AABB SAR patches), so evidence_veto never fires inside a group.
+# Used by CGA_FILTER_MODE=evidence_veto. Override via CGA_CONFUSION_GROUPS
+# env (";"-separated groups, ","-separated class names).
+RSAR_CONFUSION_GROUPS = (
+    ("ship", "aircraft", "car", "tank"),
+)
+# Classes whose recognition depends on scene context an AABB crop can't
+# capture; optionally exempt from veto via CGA_VETO_SKIP_CONTEXT=1.
+RSAR_CONTEXT_CLASSES = ("bridge", "harbor")
+
+
+def _prob_entropy_normalized(prob):
+    """Shannon entropy of a prob vector, normalized to [0,1] by log(K)."""
+    p = np.clip(np.asarray(prob, dtype=np.float64), 1e-12, 1.0)
+    ent = -np.sum(p * np.log(p))
+    k = len(p)
+    return float(ent / np.log(k)) if k > 1 else 0.0
 
 
 def _prepend_sys_path(path):
@@ -116,6 +137,105 @@ def _env_int(name, default):
     return int(value)
 
 
+CGA_SHUFFLE_SCORE_BINS = (0.0, 0.5, 0.7, 0.8, 0.9, 0.95, 1.000001)
+
+
+def _shuffle_score_bin_indices(scores, score_bins=CGA_SHUFFLE_SCORE_BINS):
+    """Map detector scores to fixed, half-open shuffle strata."""
+
+    values = np.asarray(scores, dtype=np.float64)
+    boundaries = np.asarray(score_bins, dtype=np.float64)
+    if values.ndim != 1:
+        raise ValueError("shuffle detector scores must be one-dimensional")
+    if (boundaries.ndim != 1 or len(boundaries) < 2
+            or not np.all(np.diff(boundaries) > 0.0)):
+        raise ValueError("shuffle score bins must be strictly increasing")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("shuffle detector scores must be finite")
+    indices = np.searchsorted(boundaries, values, side="right") - 1
+    return np.clip(indices, 0, len(boundaries) - 2).astype(np.int64)
+
+
+def _stable_shuffle_order_key(base_seed, group_key, identity):
+    payload = (
+        f"{int(base_seed)}\0{group_key[0]}\0{group_key[1]}\0{identity}"
+    ).encode("utf-8", errors="surrogatepass")
+    return hashlib.sha256(payload).digest()
+
+
+def stratified_shuffle_probability_vectors(
+    probabilities,
+    detector_scores,
+    detector_labels,
+    identities,
+    *,
+    seed=0,
+    exclude_ids=(),
+    score_bins=CGA_SHUFFLE_SCORE_BINS,
+):
+    """Deterministically derange complete probability vectors within strata.
+
+    A stratum is defined by detector label and a fixed detector-score bin.  Its
+    members are put in a stable, seeded order and cyclically shifted by one.
+    Therefore every stratum with more than one member has no fixed source row;
+    singleton and excluded rows remain unchanged.  Since detector labels are
+    constant inside a stratum, moving complete vectors preserves both the
+    vector multiset and the agreement/disagreement count exactly.
+
+    Returns the shuffled vectors and a destination-to-source index mapping.
+    """
+
+    vectors = np.asarray(probabilities, dtype=np.float64)
+    scores = np.asarray(detector_scores, dtype=np.float64)
+    labels = np.asarray(detector_labels, dtype=np.int64)
+    identities = [str(identity) for identity in identities]
+    if vectors.ndim != 2 or vectors.shape[1] == 0:
+        raise ValueError("shuffle probabilities must be a non-empty 2D matrix")
+    if not (len(vectors) == len(scores) == len(labels) == len(identities)):
+        raise ValueError(
+            "shuffle probabilities, scores, labels and identities must align"
+        )
+    if not np.all(np.isfinite(vectors)):
+        raise ValueError("shuffle probability vectors must be finite")
+    if np.any(labels < 0) or np.any(labels >= vectors.shape[1]):
+        raise ValueError("shuffle detector label is outside probability columns")
+
+    bin_indices = _shuffle_score_bin_indices(scores, score_bins)
+    excluded = {int(class_id) for class_id in exclude_ids}
+    groups = {}
+    for index, (label, bin_index) in enumerate(zip(labels, bin_indices)):
+        if int(label) in excluded:
+            continue
+        groups.setdefault((int(label), int(bin_index)), []).append(index)
+
+    source_indices = np.arange(len(vectors), dtype=np.int64)
+    for group_key, group_indices in groups.items():
+        if len(group_indices) <= 1:
+            continue
+        ordered = sorted(
+            group_indices,
+            key=lambda index: (
+                _stable_shuffle_order_key(
+                    seed, group_key, identities[index]), identities[index], index
+            ),
+        )
+        destinations = np.asarray(ordered, dtype=np.int64)
+        sources = np.roll(destinations, -1)
+        source_indices[destinations] = sources
+
+    shuffled = vectors[source_indices].copy()
+    real_agreement = np.argmax(vectors, axis=1) == labels
+    operative_agreement = np.argmax(shuffled, axis=1) == labels
+    for group_indices in groups.values():
+        indices = np.asarray(group_indices, dtype=np.int64)
+        if int(real_agreement[indices].sum()) != int(
+                operative_agreement[indices].sum()):
+            raise RuntimeError(
+                "stratified shuffle failed to preserve agreement count"
+            )
+    return shuffled, source_indices
+
+
 def _new_cga_diag_window(num_classes):
     return {
         "calls": 0,
@@ -123,7 +243,17 @@ def _new_cga_diag_window(num_classes):
         "agree": 0,
         "dropped": 0,
         "blended": 0,
+        "boosted": 0,
         "multiplied": 0,
+        "penalized": 0,
+        "threshold_dropped": 0,
+        "shuffled": 0,
+        "moved": 0,
+        "unmoved": 0,
+        "real_agree": 0,
+        "operative_agree": 0,
+        "reweighted": 0,
+        "sem_weight_sum": 0.0,
         "label_probs": [],
         "pred_counts": np.zeros(num_classes, dtype=np.int64),
         "det_total": np.zeros(num_classes, dtype=np.int64),
@@ -377,6 +507,25 @@ class TestMixins:
             return list(RSAR_CLASSES)
         return [str(i) for i in range(num_classes)]
 
+    def _build_veto_groups(self, class_names):
+        """Precompute class-id -> confusion-group-id and context-class-id set
+        used by evidence_veto. Names not present in class_names are ignored."""
+        name_to_id = {n: i for i, n in enumerate(class_names)}
+        groups_env = os.environ.get("CGA_CONFUSION_GROUPS")
+        if groups_env:
+            groups = [tuple(g.split(",")) for g in groups_env.split(";") if g.strip()]
+        else:
+            groups = RSAR_CONFUSION_GROUPS
+        self._veto_group_of = {}
+        for gid, group in enumerate(groups):
+            for name in group:
+                cid = name_to_id.get(name.strip())
+                if cid is not None:
+                    self._veto_group_of[cid] = gid
+        self._veto_context_ids = {
+            name_to_id[n] for n in RSAR_CONTEXT_CLASSES if n in name_to_id
+        }
+
     def _build_cga(self, num_classes):
         scorer = os.environ.get("CGA_SCORER", "").strip().lower()
         backend = os.environ.get("CGA_BACKEND", scorer).strip().lower()
@@ -395,6 +544,44 @@ class TestMixins:
         self.cga_gate_prob_thr = _env_float("CGA_GATE_PROB_THR", 0.5)
         self.cga_drop_score = _env_float("CGA_DROP_SCORE", 0.0)
         self.cga_blend_detector_weight = _env_float("CGA_BLEND_DET_WEIGHT", 0.7)
+        self.cga_disagree_delta = _env_float("CGA_DISAGREE_DELTA", 0.1)
+        if self.cga_disagree_delta < 0.0:
+            raise ValueError("CGA_DISAGREE_DELTA must be non-negative")
+        self.cga_disagree_score_thr = _env_float("CGA_DISAGREE_SCORE_THR", 0.95)
+        self.cga_shuffle_seed = _env_int("CGA_SHUFFLE_SEED", 0)
+        # veto_soft params: only drop when SARCLIP confidently disagrees, and
+        # never drop detector-confident boxes (protects real targets buried in
+        # chaff clouds that SARCLIP can no longer recognize).
+        self.cga_veto_pred_thr = _env_float("CGA_VETO_PRED_THR", 0.7)
+        self.cga_veto_label_thr = _env_float("CGA_VETO_LABEL_THR", 0.1)
+        self.cga_protect_det_score = _env_float("CGA_PROTECT_DET_SCORE", 0.9)
+        self.cga_boost_det_thr = _env_float("CGA_BOOST_DET_THR", 0.75)
+        self.cga_boost_clip_thr = _env_float("CGA_BOOST_CLIP_THR", 0.8)
+        self.cga_boost_strength = _env_float("CGA_BOOST_STRENGTH", 0.7)
+        # adaptive_blend: detector-trust weight ramps linearly from w_min (at
+        # det_score=0) to w_max (at det_score=1). Protects confident boxes,
+        # lets SARCLIP veto marginal ones harder.
+        self.cga_adapt_w_min = _env_float("CGA_ADAPT_W_MIN", 0.3)
+        self.cga_adapt_w_max = _env_float("CGA_ADAPT_W_MAX", 0.95)
+        # evidence_veto: only downweight on RELIABLE, low-uncertainty opposition.
+        self.cga_veto_pred_hi = _env_float("CGA_VETO_PRED_HI", 0.90)   # SARCLIP conf on its own class
+        self.cga_veto_label_lo = _env_float("CGA_VETO_LABEL_LO", 0.05)  # SARCLIP conf on detector class
+        self.cga_veto_margin = _env_float("CGA_VETO_MARGIN", 0.60)      # top1-top2 margin
+        self.cga_veto_entropy = _env_float("CGA_VETO_ENTROPY", 0.35)    # normalized entropy ceiling
+        self.cga_veto_penalty = _env_float("CGA_VETO_PENALTY", 0.0)     # multiplicative factor (0=drop)
+        self.cga_veto_skip_context = os.environ.get("CGA_VETO_SKIP_CONTEXT", "0").lower() in ("1", "true", "yes")
+        # semantic_reweight (SRW): SARCLIP never removes or rescores a pseudo
+        # box; the detector score alone controls admission. On disagreement we
+        # compute a semantic reliability weight that ramps from (1 - lambda) at
+        # low_thr up to 1.0 at high_thr, so near-threshold disagreements are
+        # softened while high-confidence detector boxes are fully trusted.
+        self.cga_sem_low_thr = _env_float("CGA_SEM_LOW_THR", 0.90)
+        self.cga_sem_high_thr = _env_float("CGA_SEM_HIGH_THR", 0.95)
+        self.cga_sem_lambda = _env_float("CGA_SEM_LAMBDA", 0.50)
+        if self.cga_sem_high_thr <= self.cga_sem_low_thr:
+            raise ValueError(
+                "CGA_SEM_HIGH_THR must be strictly greater than CGA_SEM_LOW_THR")
+        self._build_veto_groups(class_names)
         self.cga_filter_log_every = _env_int("CGA_FILTER_LOG_EVERY", 500)
         lora_path = os.environ.get("SARCLIP_LORA", "").strip()
         _log_cga_info(
@@ -404,7 +591,16 @@ class TestMixins:
             f"lora={os.path.expanduser(lora_path) if lora_path else '<unset>'}, "
             f"filter_mode={self.cga_filter_mode}, "
             f"gate_prob_thr={self.cga_gate_prob_thr}, "
-            f"drop_score={self.cga_drop_score}"
+            f"drop_score={self.cga_drop_score}, "
+            f"disagree_delta={self.cga_disagree_delta}, "
+            f"disagree_score_thr={self.cga_disagree_score_thr}, "
+            f"shuffle_seed={self.cga_shuffle_seed}, "
+            f"veto_pred_thr={self.cga_veto_pred_thr}, "
+            f"veto_label_thr={self.cga_veto_label_thr}, "
+            f"protect_det_score={self.cga_protect_det_score}, "
+            f"boost_det_thr={self.cga_boost_det_thr}, "
+            f"boost_clip_thr={self.cga_boost_clip_thr}, "
+            f"boost_strength={self.cga_boost_strength}"
         )
 
         if backend == "clip":
@@ -453,38 +649,238 @@ class TestMixins:
             exclude_ids = [7, 8, 11] if backend == "clip" and num_classes == len(DIOR_CLASSES) else []
         return cga, exclude_ids
 
-    def refine_test(self, results, img_metas):
-        if getattr(self, "cga", None) is None:
-            self.cga, self.exclude_ids = self._build_cga(len(results[0]))
-        if not hasattr(self, "_cga_diag_window"):
-            self._cga_diag_window = _new_cga_diag_window(len(results[0]))
-
-        boxes_list, scores_list, labels_list = [], [], []
-        for cls_id, result in enumerate(results[0]):
+    @staticmethod
+    def _flatten_cga_inputs(image_results):
+        boxes, scores, labels = [], [], []
+        for class_id, result in enumerate(image_results):
             if len(result) == 0:
                 continue
             result_xyxy = obb2xyxy(result)
-            boxes_list.append(result_xyxy[:, :4])
-            scores_list.append(result[:, -1])
-            labels_list.append([cls_id] * len(result))
+            boxes.append(result_xyxy[:, :4])
+            scores.append(result[:, -1])
+            labels.append([class_id] * len(result))
+        if not boxes:
+            return None
+        return (
+            np.concatenate(boxes, axis=0),
+            np.concatenate(scores, axis=0),
+            np.concatenate(labels, axis=0),
+        )
 
-        if len(boxes_list) == 0:
+    @staticmethod
+    def _validate_cga_logits(logits, labels, num_classes):
+        probabilities = np.asarray(logits, dtype=np.float64)
+        expected = (len(labels), num_classes)
+        if probabilities.shape != expected:
+            raise ValueError(
+                "CGA scorer returned an unexpected probability shape: "
+                f"got {probabilities.shape}, expected {expected}"
+            )
+        return probabilities
+
+    @staticmethod
+    def _empty_cga_meta(num_classes):
+        """Per-class empty arrays, aligned to an image with no detections."""
+        return {
+            "semantic_weight": [np.ones(0, dtype=np.float64)
+                                for _ in range(num_classes)],
+            "agreement": [np.zeros(0, dtype=bool) for _ in range(num_classes)],
+            "det_score": [np.zeros(0, dtype=np.float64)
+                          for _ in range(num_classes)],
+            "det_label": [np.zeros(0, dtype=np.int64)
+                          for _ in range(num_classes)],
+            "clip_top1": [np.zeros(0, dtype=np.int64)
+                          for _ in range(num_classes)],
+            "label_prob": [np.zeros(0, dtype=np.float64)
+                           for _ in range(num_classes)],
+            "top1_prob": [np.zeros(0, dtype=np.float64)
+                          for _ in range(num_classes)],
+            "margin": [np.zeros(0, dtype=np.float64)
+                       for _ in range(num_classes)],
+            "entropy": [np.zeros(0, dtype=np.float64)
+                        for _ in range(num_classes)],
+        }
+
+    def refine_test(self, results, img_metas, return_cga_meta=False):
+        if len(results) != len(img_metas):
+            raise ValueError(
+                "CGA batch mismatch: "
+                f"len(results)={len(results)} != len(img_metas)={len(img_metas)}"
+            )
+        if not results:
+            return (results, []) if return_cga_meta else results
+
+        num_classes = len(results[0])
+        for image_index, image_results in enumerate(results):
+            if len(image_results) != num_classes:
+                raise ValueError(
+                    "CGA class-count mismatch inside batch: "
+                    f"image 0 has {num_classes}, image {image_index} has "
+                    f"{len(image_results)}"
+                )
+
+        mode = getattr(self, "cga_filter_mode", "legacy")
+        if mode != "shuffled_legacy":
+            metas = []
+            for image_results, img_meta in zip(results, img_metas):
+                out = self._refine_single(
+                    image_results, img_meta, collect_meta=return_cga_meta)
+                if return_cga_meta:
+                    _, meta = out
+                    metas.append(meta)
+            if return_cga_meta:
+                return results, metas
             return results
 
-        boxes_list = np.concatenate(boxes_list, axis=0)
-        scores_list = np.concatenate(scores_list, axis=0)
-        labels_list = np.concatenate(labels_list, axis=0)
+        # Shuffled-SARCLIP is defined over every detection in the current
+        # inference batch.  Score each image normally first, then move complete
+        # probability vectors across images inside label/score strata.
+        contexts = []
+        all_scores, all_labels, all_probabilities, all_identities = [], [], [], []
+        for image_results, img_meta in zip(results, img_metas):
+            inputs = self._flatten_cga_inputs(image_results)
+            if inputs is None:
+                continue
+            boxes, scores, labels = inputs
+            if getattr(self, "cga", None) is None:
+                self.cga, self.exclude_ids = self._build_cga(num_classes)
+            filename = img_meta["filename"]
+            logits, _ = self.cga(filename, boxes, scores, labels)
+            probabilities = self._validate_cga_logits(
+                logits, labels, num_classes)
+            start = sum(len(item) for item in all_scores)
+            stop = start + len(scores)
+            contexts.append(
+                (image_results, img_meta, inputs, probabilities, start, stop)
+            )
+            all_scores.append(scores)
+            all_labels.append(labels)
+            all_probabilities.append(probabilities)
+            all_identities.extend(
+                f"{filename}\0{local_index}"
+                for local_index in range(len(scores))
+            )
 
-        logits, _ = self.cga(img_metas[0]["filename"], boxes_list, scores_list, labels_list)
+        if not contexts:
+            if return_cga_meta:
+                return results, [self._empty_cga_meta(num_classes)
+                                 for _ in results]
+            return results
+        scores = np.concatenate(all_scores, axis=0)
+        labels = np.concatenate(all_labels, axis=0)
+        probabilities = np.concatenate(all_probabilities, axis=0)
+        operative, source_indices = stratified_shuffle_probability_vectors(
+            probabilities,
+            scores,
+            labels,
+            all_identities,
+            seed=getattr(self, "cga_shuffle_seed", 0),
+            exclude_ids=getattr(self, "exclude_ids", ()),
+        )
+        moved = source_indices != np.arange(len(source_indices))
+        initial_calls = getattr(self, "_cga_filter_calls", 0)
+        log_every = getattr(self, "cga_filter_log_every", 500)
+        future_calls = range(initial_calls + 1, initial_calls + len(contexts) + 1)
+        log_after_batch = (
+            1 in future_calls
+            or (log_every > 0 and any(
+                call % log_every == 0 for call in future_calls))
+        )
+        for context_index, (
+            image_results, img_meta, inputs, real, start, stop
+        ) in enumerate(contexts):
+            is_last = context_index == len(contexts) - 1
+            self._refine_single(
+                image_results,
+                img_meta,
+                precomputed_inputs=inputs,
+                precomputed_logits=real,
+                operative_logits=operative[start:stop],
+                shuffle_moved=moved[start:stop],
+                defer_log=not is_last,
+                force_log=is_last and log_after_batch,
+            )
+        if return_cga_meta:
+            # shuffled_legacy does not collect per-box meta; return empty
+            # per-image structures so the interface stays uniform.
+            return results, [self._empty_cga_meta(num_classes)
+                             for _ in results]
+        return results
+
+    def _refine_single(
+        self,
+        image_results,
+        img_meta,
+        *,
+        precomputed_inputs=None,
+        precomputed_logits=None,
+        operative_logits=None,
+        shuffle_moved=None,
+        defer_log=False,
+        force_log=False,
+        collect_meta=False,
+    ):
+        """Apply CGA to one image while sharing diagnostics across the batch.
+
+        When ``collect_meta`` is True, returns ``(image_results, meta)`` where
+        ``meta`` is a dict whose per-class lists align 1:1 with
+        ``image_results[class][box]`` (same order the scores are written back).
+        Otherwise returns ``image_results`` for full backward compatibility.
+        """
+        num_classes = len(image_results)
+        inputs = precomputed_inputs or self._flatten_cga_inputs(image_results)
+        if inputs is None:
+            if collect_meta:
+                return image_results, self._empty_cga_meta(num_classes)
+            return image_results
+        boxes_list, scores_list, labels_list = inputs
+
+        if getattr(self, "cga", None) is None:
+            self.cga, self.exclude_ids = self._build_cga(num_classes)
+        if (not hasattr(self, "_cga_diag_window")
+                or len(self._cga_diag_window["pred_counts"]) != num_classes):
+            self._cga_diag_window = _new_cga_diag_window(num_classes)
+
+        filename = img_meta["filename"]
+        if precomputed_logits is None:
+            logits, _ = self.cga(
+                filename, boxes_list, scores_list, labels_list)
+            logits = self._validate_cga_logits(
+                logits, labels_list, num_classes)
+        else:
+            logits = self._validate_cga_logits(
+                precomputed_logits, labels_list, num_classes)
 
         mode = getattr(self, "cga_filter_mode", "legacy")
         gate_prob_thr = getattr(self, "cga_gate_prob_thr", 0.5)
         drop_score = getattr(self, "cga_drop_score", 0.0)
         det_weight = getattr(self, "cga_blend_detector_weight", 0.7)
+        veto_pred_thr = getattr(self, "cga_veto_pred_thr", 0.7)
+        veto_label_thr = getattr(self, "cga_veto_label_thr", 0.1)
+        protect_det_score = getattr(self, "cga_protect_det_score", 0.9)
+        boost_det_thr = getattr(self, "cga_boost_det_thr", 0.75)
+        boost_clip_thr = getattr(self, "cga_boost_clip_thr", 0.8)
+        boost_strength = getattr(self, "cga_boost_strength", 0.7)
+        adapt_w_min = getattr(self, "cga_adapt_w_min", 0.3)
+        adapt_w_max = getattr(self, "cga_adapt_w_max", 0.95)
+        veto_pred_hi = getattr(self, "cga_veto_pred_hi", 0.90)
+        veto_label_lo = getattr(self, "cga_veto_label_lo", 0.05)
+        veto_margin = getattr(self, "cga_veto_margin", 0.60)
+        veto_entropy = getattr(self, "cga_veto_entropy", 0.35)
+        veto_penalty = getattr(self, "cga_veto_penalty", 0.0)
+        veto_skip_context = getattr(self, "cga_veto_skip_context", False)
+        disagree_delta = getattr(self, "cga_disagree_delta", 0.1)
+        disagree_score_thr = getattr(self, "cga_disagree_score_thr", 0.95)
+        sem_low_thr = getattr(self, "cga_sem_low_thr", 0.90)
+        sem_high_thr = getattr(self, "cga_sem_high_thr", 0.95)
+        sem_lambda = getattr(self, "cga_sem_lambda", 0.50)
         if mode in ("blend", "rescore"):
             mode = "legacy"
         valid_modes = {
             "legacy",
+            "shuffled_legacy",
+            "fixed_disagreement_penalty",
+            "disagreement_threshold",
             "disagree_gate",
             "gate",
             "agree_gate",
@@ -493,6 +889,11 @@ class TestMixins:
             "label_prob_gate",
             "multiply",
             "prob_multiply",
+            "veto_soft",
+            "consensus_boost",
+            "adaptive_blend",
+            "evidence_veto",
+            "semantic_reweight",
         }
         if mode not in valid_modes:
             _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")
@@ -503,29 +904,118 @@ class TestMixins:
             "agree": 0,
             "dropped": 0,
             "blended": 0,
+            "boosted": 0,
             "multiplied": 0,
+            "penalized": 0,
+            "threshold_dropped": 0,
+            "shuffled": 0,
+            "moved": 0,
+            "unmoved": 0,
+            "real_agree": 0,
+            "operative_agree": 0,
+            "reweighted": 0,
+            "sem_weight_sum": 0.0,
             "prob_sum": 0.0,
             "label_probs": [],
-            "pred_counts": np.zeros(len(results[0]), dtype=np.int64),
-            "det_total": np.zeros(len(results[0]), dtype=np.int64),
-            "det_agree": np.zeros(len(results[0]), dtype=np.int64),
-            "det_drop": np.zeros(len(results[0]), dtype=np.int64),
+            "pred_counts": np.zeros(num_classes, dtype=np.int64),
+            "det_total": np.zeros(num_classes, dtype=np.int64),
+            "det_agree": np.zeros(num_classes, dtype=np.int64),
+            "det_drop": np.zeros(num_classes, dtype=np.int64),
         }
-        for i, prob in enumerate(logits):
+
+        # Per-box metadata, collected in the same flat order as boxes_list.
+        # Reshaped back into per-class arrays at the end so it aligns with
+        # image_results[class][box]. Only populated when collect_meta=True.
+        num_boxes = len(labels_list)
+        meta_semantic_weight = np.ones(num_boxes, dtype=np.float64)
+        meta_agreement = np.zeros(num_boxes, dtype=bool)
+        meta_det_score = np.asarray(scores_list, dtype=np.float64).copy()
+        meta_det_label = np.asarray(labels_list, dtype=np.int64).copy()
+        meta_clip_top1 = np.zeros(num_boxes, dtype=np.int64)
+        meta_label_prob = np.zeros(num_boxes, dtype=np.float64)
+        meta_top1_prob = np.zeros(num_boxes, dtype=np.float64)
+        meta_margin = np.zeros(num_boxes, dtype=np.float64)
+        meta_entropy = np.zeros(num_boxes, dtype=np.float64)
+
+        real_predictions = np.asarray(
+            np.argmax(logits, axis=1), dtype=np.int64)
+        if mode == "shuffled_legacy":
+            if operative_logits is None:
+                identities = [
+                    f"{filename}\0{index}" for index in range(len(labels_list))
+                ]
+                operative_logits, source_indices = (
+                    stratified_shuffle_probability_vectors(
+                        logits,
+                        scores_list,
+                        labels_list,
+                        identities,
+                        seed=getattr(self, "cga_shuffle_seed", 0),
+                        exclude_ids=getattr(self, "exclude_ids", ()),
+                    )
+                )
+                shuffle_moved = source_indices != np.arange(len(source_indices))
+            else:
+                operative_logits = self._validate_cga_logits(
+                    operative_logits, labels_list, num_classes)
+            if shuffle_moved is None:
+                shuffle_moved = np.zeros(len(labels_list), dtype=bool)
+            shuffle_moved = np.asarray(shuffle_moved, dtype=bool)
+            if shuffle_moved.shape != (len(labels_list),):
+                raise ValueError("shuffle moved mask must align with detections")
+        else:
+            operative_logits = logits
+            shuffle_moved = np.zeros(len(labels_list), dtype=bool)
+
+        operative_predictions = np.asarray(
+            np.argmax(operative_logits, axis=1), dtype=np.int64)
+        operative_label_probs = np.asarray(
+            [
+                float(prob[int(label)])
+                for prob, label in zip(operative_logits, labels_list)
+            ],
+            dtype=np.float64,
+        )
+
+        for i in range(len(logits)):
             label = int(labels_list[i])
-            pred = int(np.argmax(prob))
-            label_prob = float(prob[label])
+            real_pred = int(real_predictions[i])
+            pred = int(operative_predictions[i])
+            prob = operative_logits[i]
+            label_prob = float(operative_label_probs[i])
             stats["prob_sum"] += label_prob
             stats["label_probs"].append(label_prob)
-            if 0 <= pred < len(results[0]):
+            stats["real_agree"] += int(label == real_pred)
+            stats["operative_agree"] += int(label == pred)
+            if mode == "shuffled_legacy":
+                if bool(shuffle_moved[i]):
+                    stats["moved"] += 1
+                else:
+                    stats["unmoved"] += 1
+            if 0 <= pred < num_classes:
                 stats["pred_counts"][pred] += 1
-            if 0 <= label < len(results[0]):
+            if 0 <= label < num_classes:
                 stats["det_total"][label] += 1
             if label == pred:
                 stats["agree"] += 1
-                if 0 <= label < len(results[0]):
+                if 0 <= label < num_classes:
                     stats["det_agree"][label] += 1
-            if label in self.exclude_ids:
+
+            if collect_meta:
+                sorted_prob = np.sort(prob)[::-1]
+                top1_prob = float(sorted_prob[0])
+                margin = (
+                    float(sorted_prob[0] - sorted_prob[1])
+                    if len(sorted_prob) > 1 else float(sorted_prob[0])
+                )
+                meta_agreement[i] = (label == pred)
+                meta_clip_top1[i] = pred
+                meta_label_prob[i] = label_prob
+                meta_top1_prob[i] = top1_prob
+                meta_margin[i] = margin
+                meta_entropy[i] = _prob_entropy_normalized(prob)
+
+            if label in getattr(self, "exclude_ids", ()):
                 continue
 
             dropped = False
@@ -533,6 +1023,91 @@ class TestMixins:
                 if label != pred:
                     scores_list[i] = scores_list[i] * det_weight + label_prob * (1.0 - det_weight)
                     stats["blended"] += 1
+            elif mode == "shuffled_legacy":
+                if label != pred:
+                    scores_list[i] = (
+                        scores_list[i] * det_weight
+                        + label_prob * (1.0 - det_weight)
+                    )
+                    stats["blended"] += 1
+                    stats["shuffled"] += 1
+            elif mode == "fixed_disagreement_penalty":
+                if label != pred:
+                    scores_list[i] = max(
+                        0.0, float(scores_list[i]) - disagree_delta
+                    )
+                    stats["penalized"] += 1
+            elif mode == "disagreement_threshold":
+                if label != pred and float(scores_list[i]) < disagree_score_thr:
+                    scores_list[i] = drop_score
+                    stats["dropped"] += 1
+                    stats["threshold_dropped"] += 1
+                    dropped = True
+            elif mode == "adaptive_blend":
+                # Like legacy, but the detector-trust weight rises with the
+                # detector score: high-confidence disagreements (real targets
+                # buried in chaff) are protected, while marginal ones (FP-prone,
+                # sitting near score_thr) get penalized harder by SARCLIP.
+                if label != pred:
+                    det_score = float(scores_list[i])
+                    w_eff = adapt_w_min + (adapt_w_max - adapt_w_min) * det_score
+                    if w_eff < 0.0:
+                        w_eff = 0.0
+                    elif w_eff > 1.0:
+                        w_eff = 1.0
+                    scores_list[i] = det_score * w_eff + label_prob * (1.0 - w_eff)
+                    stats["blended"] += 1
+            elif mode == "evidence_veto":
+                # Only act when SARCLIP gives RELIABLE, low-uncertainty opposing
+                # evidence. Default action on disagreement = DO NOTHING. Fire a
+                # multiplicative penalty (scale-free vs detector score) only when
+                # ALL reliability conditions hold. See RSAR_CONFUSION_GROUPS.
+                if label != pred:
+                    pred_prob = float(prob[pred])
+                    sorted_p = np.sort(prob)[::-1]
+                    margin = float(sorted_p[0] - sorted_p[1]) if len(sorted_p) > 1 else float(sorted_p[0])
+                    ent = _prob_entropy_normalized(prob)
+                    same_group = (pred in self._veto_group_of
+                                  and label in self._veto_group_of
+                                  and self._veto_group_of[pred] == self._veto_group_of[label])
+                    skip_ctx = veto_skip_context and (
+                        label in self._veto_context_ids or pred in self._veto_context_ids)
+                    reliable = (
+                        pred_prob >= veto_pred_hi
+                        and label_prob <= veto_label_lo
+                        and margin >= veto_margin
+                        and ent <= veto_entropy
+                        and not same_group
+                        and not skip_ctx
+                    )
+                    if reliable:
+                        scores_list[i] = float(scores_list[i]) * veto_penalty
+                        if veto_penalty <= 1e-6:
+                            stats["dropped"] += 1
+                            dropped = True
+                        else:
+                            stats["blended"] += 1
+            elif mode == "semantic_reweight":
+                # SARCLIP never modifies the detector score (admission is
+                # decided purely by raw s_det >= score_thr downstream). It only
+                # produces a semantic reliability weight for the ROI positive
+                # classification loss. Agreement => 1.0. Disagreement => ramp:
+                #   g = clip((high - s_det) / (high - low), 0, 1)
+                #   weight = 1 - lambda * g
+                # so score 0.90 disagreement -> 1-lambda, score >=0.95 -> 1.0.
+                det_score = float(scores_list[i])
+                if label == pred:
+                    sem_weight = 1.0
+                else:
+                    g = (sem_high_thr - det_score) / (sem_high_thr - sem_low_thr)
+                    if g < 0.0:
+                        g = 0.0
+                    elif g > 1.0:
+                        g = 1.0
+                    sem_weight = 1.0 - sem_lambda * g
+                    stats["reweighted"] += 1
+                meta_semantic_weight[i] = sem_weight
+                stats["sem_weight_sum"] += sem_weight
             elif mode in ("multiply", "prob_multiply"):
                 scores_list[i] = scores_list[i] * label_prob
                 stats["multiplied"] += 1
@@ -554,19 +1129,62 @@ class TestMixins:
                     scores_list[i] = drop_score
                     stats["dropped"] += 1
                     dropped = True
-            if dropped and 0 <= label < len(results[0]):
+            elif mode == "veto_soft":
+                det_score = float(scores_list[i])
+                pred_prob = float(prob[pred])
+                if det_score >= protect_det_score:
+                    # detector very confident (likely a real target, possibly
+                    # buried in chaff): never drop, only soft-downweight.
+                    if label != pred:
+                        scores_list[i] = det_score * (det_weight + (1.0 - det_weight) * label_prob)
+                        stats["blended"] += 1
+                elif (label != pred and pred_prob >= veto_pred_thr
+                        and label_prob < veto_label_thr):
+                    # SARCLIP confidently says this is a different class: veto.
+                    scores_list[i] = drop_score
+                    stats["dropped"] += 1
+                    dropped = True
+                elif label != pred:
+                    # uncertain disagreement: soft-downweight, keep for student.
+                    scores_list[i] = det_score * (det_weight + (1.0 - det_weight) * label_prob)
+                    stats["blended"] += 1
+            elif mode == "consensus_boost":
+                det_score = float(scores_list[i])
+                pred_prob = float(prob[pred])
+                if (label == pred and det_score >= boost_det_thr
+                        and label_prob >= boost_clip_thr):
+                    scores_list[i] = det_score + (
+                        boost_strength * (1.0 - det_score) * label_prob
+                    )
+                    stats["boosted"] += 1
+                elif (label != pred and det_score < protect_det_score
+                      and pred_prob >= veto_pred_thr
+                      and label_prob <= veto_label_thr + 1e-6):
+                    scores_list[i] = det_score * det_weight
+                    stats["blended"] += 1
+            if dropped and 0 <= label < num_classes:
                 stats["det_drop"][label] += 1
 
         self._cga_filter_calls = getattr(self, "_cga_filter_calls", 0) + 1
         diag_window = getattr(self, "_cga_diag_window", None)
-        if diag_window is None or len(diag_window["pred_counts"]) != len(results[0]):
-            diag_window = _new_cga_diag_window(len(results[0]))
+        if diag_window is None or len(diag_window["pred_counts"]) != num_classes:
+            diag_window = _new_cga_diag_window(num_classes)
         diag_window["calls"] += 1
         diag_window["total"] += stats["total"]
         diag_window["agree"] += stats["agree"]
         diag_window["dropped"] += stats["dropped"]
         diag_window["blended"] += stats["blended"]
+        diag_window["boosted"] += stats["boosted"]
         diag_window["multiplied"] += stats["multiplied"]
+        diag_window["penalized"] += stats["penalized"]
+        diag_window["threshold_dropped"] += stats["threshold_dropped"]
+        diag_window["shuffled"] += stats["shuffled"]
+        diag_window["moved"] += stats["moved"]
+        diag_window["unmoved"] += stats["unmoved"]
+        diag_window["real_agree"] += stats["real_agree"]
+        diag_window["operative_agree"] += stats["operative_agree"]
+        diag_window["reweighted"] += stats["reweighted"]
+        diag_window["sem_weight_sum"] += stats["sem_weight_sum"]
         diag_window["label_probs"].extend(stats["label_probs"])
         diag_window["pred_counts"] += stats["pred_counts"]
         diag_window["det_total"] += stats["det_total"]
@@ -575,16 +1193,32 @@ class TestMixins:
         self._cga_diag_window = diag_window
 
         log_every = getattr(self, "cga_filter_log_every", 500)
-        if stats["total"] > 0 and (self._cga_filter_calls == 1 or (log_every > 0 and self._cga_filter_calls % log_every == 0)):
+        should_log = (
+            force_log
+            or self._cga_filter_calls == 1
+            or (log_every > 0 and self._cga_filter_calls % log_every == 0)
+        )
+        if stats["total"] > 0 and not defer_log and should_log:
             mean_prob = stats["prob_sum"] / stats["total"]
             _log_cga_info(
                 "[CGA] filter "
                 f"mode={mode}, calls={self._cga_filter_calls}, total={stats['total']}, "
                 f"agree={stats['agree']}, dropped={stats['dropped']}, "
-                f"blended={stats['blended']}, multiplied={stats['multiplied']}, "
+                f"blended={stats['blended']}, boosted={stats['boosted']}, "
+                f"multiplied={stats['multiplied']}, penalized={stats['penalized']}, "
+                f"threshold_dropped={stats['threshold_dropped']}, "
+                f"shuffled={stats['shuffled']}, "
+                f"moved={stats['moved']}, "
+                f"unmoved={stats['unmoved']}, "
+                f"real_agree={stats['real_agree']}, "
+                f"operative_agree={stats['operative_agree']}, "
+                f"reweighted={stats['reweighted']}, "
+                f"mean_sem_weight={(stats['sem_weight_sum'] / stats['total']):.4f}, "
                 f"mean_label_prob={mean_prob:.4f}"
             )
-            class_names = getattr(self.cga, "class_names", self._get_cga_class_names(len(results[0])))
+            class_names = getattr(
+                self.cga, "class_names", self._get_cga_class_names(num_classes)
+            )
             diag_mean = (
                 sum(diag_window["label_probs"]) / len(diag_window["label_probs"])
                 if diag_window["label_probs"] else 0.0
@@ -593,21 +1227,69 @@ class TestMixins:
                 "[CGA] diag_window "
                 f"calls={diag_window['calls']}, total={diag_window['total']}, "
                 f"agree={diag_window['agree']}, dropped={diag_window['dropped']}, "
-                f"blended={diag_window['blended']}, multiplied={diag_window['multiplied']}, "
+                f"blended={diag_window['blended']}, boosted={diag_window['boosted']}, "
+                f"multiplied={diag_window['multiplied']}, "
+                f"penalized={diag_window['penalized']}, "
+                f"threshold_dropped={diag_window['threshold_dropped']}, "
+                f"shuffled={diag_window['shuffled']}, "
+                f"moved={diag_window['moved']}, "
+                f"unmoved={diag_window['unmoved']}, "
+                f"real_agree={diag_window['real_agree']}, "
+                f"operative_agree={diag_window['operative_agree']}, "
                 f"mean_label_prob={diag_mean:.4f}, "
                 f"label_prob_pct={_format_label_prob_percentiles(diag_window['label_probs'])}, "
                 f"argmax={_format_class_counts(diag_window['pred_counts'], class_names)}, "
                 f"detector={_format_detector_diag(diag_window['det_total'], diag_window['det_agree'], diag_window['det_drop'], class_names)}"
             )
-            self._cga_diag_window = _new_cga_diag_window(len(results[0]))
+            self._cga_diag_window = _new_cga_diag_window(num_classes)
+
+        meta = None
+        if collect_meta:
+            meta = {
+                "semantic_weight": [],
+                "agreement": [],
+                "det_score": [],
+                "det_label": [],
+                "clip_top1": [],
+                "label_prob": [],
+                "top1_prob": [],
+                "margin": [],
+                "entropy": [],
+            }
 
         j = 0
-        for i in range(len(results[0])):
-            num_dets = len(results[0][i])
+        for i in range(num_classes):
+            num_dets = len(image_results[i])
             if num_dets == 0:
+                if collect_meta:
+                    meta["semantic_weight"].append(
+                        np.ones(0, dtype=np.float64))
+                    meta["agreement"].append(np.zeros(0, dtype=bool))
+                    meta["det_score"].append(np.zeros(0, dtype=np.float64))
+                    meta["det_label"].append(np.zeros(0, dtype=np.int64))
+                    meta["clip_top1"].append(np.zeros(0, dtype=np.int64))
+                    meta["label_prob"].append(np.zeros(0, dtype=np.float64))
+                    meta["top1_prob"].append(np.zeros(0, dtype=np.float64))
+                    meta["margin"].append(np.zeros(0, dtype=np.float64))
+                    meta["entropy"].append(np.zeros(0, dtype=np.float64))
                 continue
+            start = j
+            stop = j + num_dets
             for k in range(num_dets):
-                results[0][i][k, -1] = scores_list[j]
+                image_results[i][k, -1] = scores_list[j]
                 j += 1
+            if collect_meta:
+                meta["semantic_weight"].append(
+                    meta_semantic_weight[start:stop].copy())
+                meta["agreement"].append(meta_agreement[start:stop].copy())
+                meta["det_score"].append(meta_det_score[start:stop].copy())
+                meta["det_label"].append(meta_det_label[start:stop].copy())
+                meta["clip_top1"].append(meta_clip_top1[start:stop].copy())
+                meta["label_prob"].append(meta_label_prob[start:stop].copy())
+                meta["top1_prob"].append(meta_top1_prob[start:stop].copy())
+                meta["margin"].append(meta_margin[start:stop].copy())
+                meta["entropy"].append(meta_entropy[start:stop].copy())
 
-        return results
+        if collect_meta:
+            return image_results, meta
+        return image_results

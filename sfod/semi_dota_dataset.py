@@ -120,8 +120,17 @@ class SemiDOTADataset(Dataset):
                  img_suffix='.jpg',
                  img_suffix_u=None,
                  classes=None,
-                 filter_empty_gt=True):
+                 filter_empty_gt=True,
+                 unlabeled_epoch_size=None,
+                 unlabeled_subset_seed=0):
         super().__init__()
+
+        if unlabeled_epoch_size is not None:
+            if (not isinstance(unlabeled_epoch_size, int)
+                    or isinstance(unlabeled_epoch_size, bool)):
+                raise TypeError('unlabeled_epoch_size must be an integer')
+            if unlabeled_epoch_size <= 0:
+                raise ValueError('unlabeled_epoch_size must be positive')
 
         # 标注集
         self.dota_labeled = ROTATED_DATASETS.build(dict(
@@ -151,9 +160,27 @@ class SemiDOTADataset(Dataset):
         self.pipeline_u = Compose(pipeline_u or [])
         self.pipeline_u_1 = Compose(pipeline_u_1) if pipeline_u_1 else None
 
-        self.flag = getattr(self.dota_unlabeled, 'flag', None)
+        self.unlabeled_epoch_size = unlabeled_epoch_size
+        self.unlabeled_subset_seed = unlabeled_subset_seed
+        self.unlabeled_indices = None
+        if unlabeled_epoch_size is not None:
+            if unlabeled_epoch_size > len(self.dota_unlabeled):
+                raise ValueError(
+                    'unlabeled_epoch_size cannot exceed the unlabeled '
+                    'dataset length')
+            rng = random.Random(unlabeled_subset_seed)
+            self.unlabeled_indices = rng.sample(
+                range(len(self.dota_unlabeled)), unlabeled_epoch_size)
+
+        unlabeled_flag = getattr(self.dota_unlabeled, 'flag', None)
+        if self.unlabeled_indices is None or unlabeled_flag is None:
+            self.flag = unlabeled_flag
+        else:
+            self.flag = unlabeled_flag[self.unlabeled_indices]
 
     def __len__(self):
+        if self.unlabeled_epoch_size is not None:
+            return self.unlabeled_epoch_size
         return len(self.dota_labeled)
 
     def __getitem__(self, idx):
@@ -161,7 +188,10 @@ class SemiDOTADataset(Dataset):
         idx_label = random.randint(0, len(self.dota_labeled) - 1)
         results = self.dota_labeled[idx_label]
 
-        u_idx = idx % len(self.dota_unlabeled)
+        if self.unlabeled_indices is None:
+            u_idx = idx % len(self.dota_unlabeled)
+        else:
+            u_idx = self.unlabeled_indices[idx % len(self.unlabeled_indices)]
         results_u = self.dota_unlabeled[u_idx]
 
         # student 强增强分支（如果有）
