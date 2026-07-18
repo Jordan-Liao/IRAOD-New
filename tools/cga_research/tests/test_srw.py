@@ -318,9 +318,131 @@ def test_backward_compat_legacy_unchanged():
     print('[PASS] backward-compat: legacy refine_test returns list, score kept')
 
 
+def _mk_host(mode, **attrs):
+    from sfod.cga import TestMixins
+
+    class Host(TestMixins):
+        CLASSES = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
+
+    host = Host()
+    host.exclude_ids = []
+    host._build_veto_groups(list(Host.CLASSES))
+    host.cga_filter_mode = mode
+    host.cga_sem_low_thr = 0.90
+    host.cga_sem_high_thr = 0.95
+    host.cga_sem_lambda = 0.50
+    host.cga_sem_gated_lambda = 0.80
+    host.cga_sem_view_ratios = (0.0, 0.25, 0.5)
+    host.cga_filter_log_every = 0
+    for k, v in attrs.items():
+        setattr(host, k, v)
+    return host
+
+
+def test_reliability_gated_single_view():
+    """reliability_gated: w = 1 - λ_g · 1[disagree] · r · g(s),
+    r = p_top1 · margin · (1 - H_norm). Score never modified."""
+    from sfod.cga import _prob_entropy_normalized
+    num_classes = 6
+
+    # ship (label 0) box, det score 0.90 (g=1), SARCLIP top1 = car (2), confident.
+    prob = np.array([0.02, 0.02, 0.90, 0.02, 0.02, 0.02], dtype=np.float64)
+    prob = prob / prob.sum()
+    p_top1 = float(np.sort(prob)[::-1][0])
+    margin = float(np.sort(prob)[::-1][0] - np.sort(prob)[::-1][1])
+    H = _prob_entropy_normalized(prob)
+    r = p_top1 * margin * (1.0 - H)
+    expected_w = 1.0 - 0.80 * r * 1.0  # g(0.90)=1
+
+    results = [_make_image_results(num_classes, [[0.90], [], [], [], [], []])]
+    img_metas = [{'filename': 'a.png'}]
+
+    # A hesitant disagreement (high entropy, low margin) should be downweighted
+    # much LESS than the confident one above -- the core discriminative property.
+    prob_unsure = np.array([0.20, 0.18, 0.24, 0.14, 0.12, 0.12], dtype=np.float64)
+    prob_unsure = prob_unsure / prob_unsure.sum()  # top1=car but barely
+    results2 = [_make_image_results(num_classes, [[0.90], [], [], [], [], []])]
+
+    seq = {'i': 0}
+    rows = [prob, prob_unsure]
+
+    class FakeCGA:
+        class_names = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
+
+        def __call__(self, img_path, boxes, scores, labels):
+            r = rows[seq['i']]; seq['i'] += 1
+            return r.reshape(1, -1).copy(), []
+
+    host = _mk_host('reliability_gated', cga=FakeCGA())
+    refined, metas = host.refine_test(results, img_metas, return_cga_meta=True)
+    w_conf = metas[0]['semantic_weight'][0][0]
+    assert abs(w_conf - expected_w) < 1e-6, (w_conf, expected_w)
+    # score untouched
+    assert abs(refined[0][0][0, -1] - 0.90) < 1e-6
+
+    _, metas2 = host.refine_test(results2, img_metas, return_cga_meta=True)
+    w_unsure = metas2[0]['semantic_weight'][0][0]
+    # hesitant opposition => weight much closer to 1 than the confident one
+    assert w_unsure > w_conf, (w_unsure, w_conf)
+    assert w_unsure > 0.95, w_unsure
+    print(f'[PASS] reliability_gated: confident w={w_conf:.4f} (r={r:.3f}) vs '
+          f'hesitant w={w_unsure:.4f} -- discriminates opposition strength')
+
+
+def test_reliability_gated_mv_consistency():
+    """The novel behavior: views that DISAGREE among themselves => r=0 =>
+    weight stays 1.0 even though the (tight) view disagrees with detector.
+    Consistent confident views => strong downweight."""
+    num_classes = 6
+
+    # Two boxes, both ship(label 0), both det score 0.90.
+    results = [_make_image_results(num_classes, [[0.90, 0.90], [], [], [], [], []])]
+    img_metas = [{'filename': 'a.png'}]
+
+    # box0: all 3 views say car(2), confident -> reliable disagreement.
+    # box1: views say car(2)/tank(3)/aircraft(1) -> inconsistent -> r=0.
+    def onehot(c, conf=0.90):
+        p = np.full(num_classes, (1 - conf) / (num_classes - 1))
+        p[c] = conf
+        return p
+
+    view_logits = np.stack([
+        np.stack([onehot(2), onehot(2)]),   # view0 (tight): box0->car, box1->car
+        np.stack([onehot(2), onehot(3)]),   # view1: box0->car, box1->tank
+        np.stack([onehot(2), onehot(1)]),   # view2: box0->car, box1->aircraft
+    ], axis=0)  # (3, 2, 6)
+
+    class FakeMVCGA:
+        class_names = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
+
+        def __call__(self, img_path, boxes, scores, labels):
+            # single-view path uses view 0
+            return view_logits[0].copy(), []
+
+        def forward_views(self, img_path, boxes, scores, labels, expand_ratios):
+            return view_logits.copy()
+
+    host = _mk_host('reliability_gated_mv', cga=FakeMVCGA())
+    refined, metas = host.refine_test(results, img_metas, return_cga_meta=True)
+    w = metas[0]['semantic_weight'][0]  # class ship, 2 boxes
+    rel = metas[0]['reliability'][0]
+    # box0: consistent confident car -> reliable -> downweighted below 1
+    assert w[0] < 0.9, (w, rel)
+    assert rel[0] > 0.0
+    # box1: inconsistent views -> r=0 -> weight stays 1.0 (KEY test)
+    assert abs(w[1] - 1.0) < 1e-9, (w, rel)
+    assert rel[1] == 0.0, rel
+    # scores untouched
+    assert np.allclose(refined[0][0][:, -1], [0.90, 0.90], atol=1e-6)
+    print(f'[PASS] reliability_gated_mv: consistent w={w[0]:.4f}(r={rel[0]:.3f}), '
+          f'inconsistent w={w[1]:.4f}(r={rel[1]:.3f}) -> no downweight')
+
+
 if __name__ == '__main__':
     test_semantic_weight_formula()
     test_batch_alignment()
     test_roi_label_weight_scaling()
     test_backward_compat_legacy_unchanged()
+    test_reliability_gated_single_view()
+    test_reliability_gated_mv_consistency()
     print('\nALL SRW UNIT TESTS PASSED')

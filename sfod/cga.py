@@ -439,19 +439,23 @@ class CGA:
         self.classifier = text_features.T
         print(f"[CGA/CLIP] init OK, classes={self.class_names}")
 
-    def _crop_patches(self, img_path, boxes, scores, labels):
-        image_mode = "L" if self.force_grayscale else "RGB"
-        image = Image.open(img_path).convert(image_mode)
+    def _crop_patches(self, img_path, boxes, scores, labels, expand_ratio=None,
+                      image=None):
+        if expand_ratio is None:
+            expand_ratio = self.expand_ratio
+        if image is None:
+            image_mode = "L" if self.force_grayscale else "RGB"
+            image = Image.open(img_path).convert(image_mode)
 
         image_list = []
         ori_image_list = []
         for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
             x1, y1, x2, y2 = box
             h, w = y2 - y1, x2 - x1
-            x1 = max(0, x1 - w * self.expand_ratio)
-            y1 = max(0, y1 - h * self.expand_ratio)
-            x2 = x2 + w * self.expand_ratio
-            y2 = y2 + h * self.expand_ratio
+            x1 = max(0, x1 - w * expand_ratio)
+            y1 = max(0, y1 - h * expand_ratio)
+            x2 = x2 + w * expand_ratio
+            y2 = y2 + h * expand_ratio
 
             sub_image = image.crop((int(x1), int(y1), int(x2), int(y2)))
             if save_img:
@@ -491,6 +495,47 @@ class CGA:
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         logits = (self.tau * (image_features @ self.classifier)).softmax(dim=-1)
         return logits.detach().cpu().numpy(), ori_image_list
+
+    def _score_images(self, images):
+        if self.backend == "sarclip":
+            out = self.clip(image=images)
+            image_features = out["image_features"] if isinstance(out, dict) else out[0]
+        else:
+            image_features = self.clip.encode_image(images)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        logits = (self.tau * (image_features @ self.classifier)).softmax(dim=-1)
+        return logits.detach().cpu().numpy()
+
+    @torch.no_grad()
+    def forward_views(self, img_path, boxes, scores, labels, expand_ratios):
+        """Score every box at several crop scales (multi-view SARCLIP).
+
+        Opens the source image once, crops each box at each expand_ratio, and
+        returns a (V, N, C) softmax array where V=len(expand_ratios), N=#boxes,
+        C=#classes. Used by reliability_gated_mv to build a cross-scale
+        consistency reliability score for RSAR AABB crops.
+        """
+        if not self._first_call_logged:
+            print(
+                f"[CGA/{self.backend.upper()}] first multi-view call, "
+                f"num_boxes={len(boxes)}, views={list(expand_ratios)}"
+            )
+            self._first_call_logged = True
+
+        image_mode = "L" if self.force_grayscale else "RGB"
+        image = Image.open(img_path).convert(image_mode)
+
+        num_classes = len(self.class_names)
+        view_logits = []
+        for expand_ratio in expand_ratios:
+            images, _ = self._crop_patches(
+                img_path, boxes, scores, labels,
+                expand_ratio=float(expand_ratio), image=image)
+            if images is None:
+                view_logits.append(np.empty((0, num_classes)))
+            else:
+                view_logits.append(self._score_images(images))
+        return np.stack(view_logits, axis=0)
 
 
 class TestMixins:
@@ -581,6 +626,19 @@ class TestMixins:
         if self.cga_sem_high_thr <= self.cga_sem_low_thr:
             raise ValueError(
                 "CGA_SEM_HIGH_THR must be strictly greater than CGA_SEM_LOW_THR")
+        # reliability_gated / reliability_gated_mv: gate the downweight strength
+        # by how RELIABLE SARCLIP's opposition is (r in [0,1]), so a bigger
+        # lambda only bites when the semantic evidence is stable and confident.
+        #   single-view: r = p_top1 * margin * (1 - H_norm)
+        #   multi-view : r = 1[all view top1 agree] * mean(p_top1) * (1-mean H)
+        #   w = 1 - lambda_gated * 1[det != clip] * r * g(s)
+        #   g(s) = clip((high - s)/(high - low), 0, 1)  (protects confident dets)
+        self.cga_sem_gated_lambda = _env_float("CGA_SEM_GATED_LAMBDA", 0.80)
+        view_ratios_env = os.environ.get("CGA_SEM_VIEW_RATIOS", "0.0,0.25,0.5")
+        self.cga_sem_view_ratios = tuple(
+            float(v.strip()) for v in view_ratios_env.split(",") if v.strip())
+        if len(self.cga_sem_view_ratios) < 2:
+            raise ValueError("CGA_SEM_VIEW_RATIOS needs >=2 comma-separated ratios")
         self._build_veto_groups(class_names)
         self.cga_filter_log_every = _env_int("CGA_FILTER_LOG_EVERY", 500)
         lora_path = os.environ.get("SARCLIP_LORA", "").strip()
@@ -699,6 +757,8 @@ class TestMixins:
                        for _ in range(num_classes)],
             "entropy": [np.zeros(0, dtype=np.float64)
                         for _ in range(num_classes)],
+            "reliability": [np.zeros(0, dtype=np.float64)
+                            for _ in range(num_classes)],
         }
 
     def refine_test(self, results, img_metas, return_cga_meta=False):
@@ -874,6 +934,8 @@ class TestMixins:
         sem_low_thr = getattr(self, "cga_sem_low_thr", 0.90)
         sem_high_thr = getattr(self, "cga_sem_high_thr", 0.95)
         sem_lambda = getattr(self, "cga_sem_lambda", 0.50)
+        sem_gated_lambda = getattr(self, "cga_sem_gated_lambda", 0.80)
+        sem_view_ratios = getattr(self, "cga_sem_view_ratios", (0.0, 0.25, 0.5))
         if mode in ("blend", "rescore"):
             mode = "legacy"
         valid_modes = {
@@ -894,6 +956,8 @@ class TestMixins:
             "adaptive_blend",
             "evidence_veto",
             "semantic_reweight",
+            "reliability_gated",
+            "reliability_gated_mv",
         }
         if mode not in valid_modes:
             _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")
@@ -936,6 +1000,29 @@ class TestMixins:
         meta_top1_prob = np.zeros(num_boxes, dtype=np.float64)
         meta_margin = np.zeros(num_boxes, dtype=np.float64)
         meta_entropy = np.zeros(num_boxes, dtype=np.float64)
+        meta_reliability = np.zeros(num_boxes, dtype=np.float64)
+
+        # Multi-view reliability (reliability_gated_mv only): score every box at
+        # several crop scales, then reliability = cross-scale top-1 agreement *
+        # mean top-1 prob * (1 - mean entropy). Computed once per image here.
+        mv_top1 = None
+        mv_reliability = None
+        if mode == "reliability_gated_mv":
+            view_logits = self.cga.forward_views(
+                filename, boxes_list, scores_list, labels_list,
+                sem_view_ratios)  # (V, N, C)
+            view_top1 = np.argmax(view_logits, axis=2)          # (V, N)
+            view_top1_prob = np.max(view_logits, axis=2)        # (V, N)
+            all_agree = np.all(view_top1 == view_top1[0:1, :], axis=0)  # (N,)
+            mean_top1_prob = view_top1_prob.mean(axis=0)        # (N,)
+            mean_ent = np.array(
+                [np.mean([_prob_entropy_normalized(view_logits[v, n])
+                          for v in range(view_logits.shape[0])])
+                 for n in range(num_boxes)],
+                dtype=np.float64) if num_boxes > 0 else np.zeros(0)
+            mv_top1 = view_top1[0]  # tight-crop (view 0) top-1 as the clip class
+            mv_reliability = (all_agree.astype(np.float64)
+                              * mean_top1_prob * (1.0 - mean_ent))
 
         real_predictions = np.asarray(
             np.argmax(logits, axis=1), dtype=np.int64)
@@ -1008,8 +1095,11 @@ class TestMixins:
                     float(sorted_prob[0] - sorted_prob[1])
                     if len(sorted_prob) > 1 else float(sorted_prob[0])
                 )
-                meta_agreement[i] = (label == pred)
-                meta_clip_top1[i] = pred
+                # In multi-view mode the operative CLIP class is the cross-scale
+                # (tight-crop) top-1, so agreement/clip_top1 reflect that.
+                clip_pred = int(mv_top1[i]) if mv_top1 is not None else pred
+                meta_agreement[i] = (label == clip_pred)
+                meta_clip_top1[i] = clip_pred
                 meta_label_prob[i] = label_prob
                 meta_top1_prob[i] = top1_prob
                 meta_margin[i] = margin
@@ -1106,6 +1196,66 @@ class TestMixins:
                         g = 1.0
                     sem_weight = 1.0 - sem_lambda * g
                     stats["reweighted"] += 1
+                meta_semantic_weight[i] = sem_weight
+                stats["sem_weight_sum"] += sem_weight
+            elif mode == "reliability_gated":
+                # Reliability-Gated SRW (single view). Like semantic_reweight but
+                # the downweight is scaled by how RELIABLE SARCLIP's opposition
+                # is, so a bigger lambda only bites on stable, confident, low-
+                # entropy disagreements. Scores never modified; boxes never
+                # dropped.  r = p_top1 * margin * (1 - H_norm).
+                det_score = float(scores_list[i])
+                if label == pred:
+                    sem_weight = 1.0
+                else:
+                    sorted_p = np.sort(prob)[::-1]
+                    p_top1 = float(sorted_p[0])
+                    margin = (float(sorted_p[0] - sorted_p[1])
+                              if len(sorted_p) > 1 else float(sorted_p[0]))
+                    ent = _prob_entropy_normalized(prob)
+                    r = p_top1 * margin * (1.0 - ent)
+                    if r < 0.0:
+                        r = 0.0
+                    elif r > 1.0:
+                        r = 1.0
+                    g = (sem_high_thr - det_score) / (sem_high_thr - sem_low_thr)
+                    if g < 0.0:
+                        g = 0.0
+                    elif g > 1.0:
+                        g = 1.0
+                    sem_weight = 1.0 - sem_gated_lambda * r * g
+                    if sem_weight < 0.0:
+                        sem_weight = 0.0
+                    stats["reweighted"] += 1
+                    meta_reliability[i] = r
+                meta_semantic_weight[i] = sem_weight
+                stats["sem_weight_sum"] += sem_weight
+            elif mode == "reliability_gated_mv":
+                # Reliability-Gated SRW (multi-view). Reliability comes from
+                # cross-scale agreement of SARCLIP's top-1 over the crop views:
+                #   r = 1[all views top1 agree] * mean(p_top1) * (1 - mean H).
+                # A single unstable AABB crop can no longer trigger a strong
+                # downweight; only multi-scale-consistent opposition does.
+                det_score = float(scores_list[i])
+                mv_pred = int(mv_top1[i]) if mv_top1 is not None else pred
+                if label == mv_pred:
+                    sem_weight = 1.0
+                else:
+                    r = float(mv_reliability[i]) if mv_reliability is not None else 0.0
+                    if r < 0.0:
+                        r = 0.0
+                    elif r > 1.0:
+                        r = 1.0
+                    g = (sem_high_thr - det_score) / (sem_high_thr - sem_low_thr)
+                    if g < 0.0:
+                        g = 0.0
+                    elif g > 1.0:
+                        g = 1.0
+                    sem_weight = 1.0 - sem_gated_lambda * r * g
+                    if sem_weight < 0.0:
+                        sem_weight = 0.0
+                    stats["reweighted"] += 1
+                    meta_reliability[i] = r
                 meta_semantic_weight[i] = sem_weight
                 stats["sem_weight_sum"] += sem_weight
             elif mode in ("multiply", "prob_multiply"):
@@ -1255,6 +1405,7 @@ class TestMixins:
                 "top1_prob": [],
                 "margin": [],
                 "entropy": [],
+                "reliability": [],
             }
 
         j = 0
@@ -1272,6 +1423,7 @@ class TestMixins:
                     meta["top1_prob"].append(np.zeros(0, dtype=np.float64))
                     meta["margin"].append(np.zeros(0, dtype=np.float64))
                     meta["entropy"].append(np.zeros(0, dtype=np.float64))
+                    meta["reliability"].append(np.zeros(0, dtype=np.float64))
                 continue
             start = j
             stop = j + num_dets
@@ -1289,6 +1441,7 @@ class TestMixins:
                 meta["top1_prob"].append(meta_top1_prob[start:stop].copy())
                 meta["margin"].append(meta_margin[start:stop].copy())
                 meta["entropy"].append(meta_entropy[start:stop].copy())
+                meta["reliability"].append(meta_reliability[start:stop].copy())
 
         if collect_meta:
             return image_results, meta
