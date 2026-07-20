@@ -438,6 +438,79 @@ def test_reliability_gated_mv_consistency():
           f'inconsistent w={w[1]:.4f}(r={rel[1]:.3f}) -> no downweight')
 
 
+def test_reliability_gated_legacy():
+    """Legacy score-blend fires ONLY on reliable disagreement below the 0.95
+    cap; protected above cap; skipped when hesitant; tau=0 = cap-only."""
+    num_classes = 6
+    dw = 0.7  # det_weight
+
+    def onehot_pair(det_label, clip_top1, p_top1, p_det):
+        # prob vector: p_top1 on clip_top1, p_det on det_label, rest uniform
+        p = np.full(num_classes, 0.0)
+        p[clip_top1] = p_top1
+        p[det_label] = p_det
+        rem = 1.0 - p.sum()
+        others = [c for c in range(num_classes) if c not in (clip_top1, det_label)]
+        for c in others:
+            p[c] = rem / len(others)
+        return p
+
+    # Box: ship(0) det, SARCLIP says car(2) confidently. p_top1=0.85, p_det=0.05.
+    prob_reliable = onehot_pair(0, 2, 0.85, 0.05)
+    # Hesitant: p_top1=0.30, p_det=0.22 -> opposition=(0.30-0.22)/0.5=0.16, high H
+    prob_hesitant = onehot_pair(0, 2, 0.30, 0.22)
+
+    def run(det_score, prob, tau):
+        results = [_make_image_results(num_classes, [[det_score], [], [], [], [], []])]
+
+        class FakeCGA:
+            class_names = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
+
+            def __call__(self, img_path, boxes, scores, labels):
+                return prob.reshape(1, -1).copy(), []
+
+        host = _mk_host('reliability_gated_legacy', cga=FakeCGA(),
+                        cga_blend_detector_weight=dw, cga_rel_legacy_tau=tau)
+        out = host.refine_test(results, [{'filename': 'a.png'}])
+        return out[0][0][0, -1]
+
+    # 1) reliable disagreement, score 0.91 (<0.95): blended to 0.7*0.91+0.3*0.05
+    s = run(0.91, prob_reliable, 0.10)
+    expected = 0.91 * dw + 0.05 * (1 - dw)
+    assert abs(s - expected) < 1e-6, (s, expected)
+    assert s < 0.9, s  # would be removed by 0.9 admission
+    # 2) reliable but score 0.96 (>=0.95): PROTECTED, unchanged
+    s = run(0.96, prob_reliable, 0.10)
+    assert abs(s - 0.96) < 1e-6, s
+    # 2b) UNCAPPED (high_thr=2.0): the same 0.96 reliable disagreement now FIRES
+    def run_uncap(det_score, prob, tau, high_thr):
+        results = [_make_image_results(num_classes, [[det_score], [], [], [], [], []])]
+
+        class FakeCGA:
+            class_names = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
+
+            def __call__(self, img_path, boxes, scores, labels):
+                return prob.reshape(1, -1).copy(), []
+
+        host = _mk_host('reliability_gated_legacy', cga=FakeCGA(),
+                        cga_blend_detector_weight=dw, cga_rel_legacy_tau=tau,
+                        cga_sem_high_thr=high_thr)
+        return host.refine_test(results, [{'filename': 'a.png'}])[0][0][0, -1]
+
+    s = run_uncap(0.96, prob_reliable, 0.10, 2.0)
+    expected = 0.96 * dw + 0.05 * (1 - dw)
+    assert abs(s - expected) < 1e-6, (s, expected)  # cap removed => fires
+    # 3) hesitant disagreement at 0.91: r<0.10, skipped, unchanged
+    s = run(0.91, prob_hesitant, 0.10)
+    assert abs(s - 0.91) < 1e-6, s
+    # 4) tau=0 (cap-only): even hesitant disagreement below cap blends
+    s = run(0.91, prob_hesitant, 0.0)
+    expected = 0.91 * dw + prob_hesitant[0] * (1 - dw)
+    assert abs(s - expected) < 1e-6, (s, expected)
+    print('[PASS] reliability_gated_legacy: fires reliable<0.95, protects>=0.95, '
+          'skips hesitant, tau=0=cap-only')
+
+
 if __name__ == '__main__':
     test_semantic_weight_formula()
     test_batch_alignment()
@@ -445,4 +518,5 @@ if __name__ == '__main__':
     test_backward_compat_legacy_unchanged()
     test_reliability_gated_single_view()
     test_reliability_gated_mv_consistency()
+    test_reliability_gated_legacy()
     print('\nALL SRW UNIT TESTS PASSED')

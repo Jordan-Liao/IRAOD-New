@@ -634,6 +634,14 @@ class TestMixins:
         #   w = 1 - lambda_gated * 1[det != clip] * r * g(s)
         #   g(s) = clip((high - s)/(high - low), 0, 1)  (protects confident dets)
         self.cga_sem_gated_lambda = _env_float("CGA_SEM_GATED_LAMBDA", 0.80)
+        # reliability_gated_legacy: fire the FULL legacy score-blend, but only on
+        # a RELIABLE disagreement below the high-confidence cap. Few boxes fire,
+        # but each firing has legacy's full training-chain effect (blended score
+        # can fall under the 0.9 admission threshold -> box removed from RPN, ROI
+        # cls AND bbox reg). reliability r = opposition * (1 - H_norm),
+        # opposition = clip((p_top1 - p_det_label)/0.5, 0, 1). tau=0 => cap-only
+        # ablation (blend every disagreement with s_det < high_thr).
+        self.cga_rel_legacy_tau = _env_float("CGA_REL_LEGACY_TAU", 0.10)
         view_ratios_env = os.environ.get("CGA_SEM_VIEW_RATIOS", "0.0,0.25,0.5")
         self.cga_sem_view_ratios = tuple(
             float(v.strip()) for v in view_ratios_env.split(",") if v.strip())
@@ -936,6 +944,7 @@ class TestMixins:
         sem_lambda = getattr(self, "cga_sem_lambda", 0.50)
         sem_gated_lambda = getattr(self, "cga_sem_gated_lambda", 0.80)
         sem_view_ratios = getattr(self, "cga_sem_view_ratios", (0.0, 0.25, 0.5))
+        rel_legacy_tau = getattr(self, "cga_rel_legacy_tau", 0.10)
         if mode in ("blend", "rescore"):
             mode = "legacy"
         valid_modes = {
@@ -958,6 +967,7 @@ class TestMixins:
             "semantic_reweight",
             "reliability_gated",
             "reliability_gated_mv",
+            "reliability_gated_legacy",
         }
         if mode not in valid_modes:
             _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")
@@ -1113,6 +1123,31 @@ class TestMixins:
                 if label != pred:
                     scores_list[i] = scores_list[i] * det_weight + label_prob * (1.0 - det_weight)
                     stats["blended"] += 1
+            elif mode == "reliability_gated_legacy":
+                # Reliability-Gated Legacy: run the FULL legacy score-blend, but
+                # only when SARCLIP's opposition is reliable AND the detector is
+                # not already highly confident (protects the [0.95,1.0) region
+                # the box audit shows legacy over-prunes). Non-firing boxes are
+                # left exactly as detector output (== no-CGA). Score-only change;
+                # no ROI head / loss / RPN changes.
+                det_score = float(scores_list[i])
+                if label != pred and det_score < sem_high_thr:
+                    p_top1 = float(prob[pred])
+                    p_det_label = label_prob
+                    entropy = _prob_entropy_normalized(prob)
+                    opposition = (p_top1 - p_det_label) / 0.50
+                    if opposition < 0.0:
+                        opposition = 0.0
+                    elif opposition > 1.0:
+                        opposition = 1.0
+                    reliability = opposition * (1.0 - entropy)
+                    meta_reliability[i] = reliability
+                    if reliability >= rel_legacy_tau:
+                        scores_list[i] = (
+                            det_score * det_weight
+                            + p_det_label * (1.0 - det_weight)
+                        )
+                        stats["blended"] += 1
             elif mode == "shuffled_legacy":
                 if label != pred:
                     scores_list[i] = (
