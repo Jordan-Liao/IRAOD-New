@@ -39,6 +39,15 @@ def _prob_entropy_normalized(prob):
     return float(ent / np.log(k)) if k > 1 else 0.0
 
 
+def _zscore_np(sim):
+    """Per-row (class-dim) z-score, population std, eps floor. Mirrors
+    prototype_cga._zscore for the text-only degenerate path."""
+    sim = np.asarray(sim, dtype=np.float64)
+    mean = sim.mean(axis=-1, keepdims=True)
+    std = sim.std(axis=-1, keepdims=True)
+    return (sim - mean) / (std + 1e-6)
+
+
 def _prepend_sys_path(path):
     path = str(path)
     if path in sys.path:
@@ -507,6 +516,58 @@ class CGA:
         return logits.detach().cpu().numpy()
 
     @torch.no_grad()
+    def forward_rotated_embed(self, img_path, obboxes, context_ratio=0.15):
+        """Rotated-aligned crop + single SARCLIP encode per proposal.
+
+        For prototype_legacy ONLY. Returns, in the SAME order as ``obboxes``:
+          image_embedding : (N, D) L2-normalized, detached numpy
+          text_sim        : (N, C) cosine sim to text prototypes (=image_feat @ classifier)
+          text_prob       : (N, C) softmax(tau * text_sim)
+        One image encode per proposal (embedding and text prob share it).
+        ``obboxes`` are (N,5) (cx,cy,w,h,angle). Strict: any degenerate crop
+        raises (no silent skip), so counts stay aligned.
+        """
+        from .prototype_cga import rotated_align_crop
+
+        image_mode = "L" if self.force_grayscale else "RGB"
+        pil = Image.open(img_path).convert(image_mode)
+        image_np = np.asarray(pil)
+
+        tensors = []
+        for row in obboxes:
+            cx, cy, w, h, angle = (float(row[0]), float(row[1]), float(row[2]),
+                                   float(row[3]), float(row[4]))
+            patch_np = rotated_align_crop(
+                image_np, cx, cy, w, h, angle, context_ratio=context_ratio)
+            patch_pil = Image.fromarray(patch_np)
+            if self.force_grayscale and patch_pil.mode != "L":
+                patch_pil = patch_pil.convert("L")
+            tensors.append(self.preprocess(patch_pil).to(self.device))
+
+        if not tensors:
+            C = len(self.class_names)
+            return (np.empty((0, 0)), np.empty((0, C)), np.empty((0, C)))
+
+        images = torch.stack(tensors, dim=0)
+        if self.backend == "sarclip":
+            out = self.clip(image=images)
+            image_features = out["image_features"] if isinstance(out, dict) else out[0]
+        else:
+            image_features = self.clip.encode_image(images)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        text_sim = image_features @ self.classifier
+        text_prob = (self.tau * text_sim).softmax(dim=-1)
+        return (
+            image_features.detach().cpu().numpy(),
+            text_sim.detach().cpu().numpy(),
+            text_prob.detach().cpu().numpy(),
+        )
+
+    def text_prototype_matrix(self):
+        """(C, D) normalized text prototypes (classifier is (D, C))."""
+        return self.classifier.detach().cpu().numpy().T
+
+    @torch.no_grad()
     def forward_views(self, img_path, boxes, scores, labels, expand_ratios):
         """Score every box at several crop scales (multi-view SARCLIP).
 
@@ -642,6 +703,18 @@ class TestMixins:
         # opposition = clip((p_top1 - p_det_label)/0.5, 0, 1). tau=0 => cap-only
         # ablation (blend every disagreement with s_det < high_thr).
         self.cga_rel_legacy_tau = _env_float("CGA_REL_LEGACY_TAU", 0.10)
+        # prototype_legacy: online per-class VISUAL prototypes in frozen SARCLIP
+        # space, fused with TEXT prototypes to re-score, then plain-legacy blend.
+        self.cga_proto_beta = _env_float("CGA_PROTO_BETA", 0.50)
+        self.cga_proto_momentum = _env_float("CGA_PROTO_MOMENTUM", 0.95)
+        self.cga_proto_min_count = _env_int("CGA_PROTO_MIN_COUNT", 20)
+        self.cga_proto_context_ratio = _env_float("CGA_PROTO_CONTEXT_RATIO", 0.15)
+        self.cga_proto_rotated_crop = os.environ.get(
+            "CGA_PROTO_ROTATED_CROP", "1").lower() in ("1", "true", "yes")
+        self.cga_proto_score_thr = _env_float("CGA_PROTO_SCORE_THR", 0.97)
+        self.cga_proto_iou_thr = _env_float("CGA_PROTO_IOU_THR", 0.70)
+        self.cga_strict = os.environ.get(
+            "CGA_STRICT", "0").lower() in ("1", "true", "yes")
         view_ratios_env = os.environ.get("CGA_SEM_VIEW_RATIOS", "0.0,0.25,0.5")
         self.cga_sem_view_ratios = tuple(
             float(v.strip()) for v in view_ratios_env.split(",") if v.strip())
@@ -732,6 +805,163 @@ class TestMixins:
             np.concatenate(scores, axis=0),
             np.concatenate(labels, axis=0),
         )
+
+    @staticmethod
+    def _flatten_cga_obb(image_results):
+        """Original OBB (cx,cy,w,h,angle), raw score, label in the SAME flat
+        order as _flatten_cga_inputs (per-class concat). Used by prototype_legacy
+        to keep the rotated box (never obb2xyxy'd) and the raw detector score."""
+        obb, scores, labels = [], [], []
+        for class_id, result in enumerate(image_results):
+            if len(result) == 0:
+                continue
+            obb.append(np.asarray(result[:, :5], dtype=np.float64))
+            scores.append(np.asarray(result[:, -1], dtype=np.float64))
+            labels.append(np.full(len(result), class_id, dtype=np.int64))
+        if not obb:
+            return None
+        return (np.concatenate(obb, 0), np.concatenate(scores, 0),
+                np.concatenate(labels, 0))
+
+    def _get_proto_bank(self, num_classes):
+        """Lazily create the per-run visual prototype bank + pending stash."""
+        bank = getattr(self, "_proto_bank", None)
+        if bank is None or bank.num_classes != num_classes:
+            from .prototype_cga import VisualPrototypeBank
+            bank = VisualPrototypeBank(
+                num_classes,
+                momentum=getattr(self, "cga_proto_momentum", 0.95),
+                min_count=getattr(self, "cga_proto_min_count", 20))
+            self._proto_bank = bank
+            self._proto_cur_iter = 0
+            self._proto_diag = {
+                "fallback_count": 0,
+                "prototype_update_error_count": 0,
+                "nan_inf_count": 0,
+                "alignment_error_count": 0,
+                "top1_change": 0,
+                "top1_total": 0,
+                "det_agree_text": 0,
+                "det_agree_fused": 0,
+                "blended": 0,
+            }
+        return bank
+
+    def reset_proto_pending(self):
+        """Clear the per-iteration weak-proposal stash (called by teacher)."""
+        self._proto_pending = []
+
+    def _proto_strict(self):
+        return getattr(self, "cga_strict", False)
+
+    def _refine_single_prototype(self, image_results, img_meta):
+        """prototype_legacy: rotated-crop embed -> text+visual fused prob ->
+        plain-legacy blend. Scores use the prototype snapshot from BEFORE this
+        iteration's update (teacher updates the bank at iteration end). Stashes
+        per-image weak proposals (obb, raw score, label, embedding) for the
+        teacher's weak/strong prototype-candidate matching."""
+        from .prototype_cga import fuse_logits, softmax
+
+        num_classes = len(image_results)
+        obb_inputs = self._flatten_cga_obb(image_results)
+        if obb_inputs is None:
+            return image_results
+        obb_list, raw_scores, labels_list = obb_inputs
+        # RAW detector score saved separately; never overwritten before use.
+        raw_scores = raw_scores.copy()
+
+        if getattr(self, "cga", None) is None:
+            self.cga, self.exclude_ids = self._build_cga(num_classes)
+        bank = self._get_proto_bank(num_classes)
+        diag = self._proto_diag
+        det_weight = getattr(self, "cga_blend_detector_weight", 0.7)
+        beta = getattr(self, "cga_proto_beta", 0.50)
+        ctx = getattr(self, "cga_proto_context_ratio", 0.15)
+        strict = self._proto_strict()
+
+        filename = img_meta["filename"]
+        try:
+            embed, text_sim, text_prob = self.cga.forward_rotated_embed(
+                filename, obb_list, context_ratio=ctx)
+        except Exception as e:
+            diag["alignment_error_count"] += 1
+            if strict:
+                raise
+            _log_cga_info(f"[CGA][proto][WARN] rotated embed failed: {repr(e)}")
+            diag["fallback_count"] += 1
+            return image_results
+
+        if embed.shape[0] != len(obb_list):
+            diag["alignment_error_count"] += 1
+            if strict:
+                raise RuntimeError(
+                    f"prototype: embed count {embed.shape[0]} != obb "
+                    f"{len(obb_list)}")
+            return image_results
+        if bank.embed_dim is None:
+            bank.embed_dim = embed.shape[1]
+        if not (np.all(np.isfinite(embed)) and np.all(np.isfinite(text_sim))):
+            diag["nan_inf_count"] += 1
+            if strict:
+                raise RuntimeError("prototype: NaN/Inf in embed/text_sim")
+            return image_results
+
+        # Fuse using the OLD prototype snapshot (no self-inclusion).
+        active = bank.active_mask()
+        if active.any():
+            proto_mat = bank.matrix()                     # (C, D)
+            sim_visual = embed @ proto_mat.T              # (N, C) cosine (both normed)
+        else:
+            sim_visual = np.zeros_like(text_sim)
+        fused_logits = fuse_logits(text_sim, sim_visual, active, beta)
+        if not np.all(np.isfinite(fused_logits)):
+            diag["nan_inf_count"] += 1
+            if strict:
+                raise RuntimeError("prototype: NaN/Inf in fused logits")
+            return image_results
+        fused_prob = softmax(fused_logits, axis=-1)
+        text_only_prob = softmax(_zscore_np(text_sim), axis=-1)
+
+        fused_pred = fused_prob.argmax(axis=1)
+        text_pred = text_only_prob.argmax(axis=1)
+
+        # Plain-legacy blend, but with fused_prob replacing text prob.
+        new_scores = raw_scores.copy()
+        for i in range(len(obb_list)):
+            det_label = int(labels_list[i])
+            diag["top1_total"] += 1
+            if fused_pred[i] != text_pred[i]:
+                diag["top1_change"] += 1
+            if text_pred[i] == det_label:
+                diag["det_agree_text"] += 1
+            if fused_pred[i] == det_label:
+                diag["det_agree_fused"] += 1
+            if int(fused_pred[i]) != det_label:
+                new_scores[i] = (
+                    det_weight * float(raw_scores[i])
+                    + (1.0 - det_weight) * float(fused_prob[i, det_label]))
+                diag["blended"] += 1
+
+        # Stash weak proposals for the teacher's candidate matching.
+        pending = getattr(self, "_proto_pending", None)
+        if pending is None:
+            self._proto_pending = pending = []
+        pending.append({
+            "filename": filename,
+            "obb": obb_list,
+            "raw_score": raw_scores,
+            "label": labels_list,
+            "embed": embed,
+        })
+
+        # Write blended scores back into image_results in the same flat order.
+        j = 0
+        for cls in range(num_classes):
+            n = len(image_results[cls])
+            for k in range(n):
+                image_results[cls][k, -1] = new_scores[j]
+                j += 1
+        return image_results
 
     @staticmethod
     def _validate_cga_logits(logits, labels, num_classes):
@@ -909,6 +1139,13 @@ class TestMixins:
                 or len(self._cga_diag_window["pred_counts"]) != num_classes):
             self._cga_diag_window = _new_cga_diag_window(num_classes)
 
+        mode0 = getattr(self, "cga_filter_mode", "legacy")
+        if mode0 == "prototype_legacy":
+            out = self._refine_single_prototype(image_results, img_meta)
+            if collect_meta:
+                return out, self._empty_cga_meta(num_classes)
+            return out
+
         filename = img_meta["filename"]
         if precomputed_logits is None:
             logits, _ = self.cga(
@@ -968,6 +1205,7 @@ class TestMixins:
             "reliability_gated",
             "reliability_gated_mv",
             "reliability_gated_legacy",
+            "prototype_legacy",
         }
         if mode not in valid_modes:
             _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")

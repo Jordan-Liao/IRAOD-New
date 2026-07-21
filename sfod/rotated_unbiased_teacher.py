@@ -212,7 +212,33 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 losses[key] = self.weight_l * val
         # # -------------------unlabeled data-------------------
         bbox_transform = []
-        if self.semantic_reweight:
+        proto_mode = os.environ.get(
+            "CGA_FILTER_MODE", "").strip().lower() == "prototype_legacy"
+        if proto_mode:
+            # prototype_legacy: teacher weak pass (CGA rotated-embed + fused
+            # legacy blend, stashes weak proposals), then a RAW strong-view pass
+            # for weak/strong prototype-candidate matching, then EMA bank update
+            # at iteration END (scoring already used the pre-update snapshot).
+            ema_host = getattr(self.ema_model, 'module', self.ema_model)
+            if hasattr(ema_host, "reset_proto_pending"):
+                ema_host.reset_proto_pending()
+            bbox_results = self.inference_unlabeled(
+                img_unlabeled, img_metas_unlabeled, rescale=True)
+            # RAW strong-view teacher pass for weak/strong matching. MUST run
+            # under no_grad: the EMA teacher is frozen and rbbox2result calls
+            # .numpy() on the detections, which fails on grad-requiring tensors.
+            with torch.no_grad():
+                strong_results = ema_host.simple_test(
+                    img_unlabeled_1, img_metas_unlabeled_1, rescale=True)
+            self._prototype_bank_update(ema_host, strong_results)
+            gt_bboxes_pred, gt_labels_pred = self.create_pseudo_results(
+                img_unlabeled_1, bbox_results, bbox_transform, device,
+                gt_bboxes_unlabeled, gt_labels_unlabeled, img_metas_unlabeled)
+            self.analysis()
+            losses_unlabeled = self.forward_train(
+                img_unlabeled_1, img_metas_unlabeled_1,
+                gt_bboxes_pred, gt_labels_pred)
+        elif self.semantic_reweight:
             bbox_results, cga_meta = self.inference_unlabeled(
                 img_unlabeled, img_metas_unlabeled, rescale=True,
                 return_cga_meta=True
@@ -361,6 +387,123 @@ class UnbiasedTeacher(SemiTwoStageDetector):
         if return_semantic_weights:
             return gt_bboxes_pred, gt_labels_pred, gt_semantic_weights_pred
         return gt_bboxes_pred, gt_labels_pred
+
+    def _prototype_bank_update(self, ema_host, strong_results):
+        """Weak/strong match this iteration's weak proposals and EMA-update the
+        visual prototype bank. Prototype label == teacher detector label; raw
+        weak score gates; rotated IoU(weak,strong) matches. Called AFTER scoring
+        so the bank the fused blend used had no self-inclusion."""
+        from .prototype_cga import greedy_match_weak_strong
+
+        bank = getattr(ema_host, "_proto_bank", None)
+        pending = getattr(ema_host, "_proto_pending", None)
+        strict = bool(getattr(ema_host, "cga_strict", False))
+        if bank is None:
+            return
+        diag = getattr(ema_host, "_proto_diag", None)
+        score_thr = float(getattr(ema_host, "cga_proto_score_thr", 0.97))
+        iou_thr = float(getattr(ema_host, "cga_proto_iou_thr", 0.70))
+
+        def iou_fn(a, b):
+            ta = torch.tensor(np.asarray(a), dtype=torch.float32)
+            tb = torch.tensor(np.asarray(b), dtype=torch.float32)
+            return rbbox_overlaps(ta, tb).detach().cpu().numpy()
+
+        class_to_embs = {}
+        if pending:
+            for b, item in enumerate(pending):
+                if b >= len(strong_results):
+                    break
+                strong_obb_inp = ema_host._flatten_cga_obb(strong_results[b])
+                if strong_obb_inp is None:
+                    continue
+                s_obb, s_score, s_label = strong_obb_inp
+                try:
+                    qualified = greedy_match_weak_strong(
+                        item["obb"], item["label"], item["raw_score"],
+                        s_obb, s_label, iou_fn,
+                        score_thr=score_thr, iou_thr=iou_thr)
+                except Exception as e:
+                    if diag is not None:
+                        diag["alignment_error_count"] += 1
+                    if strict:
+                        raise
+                    continue
+                for i in np.where(qualified)[0]:
+                    c = int(item["label"][i])
+                    class_to_embs.setdefault(c, []).append(item["embed"][i])
+
+        stacked = {c: np.stack(v, 0)
+                   for c, v in class_to_embs.items() if len(v) > 0}
+        n_qual = int(sum(len(v) for v in class_to_embs.values()))
+        ema_host._proto_cur_iter = getattr(ema_host, "_proto_cur_iter", 0) + 1
+        bank.snapshot_previous()
+        try:
+            bank.update(stacked, ema_host._proto_cur_iter)
+        except Exception as e:
+            if diag is not None:
+                diag["prototype_update_error_count"] += 1
+            if strict:
+                raise
+        self._maybe_log_prototype_diag(ema_host, bank, n_qual)
+
+    def _maybe_log_prototype_diag(self, ema_host, bank, n_qual):
+        """Periodic summary log + per-update CSV row (path from env
+        CGA_PROTO_DIAG_CSV)."""
+        it = getattr(ema_host, "_proto_cur_iter", 0)
+        diag = getattr(ema_host, "_proto_diag", {})
+        text_proto = None
+        try:
+            text_proto = ema_host.cga.text_prototype_matrix()
+        except Exception:
+            text_proto = None
+        drift = [round(bank.drift(c), 5) for c in range(bank.num_classes)]
+        vt_cos = []
+        for c in range(bank.num_classes):
+            tp = text_proto[c] if text_proto is not None else np.zeros(1)
+            vt_cos.append(round(bank.visual_text_cos(c, tp), 5))
+        n_active = int(bank.active_mask().sum())
+        csv_path = os.environ.get("CGA_PROTO_DIAG_CSV", "").strip()
+        if csv_path:
+            try:
+                new = not os.path.exists(csv_path)
+                os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+                with open(csv_path, "a", encoding="utf-8") as f:
+                    if new:
+                        f.write(
+                            "iter,n_active,n_qualified,"
+                            + ",".join(f"count_{c}" for c in range(bank.num_classes))
+                            + "," + ",".join(f"upd_{c}" for c in range(bank.num_classes))
+                            + "," + ",".join(f"firstact_{c}" for c in range(bank.num_classes))
+                            + "," + ",".join(f"drift_{c}" for c in range(bank.num_classes))
+                            + "," + ",".join(f"vtcos_{c}" for c in range(bank.num_classes))
+                            + ",top1_change,top1_total,det_agree_text,det_agree_fused,"
+                            "blended,fallback,proto_upd_err,nan_inf,align_err\n")
+                    row = [it, n_active, n_qual]
+                    row += list(bank.prototype_count)
+                    row += list(bank.prototype_update_count)
+                    row += list(bank.first_active_iteration)
+                    row += drift + vt_cos
+                    row += [diag.get("top1_change", 0), diag.get("top1_total", 0),
+                            diag.get("det_agree_text", 0), diag.get("det_agree_fused", 0),
+                            diag.get("blended", 0), diag.get("fallback_count", 0),
+                            diag.get("prototype_update_error_count", 0),
+                            diag.get("nan_inf_count", 0),
+                            diag.get("alignment_error_count", 0)]
+                    f.write(",".join(str(x) for x in row) + "\n")
+            except Exception as e:
+                get_root_logger().warning(f"[proto][diag] csv write failed: {e}")
+        if it <= 3 or it % 100 == 0:
+            get_root_logger().info(
+                f"[proto] iter={it} active={n_active} qualified={n_qual} "
+                f"count={list(bank.prototype_count)} "
+                f"firstact={list(bank.first_active_iteration)} "
+                f"blended={diag.get('blended',0)} "
+                f"top1_change={diag.get('top1_change',0)}/{diag.get('top1_total',0)} "
+                f"fallback={diag.get('fallback_count',0)} "
+                f"proto_upd_err={diag.get('prototype_update_error_count',0)} "
+                f"nan_inf={diag.get('nan_inf_count',0)} "
+                f"align_err={diag.get('alignment_error_count',0)}")
 
     def analysis(self):
         if self.cur_iter % 500 == 0 and get_dist_info()[0] == 0:
