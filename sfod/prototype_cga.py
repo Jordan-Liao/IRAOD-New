@@ -109,6 +109,172 @@ def softmax(logits, axis=-1):
     return e / e.sum(axis=axis, keepdims=True)
 
 
+def _unit_rows(matrix, name):
+    """Validate an already L2-normalized matrix without changing its values."""
+    matrix = np.asarray(matrix)
+    if matrix.ndim != 2:
+        raise ValueError(f"{name}: expected a 2-D matrix, got {matrix.shape}")
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError(f"{name}: NaN/Inf")
+    norms = np.linalg.norm(matrix.astype(np.float64, copy=False), axis=1)
+    if np.any(norms <= 0.0):
+        raise ValueError(f"{name}: zero-norm row")
+    if not np.allclose(norms, 1.0, rtol=1e-5, atol=1e-6):
+        raise ValueError(f"{name}: rows must be L2-normalized")
+    return matrix
+
+
+def mixed_prototype_matrix(text_prototypes, visual_prototypes, active_mask,
+                           beta=0.50):
+    """Build Prototype-CGA v2 class prototypes in embedding space.
+
+    Inactive rows are copied directly from the normalized text classifier.
+    Active rows are ``normalize((1-beta)*text + beta*visual)``.  The helper is
+    deliberately separate from v1 ``fuse_logits``: no class-dimension z-score
+    or probability-space interpolation is permitted in v2.
+    """
+    text = _unit_rows(text_prototypes, "text_prototypes")
+    visual = np.asarray(visual_prototypes)
+    if visual.shape != text.shape:
+        raise ValueError(
+            "visual_prototypes: shape mismatch "
+            f"{visual.shape} != {text.shape}")
+    active = np.asarray(active_mask, dtype=bool)
+    if active.shape != (text.shape[0],):
+        raise ValueError(
+            f"active_mask: shape {active.shape} != {(text.shape[0],)}")
+    beta = float(beta)
+    if not 0.0 <= beta <= 1.0:
+        raise ValueError("beta must be in [0, 1]")
+
+    # Preserve inactive text rows byte-for-byte.  Besides satisfying the
+    # experiment invariant, this avoids a second normalization changing the
+    # final bits of the plain-legacy classifier.
+    mixed = text.copy()
+    for c in np.where(active)[0]:
+        visual_c = np.asarray(visual[c])
+        if not np.all(np.isfinite(visual_c)):
+            raise ValueError(f"visual_prototypes[{c}]: NaN/Inf")
+        visual_norm = float(np.linalg.norm(
+            visual_c.astype(np.float64, copy=False)))
+        if visual_norm <= 0.0:
+            raise ValueError(f"visual_prototypes[{c}]: zero norm")
+        visual_c = visual_c / visual_norm
+
+        # These two calibrated controls must be numerically identical to the
+        # original classifier, not merely mathematically equivalent.
+        if beta == 0.0 or np.array_equal(visual[c], text[c]):
+            mixed[c] = text[c]
+            continue
+
+        candidate = ((1.0 - beta) * text[c].astype(np.float64, copy=False)
+                     + beta * visual_c.astype(np.float64, copy=False))
+        candidate_norm = float(np.linalg.norm(candidate))
+        if not np.isfinite(candidate_norm) or candidate_norm <= 0.0:
+            raise ValueError(f"mixed_prototype[{c}]: zero norm")
+        mixed[c] = candidate / candidate_norm
+
+    _unit_rows(mixed, "mixed_prototypes")
+    return mixed
+
+
+def prototype_legacy_v2_probabilities(
+        image_embeddings, text_prototypes, visual_prototypes, active_mask,
+        tau, beta=0.50, text_sim=None, text_prob=None):
+    """Return v2 mixed prototypes, similarities, scaled logits and probabilities.
+
+    ``text_sim`` and ``text_prob`` should be the values returned by the same
+    AABB SARCLIP forward.  Unchanged prototype rows reuse those values; when no
+    row changes (all inactive, beta=0, or visual==text), the complete probability
+    matrix is returned directly.  This is the numerical legacy-degradation
+    guarantee and also avoids a duplicate image encode.
+    """
+    embedding = _unit_rows(image_embeddings, "image_embeddings")
+    text = _unit_rows(text_prototypes, "text_prototypes")
+    if embedding.shape[1] != text.shape[1]:
+        raise ValueError(
+            "embedding/prototype dimension mismatch: "
+            f"{embedding.shape[1]} != {text.shape[1]}")
+    active = np.asarray(active_mask, dtype=bool)
+    mixed = mixed_prototype_matrix(
+        text, visual_prototypes, active, beta=beta)
+
+    expected_shape = (embedding.shape[0], text.shape[0])
+    if text_sim is None:
+        text_sim_arr = embedding @ text.T
+    else:
+        text_sim_arr = np.asarray(text_sim)
+        if text_sim_arr.shape != expected_shape:
+            raise ValueError(
+                f"text_sim: shape {text_sim_arr.shape} != {expected_shape}")
+        if not np.all(np.isfinite(text_sim_arr)):
+            raise ValueError("text_sim: NaN/Inf")
+
+    changed = active.copy()
+    if float(beta) == 0.0:
+        changed[:] = False
+    else:
+        for c in np.where(changed)[0]:
+            if np.array_equal(mixed[c], text[c]):
+                changed[c] = False
+
+    fused_sim = text_sim_arr.copy()
+    if changed.any():
+        cols = np.where(changed)[0]
+        fused_sim[:, cols] = embedding @ mixed[cols].T
+    if not np.all(np.isfinite(fused_sim)):
+        raise ValueError("fused_sim: NaN/Inf")
+
+    tau = float(tau)
+    if not np.isfinite(tau):
+        raise ValueError("tau must be finite")
+    fused_logits = tau * fused_sim
+
+    if not changed.any() and text_prob is not None:
+        fused_prob = np.asarray(text_prob).copy()
+        if fused_prob.shape != expected_shape:
+            raise ValueError(
+                f"text_prob: shape {fused_prob.shape} != {expected_shape}")
+    else:
+        fused_prob = softmax(fused_logits, axis=-1)
+    if not np.all(np.isfinite(fused_prob)):
+        raise ValueError("fused_prob: NaN/Inf")
+    return mixed, fused_sim, fused_logits, fused_prob
+
+
+def legacy_score_blend(probabilities, detector_scores, detector_labels,
+                       detector_weight=0.70, exclude_ids=()):
+    """Apply the plain-legacy disagreement-only score blend."""
+    probabilities = np.asarray(probabilities)
+    scores = np.asarray(detector_scores, dtype=np.float64).copy()
+    labels = np.asarray(detector_labels, dtype=np.int64)
+    if probabilities.ndim != 2:
+        raise ValueError("probabilities must be a 2-D matrix")
+    if probabilities.shape[0] != len(scores) or len(scores) != len(labels):
+        raise ValueError("probability/score/label length mismatch")
+    if not (np.all(np.isfinite(probabilities))
+            and np.all(np.isfinite(scores))):
+        raise ValueError("legacy_score_blend: NaN/Inf")
+    detector_weight = float(detector_weight)
+    if not 0.0 <= detector_weight <= 1.0:
+        raise ValueError("detector_weight must be in [0, 1]")
+
+    predictions = probabilities.argmax(axis=1)
+    blended = np.zeros(len(scores), dtype=bool)
+    excluded = set(int(c) for c in exclude_ids)
+    for i, (label, prediction) in enumerate(zip(labels, predictions)):
+        label = int(label)
+        if label in excluded:
+            continue
+        if int(prediction) != label:
+            scores[i] = (
+                detector_weight * float(detector_scores[i])
+                + (1.0 - detector_weight)
+                * float(probabilities[i, label]))
+            blended[i] = True
+    return scores, predictions, blended
+
+
 def greedy_match_weak_strong(weak_obb, weak_label, weak_score,
                              strong_obb, strong_label,
                              iou_fn, score_thr=0.97, iou_thr=0.70):

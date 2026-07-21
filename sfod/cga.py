@@ -505,6 +505,41 @@ class CGA:
         logits = (self.tau * (image_features @ self.classifier)).softmax(dim=-1)
         return logits.detach().cpu().numpy(), ori_image_list
 
+    @torch.no_grad()
+    def forward_aabb_embed(self, img_path, boxes, scores, labels):
+        """Legacy AABB crop + one frozen SARCLIP encode per proposal.
+
+        The crop path is intentionally the exact ``_crop_patches`` path used by
+        ``__call__`` (same expansion, PIL behavior, preprocess, templates and
+        proposal order).  Prototype-CGA v2 consumes all three outputs from this
+        one image-encoder pass.
+        """
+        images, _ = self._crop_patches(
+            img_path, boxes, scores, labels)
+        if images is None:
+            num_classes = len(self.class_names)
+            return (
+                np.empty((0, 0)),
+                np.empty((0, num_classes)),
+                np.empty((0, num_classes)),
+            )
+
+        if self.backend == "sarclip":
+            out = self.clip(image=images)
+            image_features = (
+                out["image_features"] if isinstance(out, dict) else out[0])
+        else:
+            image_features = self.clip.encode_image(images)
+        image_features = image_features / image_features.norm(
+            dim=-1, keepdim=True)
+        text_sim = image_features @ self.classifier
+        text_prob = (self.tau * text_sim).softmax(dim=-1)
+        return (
+            image_features.detach().cpu().numpy(),
+            text_sim.detach().cpu().numpy(),
+            text_prob.detach().cpu().numpy(),
+        )
+
     def _score_images(self, images):
         if self.backend == "sarclip":
             out = self.clip(image=images)
@@ -844,6 +879,21 @@ class TestMixins:
                 "det_agree_text": 0,
                 "det_agree_fused": 0,
                 "blended": 0,
+                "legacy_blended": 0,
+                "v2_blended": 0,
+                "text_det_prob_sum": 0.0,
+                "fused_det_prob_sum": 0.0,
+                "det_prob_count": 0,
+                # Fixed-memory streaming histogram over probability deltas in
+                # [-1, 1].  Keeping every proposal delta made the diagnostic
+                # consume hundreds of MB and repeatedly scan all history.
+                "det_prob_delta_hist": np.zeros(4097, dtype=np.int64),
+                "legacy_admitted": 0,
+                "v2_admitted": 0,
+                "legacy_hits": 0,
+                "v2_hits": 0,
+                "v2_newly_deleted": 0,
+                "v2_newly_retained": 0,
             }
         return bank
 
@@ -961,6 +1011,162 @@ class TestMixins:
             for k in range(n):
                 image_results[cls][k, -1] = new_scores[j]
                 j += 1
+        return image_results
+
+    def _refine_single_prototype_v2(self, image_results, img_meta):
+        """AABB-calibrated prototype-space fusion with plain-legacy scoring.
+
+        This is an independent path.  It does not call the v1 rotated crop,
+        ``_zscore_np`` or ``prototype_cga.fuse_logits``.
+        """
+        from .prototype_cga import (
+            legacy_score_blend,
+            prototype_legacy_v2_probabilities,
+        )
+
+        # One pending slot per weak image prevents batch alignment from shifting
+        # when an earlier image has no proposals or takes a non-strict fallback.
+        pending = getattr(self, "_proto_pending", None)
+        if pending is None:
+            self._proto_pending = pending = []
+        pending.append(None)
+        pending_index = len(pending) - 1
+
+        num_classes = len(image_results)
+        aabb_inputs = self._flatten_cga_inputs(image_results)
+        if aabb_inputs is None:
+            return image_results
+        boxes, raw_scores, labels = aabb_inputs
+        raw_scores = np.asarray(raw_scores, dtype=np.float64).copy()
+        labels = np.asarray(labels, dtype=np.int64)
+
+        obb_inputs = self._flatten_cga_obb(image_results)
+        if getattr(self, "cga", None) is None:
+            self.cga, self.exclude_ids = self._build_cga(num_classes)
+        bank = self._get_proto_bank(num_classes)
+        diag = self._proto_diag
+        strict = self._proto_strict()
+
+        try:
+            if obb_inputs is None:
+                raise RuntimeError("prototype_v2: missing OBB inputs")
+            obb, obb_scores, obb_labels = obb_inputs
+            if (len(obb) != len(boxes)
+                    or not np.array_equal(obb_labels, labels)
+                    or not np.allclose(
+                        obb_scores, raw_scores, rtol=0.0, atol=0.0)):
+                raise RuntimeError(
+                    "prototype_v2: AABB/OBB proposal alignment mismatch")
+
+            embedding, text_sim, text_prob = self.cga.forward_aabb_embed(
+                img_meta["filename"], boxes, raw_scores, labels)
+            expected_prob_shape = (len(boxes), num_classes)
+            if (embedding.ndim != 2 or embedding.shape[0] != len(boxes)
+                    or text_sim.shape != expected_prob_shape
+                    or text_prob.shape != expected_prob_shape):
+                raise RuntimeError(
+                    "prototype_v2: SARCLIP output/proposal alignment mismatch")
+            if not (np.all(np.isfinite(embedding))
+                    and np.all(np.isfinite(text_sim))
+                    and np.all(np.isfinite(text_prob))):
+                raise RuntimeError(
+                    "prototype_v2: NaN/Inf in embedding/text outputs")
+
+            if bank.embed_dim is None:
+                bank.embed_dim = embedding.shape[1]
+            elif bank.embed_dim != embedding.shape[1]:
+                raise RuntimeError(
+                    "prototype_v2: prototype/embedding dimension mismatch")
+
+            active = bank.active_mask()
+            text_prototypes = self.cga.text_prototype_matrix()
+            visual_prototypes = bank.matrix()
+            _, fused_sim, _, fused_prob = (
+                prototype_legacy_v2_probabilities(
+                    embedding,
+                    text_prototypes,
+                    visual_prototypes,
+                    active,
+                    tau=self.cga.tau,
+                    beta=getattr(self, "cga_proto_beta", 0.50),
+                    text_sim=text_sim,
+                    text_prob=text_prob,
+                ))
+
+            det_weight = getattr(self, "cga_blend_detector_weight", 0.70)
+            exclude_ids = getattr(self, "exclude_ids", ())
+            legacy_scores, text_pred, legacy_blended = legacy_score_blend(
+                text_prob, raw_scores, labels,
+                detector_weight=det_weight, exclude_ids=exclude_ids)
+            v2_scores, fused_pred, v2_blended = legacy_score_blend(
+                fused_prob, raw_scores, labels,
+                detector_weight=det_weight, exclude_ids=exclude_ids)
+        except Exception as error:
+            if "NaN/Inf" in str(error):
+                diag["nan_inf_count"] += 1
+            else:
+                diag["alignment_error_count"] += 1
+            if strict:
+                raise
+            diag["fallback_count"] += 1
+            _log_cga_info(
+                f"[CGA][proto_v2][WARN] fallback: {error!r}")
+            return image_results
+
+        row = np.arange(len(labels), dtype=np.int64)
+        text_det_prob = text_prob[row, labels]
+        fused_det_prob = fused_prob[row, labels]
+        diag["top1_total"] += len(labels)
+        diag["top1_change"] += int(np.count_nonzero(text_pred != fused_pred))
+        diag["det_agree_text"] += int(np.count_nonzero(text_pred == labels))
+        diag["det_agree_fused"] += int(np.count_nonzero(fused_pred == labels))
+        diag["legacy_blended"] += int(legacy_blended.sum())
+        diag["v2_blended"] += int(v2_blended.sum())
+        diag["blended"] += int(v2_blended.sum())
+        diag["text_det_prob_sum"] += float(text_det_prob.sum())
+        diag["fused_det_prob_sum"] += float(fused_det_prob.sum())
+        diag["det_prob_count"] += len(labels)
+        delta = np.asarray(
+            fused_det_prob - text_det_prob, dtype=np.float64)
+        delta_hist = diag["det_prob_delta_hist"]
+        delta_index = np.rint(
+            (np.clip(delta, -1.0, 1.0) + 1.0)
+            * (len(delta_hist) - 1) / 2.0).astype(np.int64)
+        delta_hist += np.bincount(
+            delta_index, minlength=len(delta_hist))
+
+        # Plain legacy writes its blended values back into the detector result
+        # dtype (normally float32).  Mirror that cast before paired admission
+        # diagnostics so threshold-edge counts describe the actual outputs.
+        score_dtype = next(
+            result.dtype for result in image_results if len(result))
+        legacy_scores_written = np.asarray(
+            legacy_scores, dtype=score_dtype)
+        v2_scores_written = np.asarray(v2_scores, dtype=score_dtype)
+
+        pending[pending_index] = {
+            "filename": img_meta["filename"],
+            "boxes": np.asarray(boxes).copy(),
+            "obb": np.asarray(obb).copy(),
+            "raw_score": raw_scores.copy(),
+            "label": labels.copy(),
+            "embed": np.asarray(embedding).copy(),
+            "text_sim": np.asarray(text_sim).copy(),
+            "fused_sim": np.asarray(fused_sim).copy(),
+            "text_prob": np.asarray(text_prob).copy(),
+            "fused_prob": np.asarray(fused_prob).copy(),
+            "legacy_score": legacy_scores_written.copy(),
+            "v2_score": v2_scores_written.copy(),
+            "active_mask": np.asarray(active, dtype=bool).copy(),
+        }
+
+        flat_index = 0
+        for class_results in image_results:
+            num_detections = len(class_results)
+            if num_detections:
+                class_results[:, -1] = v2_scores_written[
+                    flat_index:flat_index + num_detections]
+            flat_index += num_detections
         return image_results
 
     @staticmethod
@@ -1126,6 +1332,21 @@ class TestMixins:
         Otherwise returns ``image_results`` for full backward compatibility.
         """
         num_classes = len(image_results)
+        # On the first weak pass ``cga_filter_mode`` has not yet been populated
+        # by ``_build_cga``.  Read the explicit run mode so v2 can reserve its
+        # per-image pending slot (including for an empty first image) before
+        # any scorer construction occurs.
+        mode0 = getattr(
+            self,
+            "cga_filter_mode",
+            os.environ.get("CGA_FILTER_MODE", "legacy").strip().lower(),
+        )
+        if mode0 == "prototype_legacy_v2":
+            out = self._refine_single_prototype_v2(image_results, img_meta)
+            if collect_meta:
+                return out, self._empty_cga_meta(num_classes)
+            return out
+
         inputs = precomputed_inputs or self._flatten_cga_inputs(image_results)
         if inputs is None:
             if collect_meta:
@@ -1206,6 +1427,7 @@ class TestMixins:
             "reliability_gated_mv",
             "reliability_gated_legacy",
             "prototype_legacy",
+            "prototype_legacy_v2",
         }
         if mode not in valid_modes:
             _log_cga_info(f"[CGA][WARN] unsupported CGA_FILTER_MODE={mode}, fallback to legacy")

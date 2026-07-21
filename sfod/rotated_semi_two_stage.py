@@ -82,6 +82,16 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                         img, img_metas, with_cga=True, rescale=rescale
                     )
             except Exception as e:
+                filter_mode = os.environ.get(
+                    "CGA_FILTER_MODE", "").strip().lower()
+                strict = os.environ.get(
+                    "CGA_STRICT", "0").strip().lower() in (
+                        "1", "true", "yes")
+                if filter_mode == "prototype_legacy_v2" and strict:
+                    # The v2 calibration experiment forbids silent raw-teacher
+                    # fallback: any crop/alignment/numerical failure invalidates
+                    # the paired comparison and must terminate the run.
+                    raise
                 if not hasattr(self, "_cga_fallback_count"):
                     self._cga_fallback_count = 0
                 self._cga_fallback_count += 1

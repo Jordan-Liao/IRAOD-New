@@ -212,14 +212,22 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 losses[key] = self.weight_l * val
         # # -------------------unlabeled data-------------------
         bbox_transform = []
-        proto_mode = os.environ.get(
-            "CGA_FILTER_MODE", "").strip().lower() == "prototype_legacy"
-        if proto_mode:
-            # prototype_legacy: teacher weak pass (CGA rotated-embed + fused
-            # legacy blend, stashes weak proposals), then a RAW strong-view pass
-            # for weak/strong prototype-candidate matching, then EMA bank update
-            # at iteration END (scoring already used the pre-update snapshot).
+        proto_filter_mode = os.environ.get(
+            "CGA_FILTER_MODE", "").strip().lower()
+        proto_v1 = proto_filter_mode == "prototype_legacy"
+        proto_v2 = proto_filter_mode == "prototype_legacy_v2"
+        if proto_v1 or proto_v2:
+            # Both prototype modes reuse the verified weak/strong teacher match
+            # and EMA bank.  v1 keeps its historical update timing; v2 updates
+            # after the student forward so it is genuinely iteration-end.
             ema_host = getattr(self.ema_model, 'module', self.ema_model)
+            if proto_v2:
+                # EMA is constructed in eval state; make that invariant explicit
+                # at the v2 call site without altering v1 history.
+                ema_host.eval()
+                if ema_host.training:
+                    raise RuntimeError(
+                        "prototype_legacy_v2 strong teacher must be in eval mode")
             if hasattr(ema_host, "reset_proto_pending"):
                 ema_host.reset_proto_pending()
             bbox_results = self.inference_unlabeled(
@@ -230,7 +238,8 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             with torch.no_grad():
                 strong_results = ema_host.simple_test(
                     img_unlabeled_1, img_metas_unlabeled_1, rescale=True)
-            self._prototype_bank_update(ema_host, strong_results)
+            if proto_v1:
+                self._prototype_bank_update(ema_host, strong_results)
             gt_bboxes_pred, gt_labels_pred = self.create_pseudo_results(
                 img_unlabeled_1, bbox_results, bbox_transform, device,
                 gt_bboxes_unlabeled, gt_labels_unlabeled, img_metas_unlabeled)
@@ -238,6 +247,24 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             losses_unlabeled = self.forward_train(
                 img_unlabeled_1, img_metas_unlabeled_1,
                 gt_bboxes_pred, gt_labels_pred)
+            if proto_v2:
+                # GT is consumed only by the explicitly named evaluation
+                # diagnostic.  It is never passed to the prototype-bank update
+                # interface, whose candidates and labels remain teacher-only.
+                try:
+                    self._accumulate_prototype_v2_paired_diagnostics(
+                        ema_host,
+                        gt_bboxes_unlabeled,
+                        gt_labels_unlabeled,
+                        img_metas_unlabeled,
+                    )
+                except Exception:
+                    diag = getattr(ema_host, "_proto_diag", None)
+                    if diag is not None:
+                        diag["alignment_error_count"] += 1
+                    if bool(getattr(ema_host, "cga_strict", False)):
+                        raise
+                self._prototype_bank_update(ema_host, strong_results)
         elif self.semantic_reweight:
             bbox_results, cga_meta = self.inference_unlabeled(
                 img_unlabeled, img_metas_unlabeled, rescale=True,
@@ -395,12 +422,26 @@ class UnbiasedTeacher(SemiTwoStageDetector):
         so the bank the fused blend used had no self-inclusion."""
         from .prototype_cga import greedy_match_weak_strong
 
+        mode = getattr(ema_host, "cga_filter_mode", "")
+        is_v2 = mode == "prototype_legacy_v2"
         bank = getattr(ema_host, "_proto_bank", None)
         pending = getattr(ema_host, "_proto_pending", None)
         strict = bool(getattr(ema_host, "cga_strict", False))
+        diag = getattr(ema_host, "_proto_diag", None)
+        if is_v2:
+            pending_count = len(pending) if pending is not None else 0
+            if pending_count != len(strong_results):
+                if diag is not None:
+                    diag["alignment_error_count"] += 1
+                error = RuntimeError(
+                    "prototype_v2: weak/strong batch length mismatch "
+                    f"{pending_count} != {len(strong_results)}")
+                if strict:
+                    raise error
+                return
         if bank is None:
             return
-        diag = getattr(ema_host, "_proto_diag", None)
+
         score_thr = float(getattr(ema_host, "cga_proto_score_thr", 0.97))
         iou_thr = float(getattr(ema_host, "cga_proto_iou_thr", 0.70))
 
@@ -414,6 +455,8 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             for b, item in enumerate(pending):
                 if b >= len(strong_results):
                     break
+                if item is None:
+                    continue
                 strong_obb_inp = ema_host._flatten_cga_obb(strong_results[b])
                 if strong_obb_inp is None:
                     continue
@@ -447,15 +490,78 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 raise
         self._maybe_log_prototype_diag(ema_host, bank, n_qual)
 
+    def _accumulate_prototype_v2_paired_diagnostics(
+            self, ema_host, gt_bboxes, gt_labels, img_metas):
+        """Compare paired legacy/v2 admission and GT hit-rate proxies.
+
+        GT is used only for this diagnostic proxy.  Prototype candidates and
+        class IDs remain exclusively teacher-derived in ``_prototype_bank_update``.
+        """
+        diag = ema_host._proto_diag
+        pending = getattr(ema_host, "_proto_pending", None) or []
+        for batch_index, item in enumerate(pending):
+            if item is None:
+                continue
+            labels = np.asarray(item["label"], dtype=np.int64)
+            thresholds = np.asarray(
+                [self._pseudo_score_threshold(int(c)) for c in labels],
+                dtype=np.float64)
+            legacy_admitted = (
+                np.asarray(item["legacy_score"], dtype=np.float64)
+                >= thresholds)
+            v2_admitted = (
+                np.asarray(item["v2_score"], dtype=np.float64)
+                >= thresholds)
+            diag["legacy_admitted"] += int(legacy_admitted.sum())
+            diag["v2_admitted"] += int(v2_admitted.sum())
+            diag["v2_newly_deleted"] += int(
+                np.count_nonzero(legacy_admitted & ~v2_admitted))
+            diag["v2_newly_retained"] += int(
+                np.count_nonzero(~legacy_admitted & v2_admitted))
+
+            if (gt_bboxes is None or gt_labels is None or img_metas is None
+                    or batch_index >= len(gt_bboxes)
+                    or batch_index >= len(gt_labels)
+                    or batch_index >= len(img_metas)):
+                continue
+            gt_box = gt_bboxes[batch_index].detach().cpu().numpy().copy()
+            gt_label = gt_labels[batch_index].detach().cpu().numpy()
+            if len(gt_box):
+                scale_factor = img_metas[batch_index]["scale_factor"]
+                gt_box[:, :4] = gt_box[:, :4] / scale_factor
+
+            proposal_obb = np.asarray(item["obb"], dtype=np.float32)
+            for class_id in np.unique(labels):
+                gt_for_class = gt_box[gt_label == class_id]
+                if len(gt_for_class) == 0:
+                    continue
+                class_rows = labels == class_id
+                for key, admitted in (
+                        ("legacy_hits", legacy_admitted),
+                        ("v2_hits", v2_admitted)):
+                    chosen = proposal_obb[class_rows & admitted]
+                    if len(chosen) == 0:
+                        continue
+                    overlaps = rbbox_overlaps(
+                        torch.as_tensor(chosen, dtype=torch.float32),
+                        torch.as_tensor(gt_for_class, dtype=torch.float32))
+                    diag[key] += int(
+                        (overlaps.max(dim=1)[0] > 0.5).sum().item())
+
     def _maybe_log_prototype_diag(self, ema_host, bank, n_qual):
         """Periodic summary log + per-update CSV row (path from env
         CGA_PROTO_DIAG_CSV)."""
         it = getattr(ema_host, "_proto_cur_iter", 0)
         diag = getattr(ema_host, "_proto_diag", {})
+        mode = getattr(ema_host, "cga_filter_mode", "")
+        is_v2 = mode == "prototype_legacy_v2"
+        strict_v2 = is_v2 and bool(getattr(ema_host, "cga_strict", False))
         text_proto = None
         try:
             text_proto = ema_host.cga.text_prototype_matrix()
         except Exception:
+            if strict_v2:
+                raise
             text_proto = None
         drift = [round(bank.drift(c), 5) for c in range(bank.num_classes)]
         vt_cos = []
@@ -463,6 +569,16 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             tp = text_proto[c] if text_proto is not None else np.zeros(1)
             vt_cos.append(round(bank.visual_text_cos(c, tp), 5))
         n_active = int(bank.active_mask().sum())
+        blend_log = (
+            f"legacy_blended={diag.get('legacy_blended', 0)} "
+            f"v2_blended={diag.get('v2_blended', 0)} "
+            if is_v2 else f"blended={diag.get('blended', 0)} ")
+        paired_log = (
+            f"legacy_admitted={diag.get('legacy_admitted', 0)} "
+            f"v2_admitted={diag.get('v2_admitted', 0)} "
+            f"pseudo-box_hit-rate_proxy="
+            f"{(diag.get('v2_hits', 0) / diag.get('v2_admitted', 1)) if diag.get('v2_admitted', 0) else 0.0:.4f} "
+            if is_v2 else "")
         csv_path = os.environ.get("CGA_PROTO_DIAG_CSV", "").strip()
         if csv_path:
             try:
@@ -470,7 +586,7 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 os.makedirs(os.path.dirname(csv_path), exist_ok=True)
                 with open(csv_path, "a", encoding="utf-8") as f:
                     if new:
-                        f.write(
+                        header = (
                             "iter,n_active,n_qualified,"
                             + ",".join(f"count_{c}" for c in range(bank.num_classes))
                             + "," + ",".join(f"upd_{c}" for c in range(bank.num_classes))
@@ -478,7 +594,18 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                             + "," + ",".join(f"drift_{c}" for c in range(bank.num_classes))
                             + "," + ",".join(f"vtcos_{c}" for c in range(bank.num_classes))
                             + ",top1_change,top1_total,det_agree_text,det_agree_fused,"
-                            "blended,fallback,proto_upd_err,nan_inf,align_err\n")
+                            "blended,fallback,proto_upd_err,nan_inf,align_err")
+                        if is_v2:
+                            header += (
+                                ",legacy_blended,v2_blended,top1_change_rate,"
+                                "text_detector_agreement,"
+                                "fused_detector_agreement,legacy_admitted,"
+                                "v2_admitted,legacy_hit_rate_proxy,"
+                                "v2_hit_rate_proxy,mean_text_det_prob,"
+                                "mean_fused_det_prob,delta_p10,delta_p25,"
+                                "delta_p50,delta_p75,delta_p90,"
+                                "v2_newly_deleted,v2_newly_retained")
+                        f.write(header + "\n")
                     row = [it, n_active, n_qual]
                     row += list(bank.prototype_count)
                     row += list(bank.prototype_update_count)
@@ -490,16 +617,69 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                             diag.get("prototype_update_error_count", 0),
                             diag.get("nan_inf_count", 0),
                             diag.get("alignment_error_count", 0)]
+                    if is_v2:
+                        legacy_admitted = diag.get("legacy_admitted", 0)
+                        v2_admitted = diag.get("v2_admitted", 0)
+                        prob_count = diag.get("det_prob_count", 0)
+                        top1_total = diag.get("top1_total", 0)
+                        # Read approximate cumulative quantiles from the fixed
+                        # 4097-bin streaming histogram (resolution 1/2048).
+                        # This keeps memory and per-iteration work bounded.
+                        delta_hist = np.asarray(
+                            diag.get("det_prob_delta_hist", []),
+                            dtype=np.int64)
+                        if delta_hist.size and delta_hist.sum() > 0:
+                            cumulative = np.cumsum(delta_hist)
+                            total_delta = int(cumulative[-1])
+                            ranks = np.ceil(
+                                np.asarray([.10, .25, .50, .75, .90])
+                                * total_delta).astype(np.int64)
+                            ranks = np.maximum(ranks, 1)
+                            indices = np.searchsorted(
+                                cumulative, ranks, side="left")
+                            percentiles = (
+                                -1.0 + 2.0 * indices
+                                / float(len(delta_hist) - 1))
+                        else:
+                            percentiles = np.zeros(5, dtype=np.float64)
+                        row += [
+                            diag.get("legacy_blended", 0),
+                            diag.get("v2_blended", 0),
+                            (diag.get("top1_change", 0) / top1_total
+                             if top1_total else 0.0),
+                            (diag.get("det_agree_text", 0) / top1_total
+                             if top1_total else 0.0),
+                            (diag.get("det_agree_fused", 0) / top1_total
+                             if top1_total else 0.0),
+                            legacy_admitted,
+                            v2_admitted,
+                            (diag.get("legacy_hits", 0) / legacy_admitted
+                             if legacy_admitted else 0.0),
+                            (diag.get("v2_hits", 0) / v2_admitted
+                             if v2_admitted else 0.0),
+                            (diag.get("text_det_prob_sum", 0.0) / prob_count
+                             if prob_count else 0.0),
+                            (diag.get("fused_det_prob_sum", 0.0) / prob_count
+                             if prob_count else 0.0),
+                        ]
+                        row += percentiles.tolist()
+                        row += [
+                            diag.get("v2_newly_deleted", 0),
+                            diag.get("v2_newly_retained", 0),
+                        ]
                     f.write(",".join(str(x) for x in row) + "\n")
             except Exception as e:
+                if strict_v2:
+                    raise
                 get_root_logger().warning(f"[proto][diag] csv write failed: {e}")
         if it <= 3 or it % 100 == 0:
             get_root_logger().info(
                 f"[proto] iter={it} active={n_active} qualified={n_qual} "
                 f"count={list(bank.prototype_count)} "
                 f"firstact={list(bank.first_active_iteration)} "
-                f"blended={diag.get('blended',0)} "
+                f"{blend_log}"
                 f"top1_change={diag.get('top1_change',0)}/{diag.get('top1_total',0)} "
+                f"{paired_log}"
                 f"fallback={diag.get('fallback_count',0)} "
                 f"proto_upd_err={diag.get('prototype_update_error_count',0)} "
                 f"nan_inf={diag.get('nan_inf_count',0)} "
