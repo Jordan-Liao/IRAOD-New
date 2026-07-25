@@ -17,6 +17,17 @@ from mmcv.runner import load_checkpoint
 from mmdet.models.builder import build_detector
 from mmdet.core import bbox2roi
 
+
+_SOGC_SOURCE_STAT_NAMES = frozenset({
+    'source_mean', 'source_var', 'source_count', 'source_m2', 'stats_ready'
+})
+
+
+def _is_sogc_source_stat_key(key):
+    return '.sogc.' in key and key.rsplit('.', 1)[-1] in \
+        _SOGC_SOURCE_STAT_NAMES
+
+
 class SemiBaseDetector(nn.Module):
 
     def __init__(self,
@@ -79,13 +90,20 @@ class SemiBaseDetector(nn.Module):
         model_dict = self.state_dict()
         new_dict = OrderedDict()
         for key, value in self.ema_model.state_dict().items():
-            # print(model_dict.keys())
-            if key[7:] in model_dict.keys():
-                new_dict[key] = (
-                        model_dict[key[7:]] * (1 - momentum) + value * momentum
-                )
+            student_key = key[7:] if key.startswith('module.') else key
+            if student_key not in model_dict:
+                raise KeyError(
+                    f'{key} is not found in the student model state dict')
+            student_value = model_dict[student_key]
+            if _is_sogc_source_stat_key(student_key):
+                if not torch.equal(student_value, value):
+                    raise RuntimeError(
+                        'SOGC source statistics differ between student and '
+                        f'EMA teacher before update: {student_key}')
+                new_dict[key] = value.detach().clone()
             else:
-                raise Exception("{} is not found in student model".format(key))
+                new_dict[key] = (
+                    student_value * (1 - momentum) + value * momentum)
         self.ema_model.load_state_dict(new_dict)
 
     def cuda(self, device=None):

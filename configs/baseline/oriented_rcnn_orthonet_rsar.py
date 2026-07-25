@@ -6,7 +6,7 @@ custom_imports = dict(
 
 classes = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 
-data_root = '/home/storageSDA1/liaojr/dataset/RSAR/'
+data_root = '/myfile/dataset/RSAR/'
 
 train_img = data_root + 'train/images/'
 train_ann = data_root + 'train/annfiles/'
@@ -117,9 +117,9 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 
-# Optionally warm-start shared layers from the existing ResNet RSAR baseline.
-# Set this to None for training OrthoNet completely from scratch.
-load_from = 'baseline/rsar_oriented_rcnn_epoch_12_mmcv_compat.pth'
+# Existing clean-source OrthoNet RSAR checkpoint supplied for this workspace.
+# Set this to None only when training OrthoNet completely from scratch.
+load_from = '/myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth'
 
 resume_from = None
 workflow = [('train', 1)]

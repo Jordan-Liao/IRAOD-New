@@ -10,7 +10,7 @@ save_interval = 1
 
 classes = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 
-data_root = '/home/storageSDA1/liaojr/dataset/RSAR/'
+data_root = '/myfile/dataset/RSAR/'
 
 train_img = data_root + 'train/images/'
 train_ann = data_root + 'train/annfiles/'
@@ -168,7 +168,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 resume_from = None
 
-load_from = 'work_dirs/oriented_rcnn_orthonet_rsar/epoch_100.pth'
+load_from = '/myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth'
 workflow = [('train', 1)]
 
 ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py'
