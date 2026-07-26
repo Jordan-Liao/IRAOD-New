@@ -155,7 +155,11 @@ class _EMAStudent(SemiBaseDetector):
         nn.Module.__init__(self)
         self.backbone = _Payload()
         teacher = _Detector(copy.deepcopy(self.backbone))
+        # ``nn.DataParallel`` relocates the wrapped teacher to cuda:0, so the
+        # student has to follow the production path and move as well.
         self.ema_model = nn.DataParallel(teacher)
+        if torch.cuda.is_available():
+            self.cuda()
 
 
 class TestSOGCIntegration(unittest.TestCase):
@@ -180,9 +184,10 @@ class TestSOGCIntegration(unittest.TestCase):
                 getattr(student.backbone.sogc, name), before_student[name]))
             self.assertTrue(torch.equal(
                 getattr(teacher_sogc, name), before_teacher[name]))
+        teacher_weight = student.ema_model.module.backbone.weight
         self.assertTrue(torch.equal(
-            student.ema_model.module.backbone.weight,
-            torch.tensor([2.0])))
+            teacher_weight,
+            torch.tensor([2.0], device=teacher_weight.device)))
 
     def test_old_and_new_configs_build_without_changing_detector_heads(self):
         old_cfg = Config.fromfile(SOURCE_CONFIG)
