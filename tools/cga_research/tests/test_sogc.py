@@ -123,6 +123,31 @@ class TestSOGCCalibrator(unittest.TestCase):
         self.assertGreater(sum(float(gradient.abs().sum())
                                for gradient in gradients), 0.0)
 
+    def test_z_clip_fraction_reports_clamp_saturation(self):
+        calibrator = _ready_calibrator(channels=4)
+        with torch.no_grad():
+            calibrator.source_mean.zero_()
+            calibrator.source_var.fill_(1.0)
+        # Two channels sit far beyond z_clip, two sit inside it.
+        response = torch.tensor(
+            [[100.0, -100.0, 0.5, -0.5]]).view(1, 4, 1, 1)
+        calibrator(response, torch.ones(1, 4, 1, 1))
+        diagnostics = calibrator.get_sogc_diagnostics()
+        self.assertAlmostEqual(
+            float(diagnostics['z_clip_fraction'].item()), 0.5, places=6)
+        self.assertAlmostEqual(
+            float(diagnostics['max_abs_z'].item()), calibrator.z_clip,
+            places=6)
+
+    def test_z_clip_fraction_is_zero_without_saturation(self):
+        calibrator = _ready_calibrator(channels=4)
+        with torch.no_grad():
+            calibrator.source_mean.zero_()
+            calibrator.source_var.fill_(1.0)
+        calibrator(torch.full((1, 4, 1, 1), 0.25), torch.ones(1, 4, 1, 1))
+        diagnostics = calibrator.get_sogc_diagnostics()
+        self.assertEqual(float(diagnostics['z_clip_fraction'].item()), 0.0)
+
     def test_source_statistics_are_non_parameter_buffers(self):
         calibrator = _ready_calibrator()
         parameter_ids = {id(parameter) for parameter in calibrator.parameters()}

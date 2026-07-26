@@ -179,6 +179,7 @@ class SOGCCalibrator(nn.Module):
             'mean_abs_z': nan.detach(),
             'mean_sq_z': nan.detach(),
             'max_abs_z': nan.detach(),
+            'z_clip_fraction': nan.detach(),
             'calibration_magnitude': zero.detach(),
             'calibration_factor_min': one.detach(),
             'calibration_factor_max': one.detach(),
@@ -226,10 +227,15 @@ class SOGCCalibrator(nn.Module):
 
         flat_z = z.flatten(1)
         flat_factor = factor.flatten(1)
+        # Share of channels pinned at the clamp boundary. A large value means
+        # the response is dominated by z_clip and variance-floor channels
+        # rather than by a graded source deviation.
+        saturated = (flat_z.abs() >= self.z_clip - self.eps).to(flat_z.dtype)
         self._last_diagnostics = {
             'mean_abs_z': flat_z.abs().mean(dim=1).detach(),
             'mean_sq_z': flat_z.square().mean(dim=1).detach(),
             'max_abs_z': flat_z.abs().amax(dim=1).detach(),
+            'z_clip_fraction': saturated.mean(dim=1).detach(),
             'calibration_magnitude':
                 (flat_factor - 1.0).abs().mean(dim=1).detach(),
             'calibration_factor_min': flat_factor.amin(dim=1).detach(),

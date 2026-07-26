@@ -40,8 +40,11 @@ CSV_FIELDS = [
     'domain', 'image_index', 'filename',
     'C4_mean_sq_z', 'C5_mean_sq_z',
     'C4_mean_abs_z', 'C5_mean_abs_z',
+    'C4_z_clip_fraction', 'C5_z_clip_fraction',
     'tp', 'fp', 'fn', 'gt_recall', 'high_conf_detections',
 ]
+
+GEOMETRY_METRICS = ('mean_sq_z', 'mean_abs_z', 'z_clip_fraction')
 
 
 def parse_args():
@@ -226,6 +229,10 @@ def _analyze_domain(label, config_path, checkpoint_path, args,
                     diagnostics, 'C4', 'mean_abs_z'),
                 'C5_mean_abs_z': _diag_scalar(
                     diagnostics, 'C5', 'mean_abs_z'),
+                'C4_z_clip_fraction': _diag_scalar(
+                    diagnostics, 'C4', 'z_clip_fraction'),
+                'C5_z_clip_fraction': _diag_scalar(
+                    diagnostics, 'C5', 'z_clip_fraction'),
                 'tp': None,
                 'fp': None,
                 'fn': None,
@@ -323,8 +330,10 @@ def _plot_boxplot(path, clean_rows, corrupt_rows):
         ('C5_mean_sq_z', 'C5 mean_sq_z'),
         ('C4_mean_abs_z', 'C4 mean_abs_z'),
         ('C5_mean_abs_z', 'C5 mean_abs_z'),
+        ('C4_z_clip_fraction', 'C4 z_clip_fraction'),
+        ('C5_z_clip_fraction', 'C5 z_clip_fraction'),
     ]
-    figure, axes = plt.subplots(2, 2, figsize=(10, 7))
+    figure, axes = plt.subplots(3, 2, figsize=(10, 10))
     for axis, (field, title) in zip(axes.flat, fields):
         axis.boxplot([
             _finite_values(clean_rows, field),
@@ -370,6 +379,24 @@ def _plot_relation(path, rows, target_field, target_label):
     plt.close(figure)
 
 
+def _domain_correlations(rows):
+    """Spearman correlations between deviation and detection failure."""
+    correlations = {}
+    for stage in ('C4', 'C5'):
+        x_values = [row[f'{stage}_mean_sq_z'] for row in rows]
+        correlations[stage] = {
+            'mean_sq_z_vs_fp_per_image': _spearman(
+                x_values,
+                [np.nan if row['fp'] is None else row['fp']
+                 for row in rows]),
+            'mean_sq_z_vs_gt_recall': _spearman(
+                x_values,
+                [np.nan if row['gt_recall'] is None else row['gt_recall']
+                 for row in rows]),
+        }
+    return correlations
+
+
 def _make_summary(clean_rows, corrupt_rows):
     all_rows = clean_rows + corrupt_rows
     geometry = {}
@@ -379,28 +406,25 @@ def _make_summary(clean_rows, corrupt_rows):
             geometry[domain][stage] = {
                 metric: _describe(_finite_values(
                     rows, f'{stage}_{metric}'))
-                for metric in ('mean_sq_z', 'mean_abs_z')
+                for metric in GEOMETRY_METRICS
             }
 
     auroc = {}
-    correlations = {}
     for stage in ('C4', 'C5'):
-        for metric in ('mean_sq_z', 'mean_abs_z'):
+        for metric in GEOMETRY_METRICS:
             field = f'{stage}_{metric}'
             auroc[field] = _auroc(
                 _finite_values(clean_rows, field),
                 _finite_values(corrupt_rows, field))
-        x_values = [row[f'{stage}_mean_sq_z'] for row in all_rows]
-        correlations[stage] = {
-            'mean_sq_z_vs_fp_per_image': _spearman(
-                x_values,
-                [np.nan if row['fp'] is None else row['fp']
-                 for row in all_rows]),
-            'mean_sq_z_vs_gt_recall': _spearman(
-                x_values,
-                [np.nan if row['gt_recall'] is None else row['gt_recall']
-                 for row in all_rows]),
-        }
+
+    # Pooling both domains conflates "corrupt images deviate more" with
+    # "deviation predicts failure", so the within-domain splits are reported
+    # separately and the corrupt-only block is the one that matters.
+    correlations = {
+        'combined': _domain_correlations(all_rows),
+        'clean': _domain_correlations(clean_rows),
+        'corrupt': _domain_correlations(corrupt_rows),
+    }
     return {
         'sample_counts': {
             'clean': len(clean_rows),
