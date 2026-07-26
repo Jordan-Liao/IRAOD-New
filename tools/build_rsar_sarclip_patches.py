@@ -57,7 +57,7 @@ METADATA_FIELDS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Build RSAR SARCLIP object patches from DOTA annfiles.")
-    parser.add_argument("--data-root", default="/home/storageSDA1/liaojr/dataset/RSAR")
+    parser.add_argument("--data-root", default="/mycode/dataset/RSAR/")
     parser.add_argument("--split", choices=["train", "val", "test"], required=True)
     parser.add_argument("--use-corruptions", type=int, choices=[0, 1], default=1)
     parser.add_argument("--corruptions", nargs="+", default=DEFAULT_CORRUPTIONS)
