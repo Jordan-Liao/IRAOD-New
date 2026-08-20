@@ -1,17 +1,21 @@
 """Checkpoint-compatible OrthoNet with optional SOGC calibration."""
 
 from collections import OrderedDict
+from contextlib import contextmanager
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as cp
 from mmcv.cnn import constant_init
+from mmcv.utils.parrots_wrapper import _BatchNorm, _InstanceNorm
 from mmdet.models.backbones.resnet import (BasicBlock, Bottleneck, ResLayer,
                                            ResNet)
 from mmdet.models.builder import BACKBONES
 
-from ..utils import SOGCCalibrator
+from ..utils import SeparableLowRankProjection, SOGCCalibrator
+
+_BATCH_NORM_TYPES = (_BatchNorm, _InstanceNorm, nn.GroupNorm, nn.LayerNorm)
 
 
 class OrthogonalChannelAttention(nn.Module):
@@ -161,6 +165,7 @@ class OrthoNet(ResNet):
                  depth,
                  reduction=16,
                  sogc_cfg=None,
+                 slrp_cfg=None,
                  num_stages=4,
                  **kwargs):
         if reduction <= 0:
@@ -168,8 +173,150 @@ class OrthoNet(ResNet):
         self.reduction = int(reduction)
         self._sogc_cfg = self._validate_sogc_cfg(
             sogc_cfg, num_stages=num_stages)
+        self._slrp_cfg = self._validate_slrp_cfg(
+            slrp_cfg, num_stages=num_stages)
         super().__init__(
             depth=depth, num_stages=num_stages, **kwargs)
+        self._build_slrp()
+
+    # Stage index for the tap immediately after the stem's maxpool. A depth
+    # profile over the frozen RSAR checkpoint (work_dirs/depth_profile_400)
+    # puts the peak separability of 5 of the 7 RSAR corruptions here, and shows
+    # the signature of noise_suppression falling from 1.78 of its input-domain
+    # strength at this tap to 0.02 by C4.
+    STEM_STAGE = -1
+
+    @staticmethod
+    def _validate_slrp_cfg(slrp_cfg, num_stages):
+        if slrp_cfg is None or not slrp_cfg.get('enabled', True):
+            return None
+        cfg = dict(slrp_cfg)
+        cfg.pop('enabled', None)
+        stages = tuple(cfg.pop('stages', (OrthoNet.STEM_STAGE,)))
+        if len(set(stages)) != len(stages):
+            raise ValueError('SLRP stages must be unique')
+        if any(stage < OrthoNet.STEM_STAGE or stage >= num_stages
+               for stage in stages):
+            raise ValueError(
+                f'SLRP stages {stages} are invalid for '
+                f'num_stages={num_stages}; use {OrthoNet.STEM_STAGE} for the '
+                'post-maxpool tap or 0..num_stages-1 for C2..C5')
+        allowed = {
+            'window', 'hidden_channels', 'gamma', 'sparse_multiplier', 'eps'
+        }
+        unknown = set(cfg) - allowed
+        if unknown:
+            raise ValueError(f'unknown SLRP options: {sorted(unknown)}')
+        return dict(stages=stages, module_cfg=cfg)
+
+    def _build_slrp(self):
+        """Attach SLRP after the selected stages.
+
+        Nothing is registered when SLRP is disabled, so the legacy OrthoNet
+        state-dict surface is untouched.
+        """
+        if self._slrp_cfg is None:
+            return
+        modules = OrderedDict()
+        for stage_index in sorted(self._slrp_cfg['stages']):
+            modules[str(stage_index)] = SeparableLowRankProjection(
+                channels=self._tap_channels(stage_index),
+                **self._slrp_cfg['module_cfg'])
+        self.slrp = nn.ModuleDict(modules)
+
+    def _tap_channels(self, stage_index):
+        if stage_index == self.STEM_STAGE:
+            return self._stem_out_channels()
+        return self._stage_out_channels(
+            getattr(self, self.res_layers[stage_index]))
+
+    def _stem_out_channels(self):
+        if self.deep_stem:
+            # ResNet's deep stem ends on a conv-bn-relu triple.
+            for module in reversed(list(self.stem.modules())):
+                if isinstance(module, _BATCH_NORM_TYPES):
+                    return module.num_features
+            raise TypeError('deep stem has no normalization layer to size from')
+        return self.norm1.num_features
+
+    @staticmethod
+    def _stage_out_channels(res_layer):
+        block = res_layer[-1]
+        if isinstance(block, OrthoBottleneck):
+            return block.norm3.num_features
+        if isinstance(block, OrthoBasicBlock):
+            return block.norm2.num_features
+        raise TypeError(f'unsupported block type: {type(block)}')
+
+    def forward(self, x):
+        if self.deep_stem:
+            x = self.stem(x)
+        else:
+            x = self.conv1(x)
+            x = self.norm1(x)
+            x = self.relu(x)
+        x = self.maxpool(x)
+        x = self._apply_slrp(self.STEM_STAGE, x)
+        outs = []
+        for index, layer_name in enumerate(self.res_layers):
+            x = getattr(self, layer_name)(x)
+            x = self._apply_slrp(index, x)
+            if index in self.out_indices:
+                outs.append(x)
+        return tuple(outs)
+
+    def _apply_slrp(self, stage_index, x):
+        if not hasattr(self, 'slrp') or self._slrp_bypassed:
+            return x
+        key = str(stage_index)
+        return self.slrp[key](x) if key in self.slrp else x
+
+    @property
+    def _slrp_bypassed(self):
+        return getattr(self, '_bypass_slrp', False)
+
+    @contextmanager
+    def slrp_bypassed(self):
+        """Run the backbone as if SLRP were absent.
+
+        Used to obtain the frozen pretrained reference features that SLRP
+        calibration distills towards; without this the reference would drift as
+        SLRP trains.
+        """
+        previous = self._slrp_bypassed
+        self._bypass_slrp = True
+        try:
+            yield
+        finally:
+            self._bypass_slrp = previous
+
+    def iter_slrp_modules(self):
+        if not hasattr(self, 'slrp'):
+            return
+        for stage_index in sorted(int(key) for key in self.slrp):
+            yield stage_index, self.slrp[str(stage_index)]
+
+    def _tap_name(self, stage_index):
+        return ('stem_maxpool' if stage_index == self.STEM_STAGE
+                else f'C{stage_index + 2}')
+
+    def get_slrp_diagnostics(self):
+        by_stage = OrderedDict()
+        for stage_index, module in self.iter_slrp_modules():
+            by_stage[self._tap_name(stage_index)] = \
+                module.get_slrp_diagnostics()
+        return by_stage
+
+    def get_slrp_metadata(self):
+        return [{
+            'stage_index': stage_index,
+            'feature_stage': self._tap_name(stage_index),
+            'channels': module.channels,
+            'window': module.window,
+            'hidden_channels': module.hidden_channels,
+            'gamma': module.gamma,
+            'sparse_multiplier': module.sparse_multiplier,
+        } for stage_index, module in self.iter_slrp_modules()]
 
     @staticmethod
     def _validate_sogc_cfg(sogc_cfg, num_stages):

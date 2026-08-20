@@ -34,6 +34,29 @@ CLASSES = ["ship", "aircraft", "car", "tank", "bridge", "harbor"]
 DEFAULT_TEMPLATE = "A SAR image of a {}"
 
 
+def force_math_sdpa():
+    """Route attention through the math backend.
+
+    On sm_90 (H100) with torch 2.0.1+cu118 the flash and mem-efficient SDPA
+    backends raise "CUDA error: an illegal instruction was encountered" in the
+    *backward* pass. Forward succeeds, which is why the failure first appears at
+    ``optimizer.step()`` -- CUDA reports asynchronously. It only bites once LoRA
+    is injected across every block, because autograd must then traverse each
+    attention layer instead of pruning the graph.
+
+    The math backend is slower but numerically identical, and attention is not
+    the bottleneck here: only the LoRA factors carry gradients.
+    """
+    if not torch.cuda.is_available():
+        return
+    capability = torch.cuda.get_device_capability()
+    torch.backends.cuda.enable_flash_sdp(False)
+    torch.backends.cuda.enable_mem_efficient_sdp(False)
+    torch.backends.cuda.enable_math_sdp(True)
+    print(f"[train_sarclip_lora] sm_{capability[0]}{capability[1]}: "
+          "forced math SDPA backend (flash/mem-efficient backward is broken here)")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune SARCLIP adapters on RSAR patches.")
     parser.add_argument("--metadata", required=True)
@@ -52,6 +75,14 @@ def parse_args():
     parser.add_argument("--lora-r", type=int, default=8)
     parser.add_argument("--lora-alpha", type=float, default=16.0)
     parser.add_argument("--lora-dropout", type=float, default=0.0)
+    # Decoding and resizing the patches is the bottleneck, not the 737k LoRA
+    # factors: with num_workers=0 the main process saturated 28 cores on PIL work
+    # while the GPU sat at 0%.
+    parser.add_argument("--num-workers", type=int, default=8)
+    # 4.19M patches is far more than these adapters need, and every extra patch
+    # is another small-file read on a network filesystem. Capping the count keeps
+    # the class balance (the sampler is weighted anyway) and bounds the run.
+    parser.add_argument("--max-patches", type=int, default=None)
     parser.add_argument("--train-visual-proj-only", action="store_true")
     return parser.parse_args()
 
@@ -213,7 +244,26 @@ def train_one_epoch(model, classifier, loader, optimizer, device):
 
 def main():
     args = parse_args()
+    force_math_sdpa()
     rows = load_metadata(args.metadata, args.crop_mode)
+    if args.max_patches is not None and len(rows) > args.max_patches:
+        # Stratify by class so the cap cannot starve a rare class such as harbor
+        # (2.2% of the full set) down to nothing.
+        import random
+
+        by_class = {}
+        for row in rows:
+            by_class.setdefault(row["class_id"], []).append(row)
+        per_class = max(1, args.max_patches // len(by_class))
+        rng = random.Random(42)
+        capped = []
+        for class_id in sorted(by_class):
+            bucket = by_class[class_id]
+            capped.extend(
+                bucket if len(bucket) <= per_class else rng.sample(bucket, per_class))
+        print(f"[train_sarclip_lora] capped {len(rows)} -> {len(capped)} patches "
+              f"({per_class}/class over {len(by_class)} classes)")
+        rows = capped
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, classifier, preprocess = build_model(args, device)
     adapter_type, trainable_names, fallback_reason = configure_trainable_params(model, args)
@@ -224,7 +274,15 @@ def main():
 
     dataset = PatchDataset(rows, preprocess)
     sampler = build_balanced_sampler(rows)
-    loader = DataLoader(dataset, batch_size=args.batch_size, sampler=sampler, num_workers=0)
+    loader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        sampler=sampler,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        persistent_workers=args.num_workers > 0,
+        prefetch_factor=4 if args.num_workers > 0 else None,
+    )
     params = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
 

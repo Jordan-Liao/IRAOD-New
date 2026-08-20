@@ -10,7 +10,7 @@ save_interval = 1
 
 classes = ('airplane', 'airport', 'baseballfield','basketballcourt', 'bridge', 'chimney', 'dam', 'Expressway-Service-area','Expressway-toll-station', 'golffield', 'groundtrackfield', 'harbor', 'overpass', 'ship','stadium', 'storagetank', 'tenniscourt', 'trainstation', 'vehicle', 'windmill')
 
-data_root = '/home/storageSDA1/Dataset/DIOR/'
+data_root = '/myfile/dataset/DIOR/'
 data_root_l = data_root+'JPEGImages'
 data_root_u = data_root+'Corruption/JPEGImages-${corrupt}'
 ann_file_l = data_root+'ImageSets/train.txt'

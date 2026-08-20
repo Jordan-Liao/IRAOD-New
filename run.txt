@@ -71,3 +71,16 @@ WD=work_dirs/raw_thr082_iraod_point_target_no_cga
 OPTS="corrupt=point_target model.cfg.score_thr=0.82 work_dir=$WD"
 
 python train.py "$CFG" --cfg-options $OPTS
+
+
+Stage 1，标定，只用有标签的 source 数据，不碰目标域（约 1h45m）：
+
+python train.py configs/baseline/calibrate_slrp_quiescent_orthonet_rsar.py \
+    --cfg-options work_dir=work_dirs/calib_selective_v1
+
+Stage 2，SFOD 自训练，目标域无标签：
+
+python train.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_slrp_rsar_orthonet.py \
+    --cfg-options corrupt=noise_suppression work_dir=work_dirs/sfod_selective_ns
+
+tools/run_slrp_ablation.sh 里有完整调用范式，包括 CGA 那一串环境变量，照抄就行。

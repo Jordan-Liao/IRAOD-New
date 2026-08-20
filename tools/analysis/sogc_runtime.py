@@ -67,6 +67,11 @@ def _checkpoint_state_dict(checkpoint):
     return revised
 
 
+# Modules that are zero-initialized and therefore legitimately absent from a
+# legacy checkpoint. Anything else missing is a real weight-loading fault.
+OPTIONAL_MODULE_MARKERS = ('.sogc.', '.slrp.')
+
+
 def load_checkpoint_sogc_compatible(model,
                                     checkpoint_path,
                                     allow_missing_sogc):
@@ -78,7 +83,9 @@ def load_checkpoint_sogc_compatible(model,
     incompatible = model.load_state_dict(state_dict, strict=False)
     missing = list(incompatible.missing_keys)
     unexpected = list(incompatible.unexpected_keys)
-    invalid_missing = [key for key in missing if '.sogc.' not in key]
+    invalid_missing = [
+        key for key in missing
+        if not any(marker in key for marker in OPTIONAL_MODULE_MARKERS)]
     if invalid_missing:
         preview = ', '.join(invalid_missing[:20])
         raise RuntimeError(
