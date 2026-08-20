@@ -29,6 +29,7 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         self.vlst_prototype_momentum = float(cfg.get('vlst_prototype_momentum', 0.9))
         self.vlst_text_visual_alpha = float(cfg.get('vlst_text_visual_alpha', 0.5))
         self.vlst_score_thr = cfg.get('vlst_score_thr', None)
+        self.vlst_lora_path = cfg.get('vlst_lora_path', None)
         if self.vlst_score_thr is None:
             self.vlst_score_thr = self.score_thr
 
@@ -106,14 +107,28 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             if vlm_type in ('', 'none', 'false', '0', 'raw'):
                 vlm_type = 'sarclip'
 
-            # Build CGA instance directly
-            vlm = CGA(
-                class_names=class_names,
-                backend=vlm_type,
-                model="ViT-B-32",
-                pretrained="/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-                cache_dir="/myfile/pretrain/SARCLIP/ViT-B-32",
-            )
+            # Build a VLM dedicated to VLST. Its adapter must be explicit:
+            # Arm C has label-level CGA disabled, so relying on the ambient
+            # SARCLIP_LORA environment makes the semantic-teacher arm
+            # irreproducible.
+            inherited_lora = os.environ.get('SARCLIP_LORA')
+            try:
+                if self.vlst_lora_path:
+                    os.environ['SARCLIP_LORA'] = self.vlst_lora_path
+                elif inherited_lora:
+                    os.environ.pop('SARCLIP_LORA')
+                vlm = CGA(
+                    class_names=class_names,
+                    backend=vlm_type,
+                    model="ViT-B-32",
+                    pretrained="/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
+                    cache_dir="/myfile/pretrain/SARCLIP/ViT-B-32",
+                )
+            finally:
+                if inherited_lora is None:
+                    os.environ.pop('SARCLIP_LORA', None)
+                else:
+                    os.environ['SARCLIP_LORA'] = inherited_lora
 
             # Keep it for instance-feature extraction (visual prototypes).
             self._vlst_vlm = vlm
@@ -247,6 +262,7 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             if inputs is None:
                 continue
             boxes, scores, labels = inputs
+            boxes = self._restore_aabb_source_coordinates(boxes, img_meta)
 
             # Drop degenerate AABBs: PIL crop raises (and the try/except would
             # abort prototype updates for the WHOLE image) when a rotated box
@@ -279,6 +295,40 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             except Exception as e:
                 print(f"[VLST] Warning: prototype update failed: {e}")
                 continue
+
+    @staticmethod
+    def _restore_aabb_source_coordinates(boxes, img_meta):
+        """Undo the shared training flip before cropping the source image.
+
+        ``inference_unlabeled(..., rescale=True)`` removes resize scaling but
+        this mmrotate version does not undo ``RRandomFlip`` in bbox-head
+        post-processing. VLST crops ``img_meta['filename']``, which is the
+        unflipped source image, so AABBs must be mapped back first.
+        """
+        if not bool(img_meta.get('flip', False)):
+            return boxes
+
+        source_shape = img_meta.get('ori_shape', img_meta.get('img_shape'))
+        if source_shape is None:
+            raise KeyError('VLST cannot restore flipped boxes without image shape')
+        height, width = int(source_shape[0]), int(source_shape[1])
+        direction = img_meta.get('flip_direction', 'horizontal')
+        restored = boxes.copy()
+
+        if direction in ('horizontal', 'diagonal'):
+            x1, x2 = boxes[:, 0].copy(), boxes[:, 2].copy()
+            restored[:, 0] = width - x2 - 1
+            restored[:, 2] = width - x1 - 1
+        if direction in ('vertical', 'diagonal'):
+            y1, y2 = boxes[:, 1].copy(), boxes[:, 3].copy()
+            restored[:, 1] = height - y2 - 1
+            restored[:, 3] = height - y1 - 1
+        if direction not in ('horizontal', 'vertical', 'diagonal'):
+            raise ValueError(f'Unsupported VLST flip direction: {direction}')
+
+        restored[:, 0::2] = restored[:, 0::2].clip(0, width - 1)
+        restored[:, 1::2] = restored[:, 1::2].clip(0, height - 1)
+        return restored
 
     def _forward_train_with_vlst(
             self, img, img_metas, gt_bboxes, gt_labels, teacher_results):

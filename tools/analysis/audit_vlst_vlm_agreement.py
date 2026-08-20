@@ -208,7 +208,12 @@ def main():
             # VLM scoring on the same crops both VLST and CGA use. Kept boxes
             # are rotated OBBs (cx,cy,w,h,theta); the crop path takes AABBs.
             from mmrotate.core import obb2xyxy  # noqa: PLC0415
-            boxes_xyxy = obb2xyxy(kept)[:, :4].copy()
+            # mmrotate's obb2xyxy implementation expects a torch Tensor in
+            # this environment, while detections above are NumPy arrays.
+            boxes_xyxy = obb2xyxy(
+                torch.as_tensor(kept[:, :5], dtype=torch.float32,
+                                device=device)
+            ).detach().cpu().numpy()[:, :4].copy()
             scores = kept[:, 5].copy()
             labels_in = kept_labels.copy()
 

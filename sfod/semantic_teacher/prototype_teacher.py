@@ -43,6 +43,9 @@ class SemanticPrototypeTeacher(nn.Module):
         self.num_classes = num_classes
         self.vlm_dim = vlm_dim
         self.detector_dim = detector_dim
+        self.projection_hidden = int(projection_hidden)
+        if self.projection_hidden <= 0:
+            raise ValueError('projection_hidden must be positive')
         self.text_visual_alpha = float(text_visual_alpha)
         self.prototype_momentum = float(prototype_momentum)
         self.temperature = float(temperature)
@@ -57,9 +60,9 @@ class SemanticPrototypeTeacher(nn.Module):
         # head is invisible to the optimizer and stays at random init, which
         # forces the backbone to absorb the whole contrastive loss.
         self.projection_head = nn.Sequential(
-            nn.Linear(detector_dim, detector_dim // 2),
+            nn.Linear(detector_dim, self.projection_hidden),
             nn.ReLU(inplace=True),
-            nn.Linear(detector_dim // 2, vlm_dim),
+            nn.Linear(self.projection_hidden, vlm_dim),
         )
         for module in self.projection_head.modules():
             if isinstance(module, nn.Linear):

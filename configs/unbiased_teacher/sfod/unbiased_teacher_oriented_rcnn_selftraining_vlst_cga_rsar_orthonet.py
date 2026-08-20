@@ -20,8 +20,8 @@ os.environ['SARCLIP_LORA'] = (
     '/myfile/mycode/IRAOD-New/work_dirs/'
     'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth')
 
-# The prototype teacher always builds its own base-SARCLIP VLM, independent
-# of the CGA branch (which may carry the LoRA-tuned encoder).
+# The prototype teacher gets its own LoRA-SARCLIP instance. It is separate
+# from CGA but intentionally uses the same adapter proved useful on RSAR.
 os.environ['VLST_BACKEND'] = 'sarclip'
 
 _base_ = './unbiased_teacher_oriented_rcnn_selftraining_cga_rsar_orthonet.py'
@@ -54,6 +54,9 @@ model = dict(
         vlst_text_visual_alpha=0.5,
         vlst_score_thr=None,  # Inherit from score_thr
         vlst_projection_hidden=256,
+        vlst_lora_path=(
+            '/myfile/mycode/IRAOD-New/work_dirs/'
+            'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth'),
         vlst_detector_dim=1024,  # RotatedShared2FCBBoxHead fc_out_channels
         vlst_vlm_dim=512,  # ViT-B-32 SARCLIP embedding dimension
     ),

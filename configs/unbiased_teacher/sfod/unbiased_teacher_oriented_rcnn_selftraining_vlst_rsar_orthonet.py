@@ -40,6 +40,9 @@ model = dict(
         vlst_text_visual_alpha=0.5,
         vlst_score_thr=None,  # Inherit from score_thr
         vlst_projection_hidden=256,
+        vlst_lora_path=(
+            '/myfile/mycode/IRAOD-New/work_dirs/'
+            'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth'),
         vlst_detector_dim=1024,  # RotatedShared2FCBBoxHead fc_out_channels
         vlst_vlm_dim=512,  # ViT-B-32 SARCLIP embedding dimension
     ),
