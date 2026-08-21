@@ -87,10 +87,11 @@ class SemiTwoStageDetector(SemiBaseDetector, RotatedTwoStageDetector):
                 strict = os.environ.get(
                     "CGA_STRICT", "0").strip().lower() in (
                         "1", "true", "yes")
-                if filter_mode == "prototype_legacy_v2" and strict:
-                    # The v2 calibration experiment forbids silent raw-teacher
-                    # fallback: any crop/alignment/numerical failure invalidates
-                    # the paired comparison and must terminate the run.
+                if strict:
+                    # A strict CGA experiment forbids silent raw-teacher
+                    # fallback regardless of the filter mode. Otherwise a
+                    # missing scorer resource can make a purported CGA arm
+                    # indistinguishable from the raw-teacher baseline.
                     raise
                 if not hasattr(self, "_cga_fallback_count"):
                     self._cga_fallback_count = 0

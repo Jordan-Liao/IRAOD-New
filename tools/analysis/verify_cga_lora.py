@@ -73,11 +73,15 @@ def main():
         '/myfile/dataset/SARCLIP/ViT-B-32/vit_b_32_model.safetensors')
     os.environ['SARCLIP_CACHE_DIR'] = '/myfile/dataset/SARCLIP/ViT-B-32'
 
-    from sfod.cga import ClipGuidedScorer  # noqa: PLC0415
+    from sfod.cga import CGA  # noqa: PLC0415
 
     classes = ['ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor']
-    scorer = ClipGuidedScorer.build(
-        class_names=classes, device=torch.device(args.device))
+    scorer = CGA(
+        class_names=classes,
+        model='ViT-B-32',
+        pretrained=os.environ['SARCLIP_PRETRAINED'],
+        cache_dir=os.environ['SARCLIP_CACHE_DIR'],
+        backend='sarclip')
     print(f'scorer built: {type(scorer).__name__}')
     print(f'lora = {lora}')
 
@@ -89,8 +93,14 @@ def main():
     correct = 0
     per_class_correct = defaultdict(lambda: [0, 0])
     for path, truth, _corruption in samples:
-        patch = np.asarray(Image.open(path).convert('RGB'))
-        scores = scorer.score_patches([patch])
+        with Image.open(path) as patch:
+            width, height = patch.size
+        class_id = classes.index(truth)
+        scores, _ = scorer(
+            path,
+            np.asarray([[0, 0, width - 1, height - 1]], dtype=np.float32),
+            np.asarray([1.0], dtype=np.float32),
+            np.asarray([class_id], dtype=np.int64))
         vector = np.asarray(scores)[0]
         if not np.all(np.isfinite(vector)):
             print(f'FATAL: non-finite scores for {path}')

@@ -9,6 +9,10 @@ import os
 # Label-level CGA branch ON (project canonical stack, see run_slrp_ablation.sh)
 os.environ['CGA_SCORER'] = 'sarclip'
 os.environ['CGA_BACKEND'] = 'sarclip'
+os.environ['CGA_STRICT'] = '1'
+os.environ['SARCLIP_PRETRAINED'] = (
+    '/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors')
+os.environ['SARCLIP_CACHE_DIR'] = '/myfile/pretrain/SARCLIP/ViT-B-32'
 os.environ['CGA_FILTER_MODE'] = 'veto_soft'
 os.environ['CGA_DROP_SCORE'] = '0.0'
 os.environ['CGA_FILTER_LOG_EVERY'] = '500'
