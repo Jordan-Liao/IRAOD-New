@@ -108,6 +108,54 @@ def _to_locations(value: Any) -> list[tuple[float, float]]:
     return locs
 
 
+def _sample_point_locations(
+    rng: np.random.RandomState,
+    count: int,
+    *,
+    direction: str = "random",
+    spacing: float = 0.1,
+    margin: float = 0.1,
+) -> list[tuple[float, float]]:
+    """Lay ``count`` equally spaced targets along one row or one column.
+
+    Used when ``point_target`` is requested without explicit ``locations``.
+    Multi-false-target jamming retransmits the pulse at a fixed delay
+    increment, so the false returns land as an evenly spaced comb along range
+    or azimuth -- a straight line of dots, not a random scatter.
+    """
+    n = int(count)
+    if n <= 0:
+        raise ValueError("numTargets must be >= 1")
+    lo = float(margin)
+    hi = 1.0 - float(margin)
+    if not (0.0 <= lo < hi <= 1.0):
+        raise ValueError(f"invalid location margin: {margin}")
+
+    direction = str(direction or "").strip().lower()
+    if direction == "random":
+        direction = "horizontal" if rng.rand() < 0.5 else "vertical"
+    if direction not in ("horizontal", "vertical"):
+        raise ValueError("point-target direction must be horizontal|vertical|random")
+
+    # Keep the whole comb inside the margins: shrink the step if it overflows.
+    step = float(spacing)
+    if step <= 0:
+        raise ValueError("pointSpacing must be > 0")
+    if n > 1:
+        step = min(step, (hi - lo) / float(n - 1))
+    span = step * float(n - 1)
+
+    start = float(rng.uniform(lo, hi - span)) if (hi - span) > lo else lo
+    fixed = float(rng.uniform(lo, hi))
+    varying = [start + step * float(i) for i in range(n)]
+
+    if direction == "horizontal":
+        # One row: shared row_frac, equally spaced columns.
+        return [(fixed, v) for v in varying]
+    # One column: shared col_frac, equally spaced rows.
+    return [(v, fixed) for v in varying]
+
+
 def _gaussian_mask(h: int, w: int, *, sigma_r: float, sigma_c: float) -> np.ndarray:
     sigma_r = max(float(sigma_r), 1.0)
     sigma_c = max(float(sigma_c), 1.0)
@@ -318,8 +366,14 @@ def add_interference(img: np.ndarray, *, itype: str, params: dict[str, Any] | No
         params.setdefault("noiseVariance", 25.0)
     elif itype == "point_target":
         # Implemented as synthetic point targets (no external template file).
+        # No "locations" default: when the caller does not pin them, "numTargets"
+        # placements are laid out as an equally spaced row or column so one
+        # image carries a comb of returns.
         itype = "point_target"
-        params.setdefault("locations", [[0.5, 0.5]])
+        params.setdefault("numTargets", 8)
+        params.setdefault("pointDirection", "random")
+        params.setdefault("pointSpacing", 0.1)
+        params.setdefault("locationMargin", 0.1)
         params.setdefault("intensity", 200.0)
         params.setdefault("sigmaFrac", 0.01)
     elif itype == "am_noise_horizontal":
@@ -411,7 +465,15 @@ def add_interference(img: np.ndarray, *, itype: str, params: dict[str, Any] | No
             sigma_frac=float(params.get("sigmaFrac", 0.01)),
         )
     elif itype == "point_target":
-        locs = _to_locations(params.get("locations", [[0.5, 0.5]]))
+        locs = _to_locations(params.get("locations"))
+        if not locs:
+            locs = _sample_point_locations(
+                rng,
+                int(params.get("numTargets", 8)),
+                direction=str(params.get("pointDirection", "random")),
+                spacing=float(params.get("pointSpacing", 0.1)),
+                margin=float(params.get("locationMargin", 0.1)),
+            )
         out_base = _apply_point_targets(
             base,
             locations=locs,
@@ -469,7 +531,7 @@ def default_rsar_corruptions() -> list[RsarCorruptionSpec]:
     return [
         RsarCorruptionSpec(name="chaff", itype="chaff", params={"locations": [[0.5, 0.5]], "cloudSize": [0.25, 0.35]}),
         RsarCorruptionSpec(name="gaussian_white_noise", itype="gaussian_white_noise", params={"noiseVariance": 25.0}),
-        RsarCorruptionSpec(name="point_target", itype="point_target", params={"locations": [[0.5, 0.5]], "intensity": 200.0, "sigmaFrac": 0.01}),
+        RsarCorruptionSpec(name="point_target", itype="point_target", params={"numTargets": 8, "intensity": 200.0, "sigmaFrac": 0.01}),
         RsarCorruptionSpec(name="noise_suppression", itype="noise_suppression", params={"noiseVariance": 50.0, "blurKsize": 5}),
         RsarCorruptionSpec(name="am_noise_horizontal", itype="am_noise_horizontal", params={"direction": "horizontal", "lineFrequency": 0.05}),
         RsarCorruptionSpec(name="smart_suppression", itype="smart_suppression", params={"locations": [[0.5, 0.5]], "noiseSigma": 200.0, "noiseSize": [0.25, 0.25], "blurKsize": 5}),

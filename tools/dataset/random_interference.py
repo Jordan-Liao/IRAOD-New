@@ -15,7 +15,9 @@ Evaluation values held out here:
 - ``am_noise_*``: ``lineFrequency=0.05``, ``lineWidth=10``, ``noiseSigma=200``
 - ``gaussian_white_noise``: ``noiseVariance=25``
 - ``noise_suppression``: ``noiseVariance=50``, ``blurKsize=5``
-- ``point_target``: centred, ``intensity=200``, ``sigmaFrac=0.01``
+- ``point_target``: an equally spaced comb of 8 (``numTargets=8``, one row or
+  one column), ``intensity=200``, ``sigmaFrac=0.01``. The calibration family
+  keeps its 1-3 freely scattered targets, so the layout is held out too.
 """
 
 import sys
