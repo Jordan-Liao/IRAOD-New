@@ -124,6 +124,8 @@ class SchedulerConfig:
     seeds: list[int]
     common_cfg_options: list[str]
     run_id: str
+    strict_source_free: bool = False
+    data_manifest: Optional[Path] = None
     required_free_mib: int = 8192
     utilization_limit: int = 30
     max_workers: int = 4
@@ -327,6 +329,8 @@ def valid_completed_result(
         payload = json.loads(result_path.read_text(encoding="utf-8"))
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return False
+    if not isinstance(payload, dict):
+        return False
     try:
         payload_seed = int(payload.get("seed"))
         actual_seed = int(payload.get("actual_seed"))
@@ -336,15 +340,12 @@ def valid_completed_result(
     gpu_uuid = payload.get("gpu_uuid")
     progress = payload.get("progress")
     try:
-        final_map = float(payload.get("final_map"))
         progress_epoch = int(progress.get("epoch"))
         progress_iteration = int(progress.get("iteration"))
         progress_total = int(progress.get("total"))
-        final_val_epoch = int(payload.get("final_val_epoch"))
-        final_val_iteration = int(payload.get("final_val_iteration"))
     except (AttributeError, TypeError, ValueError):
         return False
-    return (
+    common_valid = (
         payload.get("status") == "completed"
         and payload.get("success") is True
         and payload_seed == int(seed)
@@ -356,7 +357,6 @@ def valid_completed_result(
         and isinstance(gpu_uuid, str)
         and bool(gpu_uuid)
         and (expected_gpu_uuid is None or gpu_uuid == expected_gpu_uuid)
-        and math.isfinite(final_map)
         and payload.get("deterministic") is True
         and payload.get("gpu_seen") is True
         and payload.get("full_run") is True
@@ -365,6 +365,25 @@ def valid_completed_result(
         and progress_epoch == 1
         and 0 < progress_iteration <= progress_total
         and progress_total > 0
+    )
+    if payload.get("strict_source_free") is True:
+        return (
+            common_valid
+            and progress_iteration == progress_total
+            and payload.get("final_map") is None
+            and payload.get("final_val_epoch") is None
+            and payload.get("final_val_iteration") is None
+            and any(Path(work_dir).glob("*.pth"))
+        )
+    try:
+        final_map = float(payload.get("final_map"))
+        final_val_epoch = int(payload.get("final_val_epoch"))
+        final_val_iteration = int(payload.get("final_val_iteration"))
+    except (TypeError, ValueError):
+        return False
+    return (
+        common_valid
+        and math.isfinite(final_map)
         and final_val_epoch == 1
         and final_val_iteration == progress_total
     )
@@ -553,6 +572,15 @@ class Registry:
             )
             for row in candidates
         )
+
+    def has_completed_candidate(self, seed: int, method: str) -> bool:
+        with self._lock:
+            return any(
+                _as_int(row["seed"], -1) == seed
+                and row["method"] == method
+                and row["status"] == "completed"
+                for row in self._rows
+            )
 
     def active_gpu_uuids(self) -> set[str]:
         with self._lock:
@@ -826,6 +854,18 @@ def merge_cfg_options(*groups: Iterable[str]) -> list[str]:
     return [merged[key] for key in order]
 
 
+def require_protocol_loss_weights(options: Sequence[str]) -> None:
+    keys = {option.split('=', 1)[0] for option in options if '=' in option}
+    missing = [
+        key for key in ('model.cfg.weight_l', 'model.cfg.weight_u')
+        if key not in keys
+    ]
+    if missing:
+        raise ValueError(
+            'protocol must supply explicit loss weights: '
+            + ', '.join(missing))
+
+
 def wait_for_gpu_release(
     pid: int,
     compute_apps_probe: Callable[[], list[ComputeApp]],
@@ -876,7 +916,7 @@ def _build_experiment_spec(
     method: MethodSpec,
     work_dir: Path,
 ) -> ExperimentSpec:
-    return ExperimentSpec(
+    spec = ExperimentSpec(
         python=config.python,
         project_root=config.project_root,
         config=config.config,
@@ -887,11 +927,14 @@ def _build_experiment_spec(
         gpu_uuid=gpu.uuid,
         method_env=dict(method.environment),
         cfg_options=merge_cfg_options(config.common_cfg_options, method.cfg_options),
+        strict_source_free=config.strict_source_free,
+        data_manifest=config.data_manifest,
         monitor_interval_seconds=config.monitor_interval_seconds,
         stall_timeout_seconds=config.stall_timeout_seconds,
         gpu_verify_timeout_seconds=config.gpu_verify_timeout_seconds,
         terminate_grace_seconds=config.terminate_grace_seconds,
     )
+    return spec
 
 
 def _method_fingerprint(
@@ -949,7 +992,11 @@ def run_seed_block(
     for method_order, method_name in enumerate(ordered_names):
         method = by_name[method_name]
         seed_dir = _seed_method_dir(config, method_name, seed)
-        expected_fingerprint = _method_fingerprint(config, seed, method, gpu)
+        fingerprint_spec = _build_experiment_spec(
+            config, seed, gpu, method, seed_dir)
+        fingerprint_payload = compute_experiment_fingerprint(fingerprint_spec)
+        expected_fingerprint = str(fingerprint_payload["sha256"])
+        strict_manifest_binding = fingerprint_spec.strict_manifest_binding
         if registry.completed(
             seed,
             method_name,
@@ -977,6 +1024,8 @@ def run_seed_block(
                 f"gpu_{_short_uuid(gpu.uuid)}"
             )
             spec = _build_experiment_spec(config, seed, gpu, method, work_dir)
+            if strict_manifest_binding is not None:
+                spec.strict_manifest_binding = dict(strict_manifest_binding)
             cfg_options = spec.cfg_options
             command = build_train_command(spec)
             launch_env = build_environment(
@@ -1053,9 +1102,13 @@ def run_seed_block(
                     experiment_fingerprint=expected_fingerprint,
                 )
 
+            registry_status = (
+                "failed_terminal"
+                if outcome.failure_kind == "strict_input_verification_failed"
+                else outcome.status)
             registry.update(
                 row_id,
-                status=outcome.status,
+                status=registry_status,
                 pid=outcome.pid,
                 exit_code=outcome.exit_code,
                 failure_kind=outcome.failure_kind,
@@ -1098,7 +1151,9 @@ def run_seed_block(
                     return outcomes
             if outcome.success:
                 break
-            if outcome.failure_kind == "budget_exhausted":
+            if outcome.failure_kind in {
+                    "budget_exhausted",
+                    "strict_input_verification_failed"}:
                 return outcomes
 
     return outcomes
@@ -1115,16 +1170,19 @@ def _seed_terminal(
         return False
     if registry.seed_has_terminal_failure(seed):
         return True
+    if registry.seed_has_active_process(seed):
+        return False
     preferred_gpu_uuid = registry.preferred_gpu_uuid(seed)
     for method in applicable_methods:
-        expected_fingerprint = _method_fingerprint(config, seed, method)
-        if registry.completed(
-            seed,
-            method.name,
-            expected_fingerprint=expected_fingerprint,
-            expected_gpu_uuid=preferred_gpu_uuid,
-        ):
-            continue
+        if registry.has_completed_candidate(seed, method.name):
+            expected_fingerprint = _method_fingerprint(config, seed, method)
+            if registry.completed(
+                seed,
+                method.name,
+                expected_fingerprint=expected_fingerprint,
+                expected_gpu_uuid=preferred_gpu_uuid,
+            ):
+                continue
         if registry.method_has_terminal_failure(seed, method.name):
             continue
         attempts_used = max(
@@ -1338,15 +1396,17 @@ def run_scheduler(
     for seed, applicable_methods in methods_by_seed.items():
         preferred_gpu_uuid = registry.preferred_gpu_uuid(seed)
         for method in applicable_methods:
-            expected_fingerprint = _method_fingerprint(config, seed, method)
-            if registry.completed(
-                seed,
-                method.name,
-                expected_fingerprint=expected_fingerprint,
-                expected_gpu_uuid=preferred_gpu_uuid,
-            ):
-                completed_jobs += 1
-                continue
+            if registry.has_completed_candidate(seed, method.name):
+                expected_fingerprint = _method_fingerprint(
+                    config, seed, method)
+                if registry.completed(
+                    seed,
+                    method.name,
+                    expected_fingerprint=expected_fingerprint,
+                    expected_gpu_uuid=preferred_gpu_uuid,
+                ):
+                    completed_jobs += 1
+                    continue
             terminal_failure = (
                 registry.seed_has_terminal_failure(seed)
                 or registry.method_has_terminal_failure(seed, method.name)
@@ -1468,6 +1528,7 @@ def build_dry_run_plan(
     gpu_uuid: str,
 ) -> dict[str, Any]:
     plans = []
+    strict_manifest_binding: Optional[dict[str, Any]] = None
     for seed in config.seeds:
         applicable = [method for method in methods if method.applies_to(seed)]
         if not applicable:
@@ -1476,14 +1537,26 @@ def build_dry_run_plan(
         order = randomized_method_order(list(by_name), seed, config.order_seed)
         for method_order, method_name in enumerate(order):
             method = by_name[method_name]
-            fingerprint = _method_fingerprint(config, seed, method)
+            gpu = GPUInfo(
+                gpu_index, gpu_uuid, "dry-run", 0,
+                config.required_free_mib, 0, 0)
+            spec = _build_experiment_spec(
+                config,
+                seed,
+                gpu,
+                method,
+                config.research_root / "dry-run-pending",
+            )
+            if strict_manifest_binding is not None:
+                spec.strict_manifest_binding = dict(strict_manifest_binding)
+            fingerprint_payload = compute_experiment_fingerprint(spec)
+            fingerprint = str(fingerprint_payload["sha256"])
+            if spec.strict_manifest_binding is not None:
+                strict_manifest_binding = dict(spec.strict_manifest_binding)
             work_dir = _seed_method_dir(config, method_name, seed) / (
                 f"attempt_1_fp_{fingerprint[:12]}_" f"gpu_{_short_uuid(gpu_uuid)}"
             )
-            gpu = GPUInfo(
-                gpu_index, gpu_uuid, "dry-run", 0, config.required_free_mib, 0, 0
-            )
-            spec = _build_experiment_spec(config, seed, gpu, method, work_dir)
+            spec.work_dir = work_dir
             environment = build_environment(
                 os.environ, method.environment, gpu_index, config.python
             )
@@ -1529,6 +1602,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--corruption", default="chaff")
     parser.add_argument("--cfg-option", action="append", default=[])
+    parser.add_argument("--strict-source-free", action="store_true")
+    parser.add_argument("--data-manifest", type=Path)
     parser.add_argument("--required-free-mib", type=int, default=8192)
     parser.add_argument("--smoke-peak-mib", type=int)
     parser.add_argument("--utilization-limit", type=int, default=30)
@@ -1570,6 +1645,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     method_specs_path = args.method_specs
     if method_specs_path is not None and not method_specs_path.is_absolute():
         method_specs_path = project_root / method_specs_path
+    data_manifest_path = args.data_manifest
+    if data_manifest_path is not None and not data_manifest_path.is_absolute():
+        data_manifest_path = project_root / data_manifest_path
 
     try:
         methods = load_method_specs(method_specs_path, args.method, lora_path)
@@ -1579,14 +1657,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     default_cfg_options = [
         f"corrupt={args.corruption}",
         "optimizer.lr=0.000125",
-        "model.cfg.weight_l=1.0",
-        "model.cfg.weight_u=0.3",
         "model.cfg.score_thr=0.9",
     ]
     try:
+        require_protocol_loss_weights(args.cfg_option)
         common_cfg_options = merge_cfg_options(default_cfg_options, args.cfg_option)
     except ValueError as error:
         parser.error(str(error))
+    if args.strict_source_free and data_manifest_path is None:
+        parser.error("--data-manifest is required with --strict-source-free")
+    if not args.strict_source_free and data_manifest_path is not None:
+        parser.error("--data-manifest requires --strict-source-free")
 
     required_free_mib = required_free_memory_mib(
         args.required_free_mib, args.smoke_peak_mib
@@ -1600,6 +1681,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         seeds=list(args.seed),
         common_cfg_options=common_cfg_options,
         run_id=args.research_root.resolve().name,
+        strict_source_free=args.strict_source_free,
+        data_manifest=(
+            data_manifest_path.resolve()
+            if data_manifest_path is not None else None),
         required_free_mib=required_free_mib,
         utilization_limit=args.utilization_limit,
         max_workers=min(4, args.max_workers),
