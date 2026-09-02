@@ -346,9 +346,11 @@ class CGA:
         expand_ratio=0.4,
         force_grayscale=False,
         backend="auto",
+        strict=False,
     ):
         super().__init__()
         self.backend = _normalize_backend(backend, model)
+        self.strict = bool(strict)
         self.class_names = list(class_names)
         self.device = (
             torch.device("cuda", torch.cuda.current_device())
@@ -370,6 +372,29 @@ class CGA:
             raise ValueError(f"Unsupported CGA backend: {self.backend}")
 
     def _init_sarclip(self, model, pretrained, cache_dir, precision, templates):
+        pretrained = str(pretrained or "").strip()
+        lora_path = os.environ.get("SARCLIP_LORA", "").strip()
+        if self.strict:
+            if not pretrained:
+                raise ValueError(
+                    "Strict SARCLIP requires an explicit base checkpoint via "
+                    "pretrained (SARCLIP_PRETRAINED for CGA or "
+                    "vlst_pretrained for VLST)."
+                )
+            if lora_path:
+                raise RuntimeError(
+                    "Strict SARCLIP forbids SARCLIP_LORA; use the verified "
+                    "base checkpoint without an adapter."
+                )
+            pretrained_path = Path(pretrained).expanduser()
+            if not pretrained_path.is_file():
+                raise FileNotFoundError(
+                    "Strict SARCLIP base checkpoint does not exist: "
+                    f"{pretrained_path}. Set SARCLIP_PRETRAINED or "
+                    "vlst_pretrained to an existing base checkpoint."
+                )
+            pretrained = str(pretrained_path)
+
         sar_clip = _ensure_sarclip_importable()
         print(
             f"[CGA/SARCLIP] building model={model}, "
@@ -383,7 +408,6 @@ class CGA:
             cache_dir=cache_dir,
             output_dict=True,
         )
-        lora_path = os.environ.get("SARCLIP_LORA")
         if lora_path:
             lora_path = os.path.expanduser(lora_path)
             if not os.path.exists(lora_path):
@@ -399,7 +423,11 @@ class CGA:
                 "[CGA/SARCLIP] loaded SARCLIP_LORA "
                 f"adapter_type={adapter_info.get('adapter_type')}"
             )
-        self.clip.eval()
+        from sarclip_adapter import (
+            assert_frozen_for_inference,
+            freeze_for_inference,
+        )
+        freeze_for_inference(self.clip)
 
         self.tokenizer = sar_clip.get_tokenizer(model, cache_dir=cache_dir)
         self.classifier = sar_clip.build_zero_shot_classifier(
@@ -423,6 +451,9 @@ class CGA:
             resize_mode=preprocess_cfg.get("resize_mode"),
             fill_color=preprocess_cfg.get("fill_color", 0),
         )
+        freeze_for_inference(self.clip)
+        if self.strict:
+            assert_frozen_for_inference(self.clip, "Strict SARCLIP encoder")
         print(f"[CGA/SARCLIP] init OK, classes={self.class_names}")
 
     def _init_optical_clip(self, model, templates):
@@ -758,6 +789,11 @@ class TestMixins:
         self._build_veto_groups(class_names)
         self.cga_filter_log_every = _env_int("CGA_FILTER_LOG_EVERY", 500)
         lora_path = os.environ.get("SARCLIP_LORA", "").strip()
+        if self.cga_strict and backend == "sarclip" and lora_path:
+            raise RuntimeError(
+                "CGA_STRICT forbids SARCLIP_LORA; strict CGA must use the "
+                "explicit SARCLIP_PRETRAINED base checkpoint."
+            )
         _log_cga_info(
             "[CGA] init "
             f"scorer={scorer or '<unset>'}, "
@@ -792,14 +828,21 @@ class TestMixins:
             )
         elif backend == "sarclip":
             model = os.environ.get("SARCLIP_MODEL", "ViT-B-32")
-            pretrained = os.environ.get(
-                "SARCLIP_PRETRAINED",
-                "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-            )
-            cache_dir = os.environ.get(
-                "SARCLIP_CACHE_DIR",
-                "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32",
-            )
+            if self.cga_strict:
+                pretrained = os.environ.get("SARCLIP_PRETRAINED", "")
+                cache_dir = os.environ.get("SARCLIP_CACHE_DIR")
+                if not cache_dir and pretrained:
+                    cache_dir = str(Path(pretrained).expanduser().parent)
+            else:
+                pretrained = os.environ.get(
+                    "SARCLIP_PRETRAINED",
+                    "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32/"
+                    "vit_b_32_model.safetensors",
+                )
+                cache_dir = os.environ.get(
+                    "SARCLIP_CACHE_DIR",
+                    "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32",
+                )
             precision = os.environ.get("SARCLIP_PRECISION", "fp32")
             templates = (templates_env or
                          "A SAR image of a {};This SAR patch shows a {}").split(";")
@@ -814,6 +857,7 @@ class TestMixins:
                 expand_ratio=expand_ratio,
                 force_grayscale=force_grayscale,
                 backend="sarclip",
+                strict=self.cga_strict,
             )
         else:
             raise ValueError(f"Unsupported CGA backend: {backend}")
