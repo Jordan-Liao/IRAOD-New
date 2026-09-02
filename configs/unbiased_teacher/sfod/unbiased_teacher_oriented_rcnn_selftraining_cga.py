@@ -11,11 +11,13 @@ save_interval = 1
 classes = ('airplane', 'airport', 'baseballfield','basketballcourt', 'bridge', 'chimney', 'dam', 'Expressway-Service-area','Expressway-toll-station', 'golffield', 'groundtrackfield', 'harbor', 'overpass', 'ship','stadium', 'storagetank', 'tenniscourt', 'trainstation', 'vehicle', 'windmill')
 
 data_root = '/myfile/dataset/DIOR/'
-data_root_l = data_root+'JPEGImages'
+# The generic JPEGImages directory holds Windows link stubs in this workspace.
+# ImageSets/Main/train is fully contained in JPEGImages-trainval.
+data_root_l = data_root+'JPEGImages-trainval'
 data_root_u = data_root+'Corruption/JPEGImages-${corrupt}'
-ann_file_l = data_root+'ImageSets/train.txt'
-ann_file_u = data_root+'ImageSets/val.txt'
-ann_file_test = data_root+'ImageSets/test.txt'
+ann_file_l = data_root+'ImageSets/Main/train.txt'
+ann_file_u = data_root+'ImageSets/Main/val.txt'
+ann_file_test = data_root+'ImageSets/Main/test.txt'
 ann_subdir = data_root+'Annotations/Oriented Bounding Boxes'
 
 angle_version = 'le90'
@@ -112,7 +114,8 @@ data = dict(
         pipeline=sup_pipeline, pipeline_u_share=unsup_pipeline_share,
         pipeline_u=unsup_pipeline_weak, pipeline_u_1=unsup_pipeline_strong,
         img_prefix=data_root_l, img_prefix_u=data_root_u,
-        classes=classes
+        classes=classes,
+        version=angle_version
     ),
     val=dict(
         type='DIORDataset',
@@ -120,6 +123,7 @@ data = dict(
         ann_subdir=ann_subdir,
         img_prefix=data_root_u,
         classes=classes,
+        version=angle_version,
         pipeline=test_pipeline),
     test=dict(
         type='DIORDataset',
@@ -127,6 +131,7 @@ data = dict(
         ann_subdir=ann_subdir,
         img_prefix=data_root_u,
         classes=classes,
+        version=angle_version,
         pipeline=test_pipeline))
 
 
