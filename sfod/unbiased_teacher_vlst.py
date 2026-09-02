@@ -30,6 +30,22 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         self.vlst_text_visual_alpha = float(cfg.get('vlst_text_visual_alpha', 0.5))
         self.vlst_score_thr = cfg.get('vlst_score_thr', None)
         self.vlst_lora_path = cfg.get('vlst_lora_path', None)
+        self.vlst_strict = bool(cfg.get('vlst_strict', False))
+        self.vlst_pretrained = cfg.get('vlst_pretrained', None)
+        self.vlst_cache_dir = cfg.get('vlst_cache_dir', None)
+        if self.vlst_strict:
+            if self.vlst_lora_path:
+                raise ValueError(
+                    'vlst_strict forbids vlst_lora_path; use a frozen base '
+                    'SARCLIP checkpoint')
+            if not self.vlst_pretrained:
+                raise ValueError(
+                    'vlst_strict requires an explicit vlst_pretrained base '
+                    'checkpoint')
+            if os.environ.get('SARCLIP_LORA', '').strip():
+                raise RuntimeError(
+                    'vlst_strict forbids SARCLIP_LORA; strict VLST must use '
+                    'the configured base checkpoint')
         if self.vlst_score_thr is None:
             self.vlst_score_thr = self.score_thr
 
@@ -70,7 +86,9 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         # Try to get from CGA first (if available)
         ema_host = getattr(self.ema_model, 'module', self.ema_model)
 
-        if hasattr(ema_host, 'cga') and ema_host.cga is not None:
+        if (not self.vlst_strict
+                and hasattr(ema_host, 'cga')
+                and ema_host.cga is not None):
             try:
                 text_proto = ema_host.cga.text_prototype_matrix()  # (C, D)
                 self.vlst_teacher.set_text_prototypes(text_proto)
@@ -94,7 +112,12 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
                 elif self.num_classes == len(DIOR_CLASSES):
                     class_names = list(DIOR_CLASSES)
                 else:
-                    print(f"[VLST] Warning: Cannot infer class names for {self.num_classes} classes")
+                    message = (
+                        f'Cannot infer VLST class names for '
+                        f'{self.num_classes} classes')
+                    if self.vlst_strict:
+                        raise RuntimeError(message)
+                    print(f"[VLST] Warning: {message}")
                     return
             class_names = list(class_names)
 
@@ -111,24 +134,44 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             # Arm C has label-level CGA disabled, so relying on the ambient
             # SARCLIP_LORA environment makes the semantic-teacher arm
             # irreproducible.
-            inherited_lora = os.environ.get('SARCLIP_LORA')
-            try:
-                if self.vlst_lora_path:
-                    os.environ['SARCLIP_LORA'] = self.vlst_lora_path
-                elif inherited_lora:
-                    os.environ.pop('SARCLIP_LORA')
+            pretrained = (
+                self.vlst_pretrained
+                or '/myfile/pretrain/SARCLIP/ViT-B-32/'
+                   'vit_b_32_model.safetensors')
+            cache_dir = (
+                self.vlst_cache_dir
+                or (os.path.dirname(os.path.expanduser(pretrained))
+                    if self.vlst_strict
+                    else '/myfile/pretrain/SARCLIP/ViT-B-32'))
+
+            if self.vlst_strict:
                 vlm = CGA(
                     class_names=class_names,
                     backend=vlm_type,
                     model="ViT-B-32",
-                    pretrained="/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-                    cache_dir="/myfile/pretrain/SARCLIP/ViT-B-32",
+                    pretrained=pretrained,
+                    cache_dir=cache_dir,
+                    strict=True,
                 )
-            finally:
-                if inherited_lora is None:
-                    os.environ.pop('SARCLIP_LORA', None)
-                else:
-                    os.environ['SARCLIP_LORA'] = inherited_lora
+            else:
+                inherited_lora = os.environ.get('SARCLIP_LORA')
+                try:
+                    if self.vlst_lora_path:
+                        os.environ['SARCLIP_LORA'] = self.vlst_lora_path
+                    elif inherited_lora:
+                        os.environ.pop('SARCLIP_LORA')
+                    vlm = CGA(
+                        class_names=class_names,
+                        backend=vlm_type,
+                        model="ViT-B-32",
+                        pretrained=pretrained,
+                        cache_dir=cache_dir,
+                    )
+                finally:
+                    if inherited_lora is None:
+                        os.environ.pop('SARCLIP_LORA', None)
+                    else:
+                        os.environ['SARCLIP_LORA'] = inherited_lora
 
             # Keep it for instance-feature extraction (visual prototypes).
             self._vlst_vlm = vlm
@@ -142,6 +185,8 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
                   f"shape={text_proto_tensor.shape}, classes={class_names}")
 
         except Exception as e:
+            if self.vlst_strict:
+                raise
             print(f"[VLST] Warning: Failed to build text prototypes directly: {e}")
             import traceback
             traceback.print_exc()
