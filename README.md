@@ -47,6 +47,36 @@ Raw self-training on RSAR chaff:
 python train.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_rsar1.py --cfg-options corrupt="chaff"
 ```
 
+## Clean RSAR OrthoNet Source Baseline
+
+From the repository root, run the bounded source-only smoke on physical GPU 6:
+
+```bash
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067 --smoke-iters 4
+```
+
+It performs exactly four finite-loss forward/backward optimizer steps using
+only the clean `train` and `val` bindings, writes a fresh
+`work_dirs/orthonet_rsar_source_seed42_smoke_iters4/` tree, and does not
+evaluate or select a checkpoint. `--gpu` is required and positional arguments
+are rejected, so `4` cannot be mistaken for a GPU index.
+
+The full 100-epoch run uses the same source config and physical GPU binding:
+
+```bash
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
+```
+
+Only this full path accepts `epoch_100.pth` as the selected final checkpoint.
+The launcher always rejects an existing `RUN_ROOT`, including smoke trees, to
+prevent artifacts from separate attempts being mixed. It deliberately has no
+in-place resume: retry a failed or interrupted run with a distinct directory,
+for example:
+
+```bash
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python RUN_ROOT=work_dirs/orthonet_rsar_source_seed42_retry1 scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
+```
+
 ## 3. RSAR Corruption Data and SARCLIP Patches
 
 On a new server, first prepare the clean RSAR dataset with this layout:
