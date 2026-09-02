@@ -75,6 +75,7 @@ class RsarSourceBaselineTests(unittest.TestCase):
         self.assertEqual(command[command.index('--seed') + 1], str(SEED))
         self.assertIn('--deterministic', command)
         self.assertNotIn('--gpu-ids', command)
+        self.assertNotIn('--cfg-options', command)
         self.assertNotIn('test.py', command)
 
     def test_final_checkpoint_is_fixed_to_epoch_100(self) -> None:
