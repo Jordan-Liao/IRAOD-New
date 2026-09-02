@@ -68,9 +68,14 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
 
+: "${IRAOD_PYTHON:?Set IRAOD_PYTHON to the exact iraod interpreter.}"
 : "${RSAR_ROOT:?Set RSAR_ROOT to the clean RSAR dataset root.}"
 
-PYTHON_BIN="${IRAOD_PYTHON:-/opt/conda/envs/iraod/bin/python}"
+PYTHON_BIN="${IRAOD_PYTHON}"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "[source-baseline] IRAOD_PYTHON is not executable: ${PYTHON_BIN}" >&2
+  exit 2
+fi
 FULL_RUN_ROOT="work_dirs/orthonet_rsar_source_seed42"
 MODE="full"
 if [[ -n "${SMOKE_ITERS}" ]]; then

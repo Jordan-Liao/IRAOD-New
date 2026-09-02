@@ -52,7 +52,7 @@ python train.py configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_sel
 From the repository root, run the bounded source-only smoke on physical GPU 6:
 
 ```bash
-RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067 --smoke-iters 4
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067 --smoke-iters 4
 ```
 
 It performs exactly four finite-loss forward/backward optimizer steps using
@@ -64,7 +64,7 @@ are rejected, so `4` cannot be mistaken for a GPU index.
 The full 100-epoch run uses the same source config and physical GPU binding:
 
 ```bash
-RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
 ```
 
 Only this full path accepts `epoch_100.pth` as the selected final checkpoint.
@@ -74,7 +74,7 @@ in-place resume: retry a failed or interrupted run with a distinct directory,
 for example:
 
 ```bash
-RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/opt/conda/envs/iraod/bin/python RUN_ROOT=work_dirs/orthonet_rsar_source_seed42_retry1 scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python RUN_ROOT=work_dirs/orthonet_rsar_source_seed42_retry1 scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
 ```
 
 ## 3. RSAR Corruption Data and SARCLIP Patches

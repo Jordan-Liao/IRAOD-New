@@ -279,6 +279,24 @@ class RsarSourceBaselineTests(unittest.TestCase):
         self.assertIn('--smoke-iters N', help_result.stdout)
         self.assertIn('epoch_100.pth', help_result.stdout)
 
+    def test_launcher_requires_explicit_iraod_python(self) -> None:
+        script = (
+            Path(__file__).resolve().parents[2]
+            / 'scripts/run_orthonet_rsar_source_seed42.sh'
+        )
+        environment = os.environ.copy()
+        environment.pop('IRAOD_PYTHON', None)
+        environment.pop('RSAR_ROOT', None)
+        result = subprocess.run(
+            ['bash', str(script), '--gpu', '6'],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('IRAOD_PYTHON', result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
