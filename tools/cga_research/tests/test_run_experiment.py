@@ -269,6 +269,7 @@ class RunExperimentTests(unittest.TestCase):
         return self.make_spec(
             root,
             config=config,
+            method_env={"CGA_SCORER": "none"},
             strict_source_free=True,
             data_manifest=manifest,
             cfg_options=[
@@ -363,6 +364,22 @@ class RunExperimentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "image-only"):
                 build_train_command(spec)
 
+            spec.data_manifest = root / "strict_manifest.json"
+            spec.cfg_options = [
+                *strict_options,
+                f"resume_from={root / 'adapted_checkpoint.pth'}",
+            ]
+            with self.assertRaisesRegex(ValueError, "forbids annotation/resume"):
+                build_train_command(spec)
+
+            spec.cfg_options = strict_options
+            spec.method_env = {
+                "CGA_SCORER": "sarclip",
+                "SARCLIP_LORA": str(root / "label_derived_lora.pth"),
+            }
+            with self.assertRaisesRegex(ValueError, "forbids SARCLIP_LORA"):
+                build_train_command(spec)
+
     def test_strict_protocol_rejects_legacy_config(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
@@ -436,8 +453,40 @@ class RunExperimentTests(unittest.TestCase):
             )
         self.assertTrue(outcome.success)
         self.assertIsNone(outcome.final_map)
+        self.assertEqual(
+            outcome.checkpoint_artifact["relative_path"], "iter_2.pth")
         self.assertEqual(outcome.progress, {
             "epoch": 1, "iteration": 2, "total": 2})
+
+    def test_strict_run_rejects_preexisting_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            spec.work_dir.mkdir(parents=True)
+            (spec.work_dir / "stale.pth").write_bytes(b"stale")
+            process = FakeProcess([None, 0])
+            expected_environment = build_environment(
+                {}, spec.method_env, spec.gpu_index, spec.python)
+
+            def factory(command, **kwargs):
+                kwargs["stdout"].write(
+                    "Set random seed to 41, deterministic: True\n"
+                    "Epoch [1][2/2] loss: 0.1\n")
+                kwargs["stdout"].flush()
+                return process
+
+            outcome = run_experiment(
+                spec,
+                popen_factory=factory,
+                environment_reader=lambda pid: expected_environment,
+                compute_apps_probe=lambda: [
+                    ComputeApp(process.pid, spec.gpu_uuid, 6400)],
+                snapshotter=lambda *_: None,
+                sleeper=lambda _: None,
+            )
+        self.assertFalse(outcome.success)
+        self.assertEqual(outcome.failure_kind, "missing_checkpoint")
+        self.assertIsNone(outcome.checkpoint_artifact)
 
     def test_strict_run_reverifies_manifest_immediately_before_spawn(self):
         with tempfile.TemporaryDirectory() as directory:

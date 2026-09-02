@@ -16,6 +16,7 @@ import math
 import os
 import re
 import signal
+import stat
 import subprocess
 import tempfile
 import time
@@ -212,6 +213,7 @@ class RunOutcome:
     command: list[str]
     environment: dict[str, str]
     strict_source_free: bool = False
+    checkpoint_artifact: Optional[dict[str, Any]] = None
     experiment_fingerprint: Optional[str] = None
     fingerprint_components: dict[str, Any] = dataclasses.field(default_factory=dict)
     pid: Optional[int] = None
@@ -289,6 +291,8 @@ def validate_strict_source_free_spec(spec: ExperimentSpec) -> dict[str, Any]:
     if spec.data_manifest is None:
         raise ValueError(
             'strict_source_free requires an image-only data manifest')
+    if str(spec.method_env.get('SARCLIP_LORA', '')).strip():
+        raise ValueError('strict_source_free forbids SARCLIP_LORA')
 
     project_root = Path(spec.project_root).resolve()
     expected_config = (project_root / STRICT_SOURCE_FREE_CONFIG).resolve()
@@ -313,10 +317,11 @@ def validate_strict_source_free_spec(spec: ExperimentSpec) -> dict[str, Any]:
     forbidden = sorted(
         key for key in options
         if key == 'ann_file' or key.endswith('.ann_file')
-        or key.endswith('.ann_file_u'))
+        or key.endswith('.ann_file_u')
+        or key in {'resume_from', 'auto_resume'})
     if forbidden:
         raise ValueError(
-            'strict_source_free forbids annotation cfg options: '
+            'strict_source_free forbids annotation/resume cfg options: '
             + ', '.join(forbidden))
     try:
         weight_l = float(options['model.cfg.weight_l'])
@@ -818,8 +823,65 @@ def _terminate_process(
         return process.wait()
 
 
+def _checkpoint_snapshot(
+    work_dir: Path,
+) -> dict[str, tuple[int, int, int, int, int]]:
+    snapshot: dict[str, tuple[int, int, int, int, int]] = {}
+    for path in work_dir.glob("*.pth"):
+        try:
+            info = path.lstat()
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode):
+            snapshot[path.name] = (
+                info.st_dev,
+                info.st_ino,
+                info.st_size,
+                info.st_mtime_ns,
+                info.st_ctime_ns,
+            )
+    return snapshot
+
+
+def _new_checkpoint_artifact(
+    work_dir: Path,
+    baseline: Mapping[str, tuple[int, int, int, int, int]],
+) -> Optional[dict[str, Any]]:
+    candidates: list[tuple[int, str, Path, os.stat_result]] = []
+    for path in work_dir.glob("*.pth"):
+        try:
+            info = path.lstat()
+        except OSError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        identity = (
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+        if baseline.get(path.name) == identity:
+            continue
+        preferred = int(path.name.endswith("_ema.pth")
+                        or path.name == "latest.pth")
+        candidates.append((preferred, path.name, path, info))
+    if not candidates:
+        return None
+    for _, _, path, info in sorted(candidates):
+        digest = _sha256_file(path)
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is not None:
+            return {
+                "relative_path": path.name,
+                "sha256": digest,
+                "size_bytes": info.st_size,
+            }
+    return None
+
+
 def _checkpoint_exists(work_dir: Path) -> bool:
-    return any(work_dir.glob("*.pth"))
+    return bool(_checkpoint_snapshot(work_dir))
 
 
 def _write_outcome(spec: ExperimentSpec, outcome: RunOutcome) -> None:
@@ -891,6 +953,7 @@ def run_experiment(
     started_at_mono = clock()
     launch_time_ns = time.time_ns()
     timestamp_log_baseline = snapshot_timestamp_logs(spec.work_dir)
+    checkpoint_baseline = _checkpoint_snapshot(spec.work_dir)
     process: Optional[subprocess.Popen[Any]] = None
     failure_kind: Optional[str] = None
     failure_detail: Optional[str] = None
@@ -1171,6 +1234,8 @@ def run_experiment(
         failure_kind = failure_kind or "runner_exception"
         failure_detail = failure_detail or f"{type(error).__name__}: {error}"
     final_map = final_record.mean_ap if final_record is not None else None
+    checkpoint_artifact = _new_checkpoint_artifact(
+        spec.work_dir, checkpoint_baseline)
 
     if failure_kind is None and exit_code != 0:
         failure_kind = "nonzero_exit"
@@ -1237,13 +1302,20 @@ def run_experiment(
     if (
         failure_kind is None
         and spec.strict_source_free
-        and not _checkpoint_exists(spec.work_dir)
+        and checkpoint_artifact is None
     ):
         failure_kind = "missing_checkpoint"
         failure_detail = "strict source-free run produced no checkpoint"
 
     success = failure_kind is None
-    full_run = final_map is not None or _checkpoint_exists(spec.work_dir)
+    full_run = (
+        final_map is not None
+        or (
+            checkpoint_artifact is not None
+            if spec.strict_source_free
+            else _checkpoint_exists(spec.work_dir)
+        )
+    )
     outcome = RunOutcome(
         status="completed" if success else "failed",
         success=success,
@@ -1255,6 +1327,7 @@ def run_experiment(
         command=command,
         environment=recorded_environment,
         strict_source_free=spec.strict_source_free,
+        checkpoint_artifact=checkpoint_artifact,
         experiment_fingerprint=experiment_fingerprint,
         fingerprint_components=fingerprint_components,
         pid=process.pid,

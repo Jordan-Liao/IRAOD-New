@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import threading
@@ -218,6 +219,13 @@ class SchedulerTests(unittest.TestCase):
                 scheduler.valid_completed_result(work_dir, 41, "strict"))
 
             (work_dir / "iter_10.pth").write_bytes(b"checkpoint")
+            payload["checkpoint_artifact"] = {
+                "relative_path": "iter_10.pth",
+                "sha256": hashlib.sha256(b"checkpoint").hexdigest(),
+                "size_bytes": len(b"checkpoint"),
+            }
+            (work_dir / "run_result.json").write_text(
+                json.dumps(payload), encoding="utf-8")
             self.assertTrue(
                 scheduler.valid_completed_result(work_dir, 41, "strict"))
 
@@ -634,6 +642,30 @@ class SchedulerTests(unittest.TestCase):
             self.assertIn("model.cfg.weight_u=1", command)
             self.assertNotIn("model.cfg.weight_l=1.0", command)
             self.assertNotIn("model.cfg.weight_u=0.3", command)
+
+    def test_strict_scheduler_defaults_to_no_cga_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            methods = [MethodSpec("no_cga", {"CGA_SCORER": "none"})]
+            with mock.patch.object(
+                    scheduler, "load_method_specs", return_value=methods
+                    ) as load_methods, mock.patch.object(
+                        scheduler,
+                        "build_dry_run_plan",
+                        return_value={"status": "dry_run", "jobs": []}):
+                status = scheduler.main([
+                    "--project-root", str(root),
+                    "--research-root", str(root / "research"),
+                    "--python", "/python",
+                    "--seed", "41",
+                    "--strict-source-free",
+                    "--data-manifest", str(root / "manifest.json"),
+                    "--cfg-option", "model.cfg.weight_l=0",
+                    "--cfg-option", "model.cfg.weight_u=1",
+                    "--dry-run",
+                ])
+            self.assertEqual(status, 0)
+            self.assertEqual(load_methods.call_args.args[1], ["no_cga"])
 
     def test_strict_scheduler_propagates_image_manifest(self):
         with tempfile.TemporaryDirectory() as directory:

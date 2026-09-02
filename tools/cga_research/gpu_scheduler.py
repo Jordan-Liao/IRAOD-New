@@ -15,6 +15,7 @@ import math
 import os
 import random
 import re
+import stat
 import subprocess
 import tempfile
 import threading
@@ -373,7 +374,8 @@ def valid_completed_result(
             and payload.get("final_map") is None
             and payload.get("final_val_epoch") is None
             and payload.get("final_val_iteration") is None
-            and any(Path(work_dir).glob("*.pth"))
+            and _valid_checkpoint_artifact(
+                Path(work_dir), payload.get("checkpoint_artifact"))
         )
     try:
         final_map = float(payload.get("final_map"))
@@ -387,6 +389,42 @@ def valid_completed_result(
         and final_val_epoch == 1
         and final_val_iteration == progress_total
     )
+
+
+def _valid_checkpoint_artifact(work_dir: Path, value: Any) -> bool:
+    if not isinstance(value, dict) or set(value) != {
+            "relative_path", "sha256", "size_bytes"}:
+        return False
+    relative_path = value.get("relative_path")
+    digest = value.get("sha256")
+    size_bytes = value.get("size_bytes")
+    if (
+        not isinstance(relative_path, str)
+        or not relative_path
+        or Path(relative_path).name != relative_path
+        or not relative_path.endswith(".pth")
+        or not isinstance(digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        or not isinstance(size_bytes, int)
+        or isinstance(size_bytes, bool)
+        or size_bytes < 0
+    ):
+        return False
+    path = Path(work_dir) / relative_path
+    try:
+        info = path.lstat()
+    except OSError:
+        return False
+    if not stat.S_ISREG(info.st_mode) or info.st_size != size_bytes:
+        return False
+    actual = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                actual.update(chunk)
+    except OSError:
+        return False
+    return actual.hexdigest() == digest
 
 
 def pid_alive(pid: int) -> bool:
@@ -1649,8 +1687,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if data_manifest_path is not None and not data_manifest_path.is_absolute():
         data_manifest_path = project_root / data_manifest_path
 
+    selected_methods = list(args.method)
+    if args.strict_source_free and not selected_methods:
+        selected_methods = ["no_cga"]
     try:
-        methods = load_method_specs(method_specs_path, args.method, lora_path)
+        methods = load_method_specs(
+            method_specs_path, selected_methods, lora_path)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.error(str(error))
 
