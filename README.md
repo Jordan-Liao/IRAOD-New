@@ -67,6 +67,24 @@ The full 100-epoch run uses the same source config and physical GPU binding:
 RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
 ```
 
+An optional four-GPU full run uses physical GPUs 4,5,6,7 in that exact
+logical-rank order:
+
+```bash
+RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python scripts/run_orthonet_rsar_source_seed42.sh --gpus 4,5,6,7 --port 20067
+```
+
+This path uses the repository's existing `torch.distributed.launch` interface
+with world size 4 and `samples_per_gpu=1`. Its effective global batch remains
+4, matching the one-GPU `samples_per_gpu=4` run, so the optimizer LR stays
+0.005. It keeps seed 42, deterministic mode, 100 epochs, clean RSAR-only
+bindings, and the same final `epoch_100.pth` selection policy. The ordered
+physical mapping, distributed argv, world size, and passed invariant checks are
+recorded under
+`work_dirs/orthonet_rsar_source_seed42_4gpu/reproducibility/launch_plan.json`.
+Preparation, resolved-config writing, and dataset-manifest creation happen once
+in the parent launcher before distributed ranks start.
+
 Only this full path accepts `epoch_100.pth` as the selected final checkpoint.
 The launcher always rejects an existing `RUN_ROOT`, including smoke trees, to
 prevent artifacts from separate attempts being mixed. It deliberately has no
@@ -76,6 +94,19 @@ for example:
 ```bash
 RSAR_ROOT=/mnt/shared/zechuan/iraod_data/RSAR IRAOD_PYTHON=/home/zechuan/miniforge3/envs/iraod/bin/python RUN_ROOT=work_dirs/orthonet_rsar_source_seed42_retry1 scripts/run_orthonet_rsar_source_seed42.sh --gpu 6 --port 20067
 ```
+
+The four-GPU default is the separate fresh
+`work_dirs/orthonet_rsar_source_seed42_4gpu` tree and is forbidden from using
+the one-GPU default `RUN_ROOT`. If a one-GPU run is still in progress, this
+launcher never stops or modifies it. A safe owner cutover is:
+
+1. Record the active one-GPU process, commit, `RUN_ROOT`, log, and any existing
+   checkpoints, and preserve that run tree without reuse.
+2. Have the run owner explicitly approve and perform termination of only that
+   process; do not infer permission from starting the four-GPU launcher.
+3. Confirm physical GPUs 4,5,6,7 are free and the preserved one-GPU artifacts
+   remain intact.
+4. Start the four-GPU command above with its fresh distinct `RUN_ROOT`.
 
 ## 3. RSAR Corruption Data and SARCLIP Patches
 

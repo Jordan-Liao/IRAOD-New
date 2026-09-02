@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import os
+import runpy
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -24,6 +25,12 @@ from typing import Any, Sequence
 
 SEED = 42
 TOTAL_EPOCHS = 100
+OPTIMIZER_LR = 0.005
+REFERENCE_GLOBAL_BATCH = 4
+SINGLE_GPU_SAMPLES_PER_GPU = 4
+DISTRIBUTED_WORLD_SIZE = 4
+DISTRIBUTED_SAMPLES_PER_GPU = 1
+EXPECTED_DISTRIBUTED_PHYSICAL_GPUS = (4, 5, 6, 7)
 CLASSES = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 
 
@@ -105,6 +112,36 @@ def build_train_command(
     ]
 
 
+def build_distributed_train_command(
+    python: str | Path,
+    config: str | Path,
+    work_dir: str | Path,
+    master_port: int,
+) -> list[str]:
+    """Build the fixed four-rank command with the reference global batch."""
+
+    if master_port < 0:
+        raise SourceBaselineError('master port must be a non-negative integer')
+    return [
+        str(python),
+        '-m',
+        'torch.distributed.launch',
+        f'--nproc_per_node={DISTRIBUTED_WORLD_SIZE}',
+        f'--master_port={master_port}',
+        'train.py',
+        str(config),
+        '--work-dir',
+        str(Path(work_dir).resolve()),
+        '--launcher',
+        'pytorch',
+        '--seed',
+        str(SEED),
+        '--deterministic',
+        '--cfg-options',
+        f'data.samples_per_gpu={DISTRIBUTED_SAMPLES_PER_GPU}',
+    ]
+
+
 def build_smoke_command(
     python: str | Path,
     config: str | Path,
@@ -135,6 +172,171 @@ def final_epoch_checkpoint(work_dir: str | Path) -> Path:
     """Return the checkpoint selected independently of validation metrics."""
 
     return Path(work_dir).resolve() / f'epoch_{TOTAL_EPOCHS}.pth'
+
+
+def parse_physical_gpus(raw_gpus: str) -> tuple[int, ...]:
+    """Parse an ordered comma-separated physical GPU mapping."""
+
+    values = raw_gpus.split(',')
+    if not values or any(not value.isdigit() for value in values):
+        raise SourceBaselineError(
+            'physical GPUs must be comma-separated non-negative integers'
+        )
+    physical_gpus = tuple(int(value) for value in values)
+    if len(set(physical_gpus)) != len(physical_gpus):
+        raise SourceBaselineError('physical GPUs must be unique')
+    return physical_gpus
+
+
+def source_config_contract(
+    config_path: str | Path,
+    bindings: SourceDatasetBindings,
+) -> dict[str, Any]:
+    """Validate the fixed source-only config values used by both launch modes."""
+
+    previous_rsar_root = os.environ.get('RSAR_ROOT')
+    os.environ['RSAR_ROOT'] = str(bindings.root)
+    try:
+        config = runpy.run_path(str(config_path))
+    finally:
+        if previous_rsar_root is None:
+            os.environ.pop('RSAR_ROOT', None)
+        else:
+            os.environ['RSAR_ROOT'] = previous_rsar_root
+
+    data = config.get('data')
+    optimizer = config.get('optimizer')
+    runner = config.get('runner')
+    if not isinstance(data, dict) or not isinstance(optimizer, dict):
+        raise SourceBaselineError('source config must define data and optimizer')
+    if not isinstance(runner, dict):
+        raise SourceBaselineError('source config must define an epoch runner')
+
+    expected_paths = {
+        'train.ann_file': bindings.train_annotations,
+        'train.img_prefix': bindings.train_images,
+        'val.ann_file': bindings.val_annotations,
+        'val.img_prefix': bindings.val_images,
+    }
+    configured_paths = {
+        'train.ann_file': Path(data['train']['ann_file']).resolve(),
+        'train.img_prefix': Path(data['train']['img_prefix']).resolve(),
+        'val.ann_file': Path(data['val']['ann_file']).resolve(),
+        'val.img_prefix': Path(data['val']['img_prefix']).resolve(),
+    }
+    for name, expected_path in expected_paths.items():
+        if configured_paths[name] != expected_path:
+            raise SourceBaselineError(
+                f'source config {name} is not clean RSAR: {configured_paths[name]}'
+            )
+
+    samples_per_gpu = data.get('samples_per_gpu')
+    optimizer_lr = optimizer.get('lr')
+    total_epochs = runner.get('max_epochs')
+    if samples_per_gpu != SINGLE_GPU_SAMPLES_PER_GPU:
+        raise SourceBaselineError(
+            'source config samples_per_gpu must remain '
+            f'{SINGLE_GPU_SAMPLES_PER_GPU}'
+        )
+    if optimizer_lr != OPTIMIZER_LR:
+        raise SourceBaselineError(
+            f'source config optimizer lr must remain {OPTIMIZER_LR}'
+        )
+    if total_epochs != TOTAL_EPOCHS:
+        raise SourceBaselineError(
+            f'source config total epochs must remain {TOTAL_EPOCHS}'
+        )
+    if config.get('load_from') is not None or config.get('resume_from') is not None:
+        raise SourceBaselineError(
+            'source config must start from scratch without a resume checkpoint'
+        )
+    return {
+        'clean_source_only': True,
+        'optimizer_lr': optimizer_lr,
+        'reference_samples_per_gpu': samples_per_gpu,
+        'total_epochs': total_epochs,
+    }
+
+
+def build_launch_metadata(
+    physical_gpus: Sequence[int],
+    command: Sequence[str],
+    config_contract: dict[str, Any],
+    smoke_iterations: int | None = None,
+) -> dict[str, Any]:
+    """Build and validate the launch invariants recorded before execution."""
+
+    physical_gpus = tuple(physical_gpus)
+    if not physical_gpus or any(gpu_index < 0 for gpu_index in physical_gpus):
+        raise SourceBaselineError(
+            'physical GPUs must be non-negative integers'
+        )
+    if len(set(physical_gpus)) != len(physical_gpus):
+        raise SourceBaselineError('physical GPUs must be unique')
+    if len(physical_gpus) == 1:
+        distributed = False
+        samples_per_gpu = SINGLE_GPU_SAMPLES_PER_GPU
+    elif len(physical_gpus) == DISTRIBUTED_WORLD_SIZE:
+        if physical_gpus != EXPECTED_DISTRIBUTED_PHYSICAL_GPUS:
+            raise SourceBaselineError(
+                'distributed physical GPUs must be exactly 4,5,6,7 '
+                'in logical-rank order'
+            )
+        if smoke_iterations is not None:
+            raise SourceBaselineError('distributed smoke mode is unsupported')
+        distributed = True
+        samples_per_gpu = DISTRIBUTED_SAMPLES_PER_GPU
+    else:
+        raise SourceBaselineError(
+            'source baseline requires one GPU or exactly four GPUs'
+        )
+
+    world_size = len(physical_gpus)
+    effective_global_batch = world_size * samples_per_gpu
+    invariants = {
+        'clean_source_only': config_contract.get('clean_source_only') is True,
+        'deterministic_seed_42': (
+            '--seed' in command
+            and command[command.index('--seed') + 1] == str(SEED)
+            and '--deterministic' in command
+        ),
+        'final_epoch_100': config_contract.get('total_epochs') == TOTAL_EPOCHS,
+        'global_batch_matches_single_gpu': (
+            effective_global_batch == REFERENCE_GLOBAL_BATCH
+        ),
+        'optimizer_lr_unchanged': (
+            config_contract.get('optimizer_lr') == OPTIMIZER_LR
+        ),
+        'physical_gpus_are_unique': (
+            len(set(physical_gpus)) == len(physical_gpus)
+        ),
+    }
+    failed = [name for name, passed in invariants.items() if not passed]
+    if failed:
+        raise SourceBaselineError(
+            f'launch invariant checks failed: {", ".join(failed)}'
+        )
+
+    return {
+        'distributed': distributed,
+        'distributed_argv': list(command) if distributed else None,
+        'effective_global_batch': effective_global_batch,
+        'invariants': invariants,
+        'logical_to_physical': [
+            {
+                'logical_rank': logical_rank,
+                'physical_gpu': physical_gpu,
+            }
+            for logical_rank, physical_gpu in enumerate(physical_gpus)
+        ],
+        'optimizer_lr': config_contract['optimizer_lr'],
+        'physical_gpus': list(physical_gpus),
+        'samples_per_gpu': samples_per_gpu,
+        'seed': SEED,
+        'smoke_iterations': smoke_iterations,
+        'total_epochs': config_contract['total_epochs'],
+        'world_size': world_size,
+    }
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -177,6 +379,7 @@ def write_prelaunch_artifacts(
     command: Sequence[str],
     environment: dict[str, str],
     git_commit: str,
+    launch_metadata: dict[str, Any],
 ) -> None:
     """Record the resolved inputs before the training process starts."""
 
@@ -196,6 +399,7 @@ def write_prelaunch_artifacts(
     )
     _write_json(output / 'command.json', {'argv': list(command)})
     _write_json(output / 'launch_environment.json', environment)
+    _write_json(output / 'launch_plan.json', launch_metadata)
     _write_json(output / 'git_commit.json', {'commit': git_commit.strip()})
 
 
@@ -435,9 +639,29 @@ def run_bounded_smoke(
 
 def _prepare(args: argparse.Namespace) -> int:
     bindings = source_dataset_bindings(args.rsar_root)
-    if args.smoke_iters is None:
-        command = build_train_command(args.python, args.config, args.work_dir)
+    config_contract = source_config_contract(args.config, bindings)
+    if args.gpu_indices is None:
+        physical_gpus = (args.gpu_index,)
     else:
+        physical_gpus = parse_physical_gpus(args.gpu_indices)
+
+    if args.smoke_iters is None:
+        if len(physical_gpus) == 1:
+            command = build_train_command(args.python, args.config, args.work_dir)
+        else:
+            if args.master_port is None:
+                raise SourceBaselineError(
+                    'distributed source run requires --master-port'
+                )
+            command = build_distributed_train_command(
+                args.python,
+                args.config,
+                args.work_dir,
+                args.master_port,
+            )
+    else:
+        if len(physical_gpus) != 1:
+            raise SourceBaselineError('distributed smoke mode is unsupported')
         command = build_smoke_command(
             args.python,
             args.config,
@@ -445,12 +669,21 @@ def _prepare(args: argparse.Namespace) -> int:
             bindings.root,
             args.smoke_iters,
         )
+    launch_metadata = build_launch_metadata(
+        physical_gpus,
+        command,
+        config_contract,
+        args.smoke_iters,
+    )
     environment = {
-        'CUDA_VISIBLE_DEVICES': str(args.gpu_index),
+        'CUDA_VISIBLE_DEVICES': ','.join(
+            str(gpu_index) for gpu_index in physical_gpus
+        ),
         'MASTER_PORT': os.environ.get('MASTER_PORT', ''),
         'PYTHONNOUSERSITE': '1',
         'PYTHONUNBUFFERED': '1',
         'RSAR_ROOT': str(bindings.root),
+        'WORLD_SIZE': str(len(physical_gpus)),
     }
     write_prelaunch_artifacts(
         args.artifact_dir,
@@ -458,6 +691,7 @@ def _prepare(args: argparse.Namespace) -> int:
         command,
         environment,
         args.git_commit,
+        launch_metadata,
     )
     print(json.dumps({'status': 'prepared', 'command': command}, sort_keys=True))
     return 0
@@ -520,7 +754,10 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument('--config', required=True)
     prepare.add_argument('--work-dir', required=True)
     prepare.add_argument('--artifact-dir', required=True)
-    prepare.add_argument('--gpu-index', type=int, required=True)
+    gpu_group = prepare.add_mutually_exclusive_group(required=True)
+    gpu_group.add_argument('--gpu-index', type=int)
+    gpu_group.add_argument('--gpu-indices')
+    prepare.add_argument('--master-port', type=int)
     prepare.add_argument('--git-commit', required=True)
     prepare.add_argument('--smoke-iters', type=int)
     prepare.set_defaults(handler=_prepare)
