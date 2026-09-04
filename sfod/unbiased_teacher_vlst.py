@@ -269,24 +269,32 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             'pseudo_num': torch.Tensor([self.pseudo_num.sum() / self.image_num]).to(device),
             'pseudo_num(acc)': torch.Tensor([self.pseudo_num_tp.sum() / self.pseudo_num.sum()]).to(device)
         }
-        if self.vlst_loss_count > 0:
-            # NOTE: key must NOT contain "loss" — mmdet parse_losses sums every
-            # key that matches, so a diagnostic average would be double-counted.
-            extra_info['vlst_avg'] = torch.Tensor(
-                [self.vlst_loss_sum / self.vlst_loss_count]).to(device)
-            extra_info['vlst_samples'] = torch.Tensor(
-                [self.vlst_sample_sum / self.vlst_loss_count]).to(device)
-            diag = self.vlst_teacher.get_diagnostics()
-            # Separability of the student ROI embedding w.r.t. the prototypes.
-            # margin > 0 and rising is the signal that feature-level guidance
-            # is actually taking hold.
-            extra_info['vlst_margin'] = torch.Tensor([diag['margin']]).to(device)
-            extra_info['vlst_pos_cos'] = torch.Tensor([diag['pos_cos']]).to(device)
-            extra_info['vlst_proto_cls'] = torch.Tensor(
-                [float((diag['visual_counts'] > 0).sum())]).to(device)
-
+        extra_info.update(self._vlst_diagnostic_log_vars(device))
         losses.update(extra_info)
         return losses
+
+    def _vlst_diagnostic_log_vars(self, device):
+        """VLST log vars consumed by mmdet `_parse_losses` DDP allreduce.
+
+        Keys must not contain ``loss``: parse_losses sums every matching name
+        into the training objective. Empty pseudo-label ranks still emit the
+        same names so the consumer key-length assert does not fire.
+        """
+        if self.vlst_loss_count > 0:
+            vlst_avg = self.vlst_loss_sum / self.vlst_loss_count
+            vlst_samples = self.vlst_sample_sum / self.vlst_loss_count
+        else:
+            vlst_avg = 0.0
+            vlst_samples = 0.0
+        diag = self.vlst_teacher.get_diagnostics()
+        return {
+            'vlst_avg': torch.Tensor([vlst_avg]).to(device),
+            'vlst_samples': torch.Tensor([vlst_samples]).to(device),
+            'vlst_margin': torch.Tensor([diag['margin']]).to(device),
+            'vlst_pos_cos': torch.Tensor([diag['pos_cos']]).to(device),
+            'vlst_proto_cls': torch.Tensor(
+                [float((diag['visual_counts'] > 0).sum())]).to(device),
+        }
 
     def _vlst_update_prototypes(self, img_metas, bbox_results):
         """Extract VLM features and update visual prototypes."""
