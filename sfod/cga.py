@@ -462,6 +462,19 @@ class CGA:
         print(f"[CGA/CLIP] building model={model}")
         self.clip, self.preprocess = clip.load(model, device=self.device)
         self.clip.eval()
+        self.clip.requires_grad_(False)
+        if self.strict:
+            trainable = [
+                name for name, param in self.clip.named_parameters()
+                if param.requires_grad
+            ]
+            if self.clip.training or trainable:
+                raise RuntimeError(
+                    "Strict CLIP encoder must be in eval mode with zero "
+                    "trainable parameters; "
+                    f"training={self.clip.training}, "
+                    f"trainable_parameters={trainable}"
+                )
 
         texts = [
             template.format(class_name)
@@ -825,6 +838,7 @@ class TestMixins:
                 expand_ratio=expand_ratio,
                 force_grayscale=force_grayscale,
                 backend="clip",
+                strict=self.cga_strict,
             )
         elif backend == "sarclip":
             model = os.environ.get("SARCLIP_MODEL", "ViT-B-32")

@@ -24,6 +24,24 @@ STRICT_CONFIG = (
     'configs/unbiased_teacher/sfod/'
     'unbiased_teacher_oriented_rcnn_selftraining_'
     'st_baseline_rsar_orthonet_strict.py')
+STRICT_METHOD_CONFIGS = {
+    'C': (
+        'configs/unbiased_teacher/sfod/'
+        'unbiased_teacher_oriented_rcnn_selftraining_'
+        'clip_cga_rsar_orthonet_strict.py'),
+    'D': (
+        'configs/unbiased_teacher/sfod/'
+        'unbiased_teacher_oriented_rcnn_selftraining_'
+        'cga_rsar_orthonet_arm_b_strict.py'),
+    'E': (
+        'configs/unbiased_teacher/sfod/'
+        'unbiased_teacher_oriented_rcnn_selftraining_'
+        'vlst_rsar_orthonet_strict.py'),
+    'F': (
+        'configs/unbiased_teacher/sfod/'
+        'unbiased_teacher_oriented_rcnn_selftraining_'
+        'vlst_cga_rsar_orthonet_strict.py'),
+}
 
 
 class StrictSourceFreeStaticContractTests(unittest.TestCase):
@@ -66,6 +84,71 @@ class StrictSourceFreeStaticContractTests(unittest.TestCase):
         self.assertIn(
             'self._prototype_bank_update(ema_host, strong_results)',
             proto_v2_block)
+
+    def test_strict_c_to_f_overlays_are_image_only_with_correct_scorers(self):
+        expected = {
+            'C': {
+                'scorer': 'clip',
+                'backend': 'clip',
+                'vlst': False,
+                'filter_mode': 'legacy',
+            },
+            'D': {
+                'scorer': 'sarclip',
+                'backend': 'sarclip',
+                'vlst': False,
+                'filter_mode': 'veto_soft',
+            },
+            'E': {
+                'scorer': 'none',
+                'backend': 'none',
+                'vlst': True,
+                'filter_mode': 'none',
+            },
+            'F': {
+                'scorer': 'sarclip',
+                'backend': 'sarclip',
+                'vlst': True,
+                'filter_mode': 'veto_soft',
+            },
+        }
+        st_base = (
+            "unbiased_teacher_oriented_rcnn_selftraining_"
+            "st_baseline_rsar_orthonet_strict.py")
+        for method, config_path in STRICT_METHOD_CONFIGS.items():
+            with self.subTest(method=method):
+                text = Path(config_path).read_text(encoding='utf-8')
+                want = expected[method]
+                self.assertIn(st_base, text)
+                self.assertNotIn('ann_file=', text)
+                self.assertNotIn('SemiDOTADataset', text)
+                self.assertIn("os.environ['CGA_SCORER'] = "
+                              f"'{want['scorer']}'", text)
+                self.assertIn("os.environ['CGA_BACKEND'] = "
+                              f"'{want['backend']}'", text)
+                self.assertIn("os.environ['CGA_FILTER_MODE'] = "
+                              f"'{want['filter_mode']}'", text)
+                self.assertIn("os.environ['CGA_STRICT'] = '1'", text)
+                self.assertIn('weight_l=0.0', Path(STRICT_CONFIG).read_text(
+                    encoding='utf-8'))
+                if method == 'C':
+                    self.assertIn("os.environ['CGA_CLIP_MODEL'] = 'RN50x64'", text)
+                    self.assertIn("'SARCLIP_PRETRAINED'", text)
+                    self.assertIn('os.environ.pop', text)
+                    self.assertNotIn('vlst_enabled', text)
+                    self.assertNotIn('weight_l=', text)
+                else:
+                    self.assertIn('SARCLIP_PRETRAINED', text)
+                    self.assertIn('forbids SARCLIP_LORA', text)
+                if want['vlst']:
+                    self.assertIn("type='UnbiasedTeacherVLST'", text)
+                    self.assertIn('weight_l=0.0', text)
+                    self.assertIn('vlst_strict=True', text)
+                    self.assertIn('vlst_lora_path=None', text)
+                    self.assertIn("os.environ['VLST_BACKEND'] = 'sarclip'", text)
+                else:
+                    self.assertNotIn('vlst_enabled', text)
+                    self.assertNotIn("os.environ['VLST_BACKEND'] = 'sarclip'", text)
 
 
 def _format_target(results):

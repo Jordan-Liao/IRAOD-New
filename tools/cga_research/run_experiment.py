@@ -89,6 +89,29 @@ STRICT_SOURCE_FREE_CONFIG = Path(
     "unbiased_teacher_oriented_rcnn_selftraining_"
     "st_baseline_rsar_orthonet_strict.py"
 )
+STRICT_SOURCE_FREE_CONFIGS = (
+    STRICT_SOURCE_FREE_CONFIG,
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "clip_cga_rsar_orthonet_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "cga_rsar_orthonet_arm_b_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "vlst_rsar_orthonet_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "vlst_cga_rsar_orthonet_strict.py"
+    ),
+)
 RSAR_CLASS_ORDER = (
     "ship",
     "aircraft",
@@ -295,11 +318,15 @@ def validate_strict_source_free_spec(spec: ExperimentSpec) -> dict[str, Any]:
         raise ValueError('strict_source_free forbids SARCLIP_LORA')
 
     project_root = Path(spec.project_root).resolve()
-    expected_config = (project_root / STRICT_SOURCE_FREE_CONFIG).resolve()
-    if Path(spec.config).resolve() != expected_config:
+    allowed_configs = {
+        (project_root / relative).resolve()
+        for relative in STRICT_SOURCE_FREE_CONFIGS
+    }
+    if Path(spec.config).resolve() not in allowed_configs:
         raise ValueError(
-            'strict_source_free requires config '
-            f'{STRICT_SOURCE_FREE_CONFIG.as_posix()}')
+            'strict_source_free requires config in the strict allowlist: '
+            + ', '.join(path.as_posix() for path in STRICT_SOURCE_FREE_CONFIGS)
+        )
 
     options = _cfg_option_map(spec.cfg_options)
     for key in (

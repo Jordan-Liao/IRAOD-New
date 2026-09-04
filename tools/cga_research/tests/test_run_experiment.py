@@ -390,6 +390,20 @@ class RunExperimentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "requires config"):
                 build_train_command(spec)
 
+    def test_strict_protocol_accepts_allowlisted_method_configs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            for relative in runner_module.STRICT_SOURCE_FREE_CONFIGS:
+                with self.subTest(config=relative.as_posix()):
+                    config = root / relative
+                    config.parent.mkdir(parents=True, exist_ok=True)
+                    config.write_text("strict = True\n", encoding="utf-8")
+                    spec.config = config
+                    spec.strict_manifest_binding = None
+                    command = build_train_command(spec)
+                    self.assertEqual(command[2], str(config))
+
     def test_strict_protocol_rejects_source_image_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

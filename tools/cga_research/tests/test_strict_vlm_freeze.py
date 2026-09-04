@@ -27,6 +27,16 @@ STRICT_CONFIGS = (
     / "unbiased_teacher_oriented_rcnn_selftraining_vlst_rsar_orthonet.py",
     REPO_ROOT / "configs" / "unbiased_teacher" / "sfod"
     / "unbiased_teacher_oriented_rcnn_selftraining_vlst_cga_rsar_orthonet.py",
+    REPO_ROOT / "configs" / "unbiased_teacher" / "sfod"
+    / "unbiased_teacher_oriented_rcnn_selftraining_cga_rsar_orthonet_arm_b_strict.py",
+    REPO_ROOT / "configs" / "unbiased_teacher" / "sfod"
+    / "unbiased_teacher_oriented_rcnn_selftraining_vlst_rsar_orthonet_strict.py",
+    REPO_ROOT / "configs" / "unbiased_teacher" / "sfod"
+    / "unbiased_teacher_oriented_rcnn_selftraining_vlst_cga_rsar_orthonet_strict.py",
+)
+CLIP_STRICT_CONFIG = (
+    REPO_ROOT / "configs" / "unbiased_teacher" / "sfod"
+    / "unbiased_teacher_oriented_rcnn_selftraining_clip_cga_rsar_orthonet_strict.py"
 )
 
 
@@ -75,6 +85,38 @@ def _fake_sarclip_module():
         lambda _image: torch.ones(4)
     )
     return module
+
+
+def _fake_clip_module():
+    module = types.ModuleType("clip")
+    module.__file__ = "<fake-clip>"
+
+    class _FakeClipModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.visual = nn.Linear(4, 4)
+
+        def encode_text(self, tokens):
+            return torch.ones(tokens.shape[0], 4)
+
+    def load(_model, device="cpu"):
+        return _FakeClipModel().to(device), (lambda image: image)
+
+    module.load = load
+    module.tokenize = lambda texts: torch.ones(len(texts), 4, dtype=torch.long)
+    return module
+
+
+def _build_strict_clip():
+    fake_clip = _fake_clip_module()
+    with patch.dict(sys.modules, {"clip": fake_clip}):
+        return CGA_MODULE.CGA(
+            class_names=["ship", "aircraft"],
+            model="RN50x64",
+            templates=["an aerial image of a {}"],
+            backend="clip",
+            strict=True,
+        )
 
 
 def _build_strict_cga(checkpoint):
@@ -149,6 +191,16 @@ class TestStrictVLMFreeze(unittest.TestCase):
             next(cga.clip.parameters()).data_ptr(),
             next(vlst.clip.parameters()).data_ptr(),
         )
+
+    def test_strict_clip_encoder_is_frozen(self):
+        scorer = _build_strict_clip()
+        self.assertFalse(scorer.clip.training)
+        self.assertEqual(
+            [name for name, param in scorer.clip.named_parameters()
+             if param.requires_grad],
+            [],
+        )
+        self.assertIn("strict=self.cga_strict", CGA_PATH.read_text(encoding="utf-8"))
 
     def test_backward_keeps_vlm_grad_free_and_trains_student_projection(self):
         torch.manual_seed(0)
@@ -323,6 +375,18 @@ class TestStrictVLMFreeze(unittest.TestCase):
                             str(checkpoint),
                         )
                         self.assertIsNone(model["cfg"]["vlst_lora_path"])
+
+    def test_clip_cga_strict_config_has_no_sarclip_or_vlst(self):
+        with patch.dict(os.environ, {"SARCLIP_LORA": "/tmp/adapter.pth"}, clear=True):
+            config = runpy.run_path(str(CLIP_STRICT_CONFIG))
+            self.assertEqual(os.environ["CGA_SCORER"], "clip")
+            self.assertEqual(os.environ["CGA_BACKEND"], "clip")
+            self.assertEqual(os.environ["CGA_CLIP_MODEL"], "RN50x64")
+            self.assertEqual(os.environ["CGA_FILTER_MODE"], "legacy")
+            self.assertNotIn("SARCLIP_LORA", os.environ)
+            self.assertNotIn("SARCLIP_PRETRAINED", os.environ)
+            self.assertNotIn("VLST_BACKEND", os.environ)
+            self.assertIsNone(config.get("model"))
 
     def test_strict_config_missing_base_failure_is_actionable(self):
         missing = REPO_ROOT / "missing-strict-config.safetensors"
