@@ -1,3 +1,6 @@
+import os
+
+
 _base_ = './ema_config/baseline_oriented_rcnn_ema_rsar_cga.py'
 
 custom_imports = dict(
@@ -6,7 +9,14 @@ custom_imports = dict(
 
 classes = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 
-data_root = '/myfile/dataset/RSAR/'
+data_root = os.environ.get('RSAR_ROOT')
+if not data_root:
+    raise RuntimeError(
+        'RSAR_ROOT must point to the clean RSAR dataset before loading this config.'
+    )
+data_root = os.path.realpath(os.path.expanduser(data_root))
+if not data_root.endswith(os.sep):
+    data_root += os.sep
 
 train_img = data_root + 'train/images/'
 train_ann = data_root + 'train/annfiles/'
@@ -117,9 +127,8 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 
-# Existing clean-source OrthoNet RSAR checkpoint supplied for this workspace.
-# Set this to None only when training OrthoNet completely from scratch.
-load_from = '/myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth'
+# This source-only baseline trains OrthoNet from scratch.
+load_from = None
 
 resume_from = None
 workflow = [('train', 1)]
