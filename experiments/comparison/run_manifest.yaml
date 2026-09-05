@@ -1,0 +1,20 @@
+dataset: RSAR
+code: 0f98a48b539f9260055fc305784ffbc924f50451
+source_ckpt: /mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth
+source_sha256: e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c
+seed: 42
+effective_batch: 32
+lr: 0.02
+max_epochs: 1
+unlabeled_epoch_size: 8467
+final_ckpt: last_iter_ema_teacher
+eval: dota_le90_map50_test_split
+physical_gpus: [4, 5, 6, 7]
+cells:
+  rsar_seven_corruption_A_F_ema: done
+  rsar_chaff_clsap_BCDF: done
+  rsar_chaff_vis_A_F_ema_32img: done
+  rsar_chaff_roi_A_B_C_D_E_F: done_or_partial
+  dior_r: staging_in_progress_on_67
+  irg_lpld: not_started
+  visualizations_roi: chaff_32_subset_done

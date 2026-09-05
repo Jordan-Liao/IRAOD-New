@@ -1,0 +1,10 @@
+id,name,source_free,box,vlm,target_labels,cga,vlst,train_target_images,notes
+A,Source Only,yes,OBB,none,eval_only,off,off,no,frozen source
+B,ST Mean Teacher,yes,OBB,none,eval_only,off,off,yes,use_bbox_reg=False
+C,CLIP-CGA,yes,OBB,CLIP-RN50x64,eval_only,legacy,off,yes,no SARCLIP/LoRA
+D,SARCLIP-CGA,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,off,yes,frozen base, no LoRA
+E,VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,off,on,yes,DDP2 topology-only
+F,CGA+VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,on,yes,accepted preflight workdir full budget
+G_oracle,Target-supervised LoRA,no,OBB,SARCLIP-LoRA,train,varies,varies,yes,appendix only; not run
+IRG,IRG-OBB,yes,OBB,none,eval_only,off,off,yes,N/A not yet ported
+LPLD,LPLD-OBB,yes,OBB,none,eval_only,off,off,yes,N/A not yet ported
