@@ -283,13 +283,18 @@ completion record is committed as a real result.
 `consumer_format.json`. It builds `cells.json`, `checkpoints.json`,
 `collection_inventory.{json,csv}` and `report-manifest.json` from actual metadata.
 It never loads a pickle/NPZ, runs a model or invokes a queue. Checkpoint admission
-records the actual owner `train_verified` result plus matching source identity,
-file size, root code record and terminal evidence. No GPU UUID is fabricated.
+records the exact file size, root code record and actual successful terminal
+evidence (`tmux_wrap_exit=0` or the observed legacy `launcher_exit=0`). The
+dataset source manifest is owner-confirmed; absent per-run SHA marker files
+are recorded as absent, not misreported as a wrong source. A contradictory
+marker still blocks admission. No GPU UUID is fabricated.
 The resolver/owner-format/plan are snapshotted into the new input directory;
 live files are not modified, including no resolver pycache.
 
-Lookup order is the native `eval_full_<domain>_ids_v1`, standard
-`eval_full_<domain>`, then legacy `eval_<domain>`. The owner format supplies the
+Lookup uses the resolver's current target (which may already end in `_ids_v1`),
+native `eval_full_<domain>_ids_v1`, standard `eval_full_<domain>`, and the
+observed topology-parent/method-root legacy `eval_<domain>` locations, without
+duplicating the native suffix. The owner format supplies the
 two exceptional A/clean JSON locations. Only a unique eval JSON is selected;
 ambiguous retries are listed as missing evidence, never picked by mtime.
 Legacy subset paths in the owner format are reference-only and never passed

@@ -48,6 +48,39 @@ class ReportCollectionTest(unittest.TestCase):
         self.assertIsNone(metric)
         self.assertEqual(issue, "ambiguous_eval_json")
 
+    def test_resolver_already_returns_native_and_old_full_results_remain_visible(self):
+        full = self.evaluation("", .4)
+        original = self.paths.eval_full_dir
+        self.paths.eval_full_dir = lambda *args: original(*args) + "_ids_v1"
+        directory, metric, searched, issue = choose_evaluation(
+            self.paths, {}, "RSAR", "chaff", 42, "B")
+        self.assertEqual(directory, full)
+        self.assertEqual(json.loads(metric.read_text())["metric"]["mAP"], .4)
+        self.assertIsNone(issue)
+        self.assertFalse(any("_ids_v1_ids_v1" in r["directory"] for r in searched))
+
+    def test_legacy_ddp_eval_at_method_root_and_launcher_success(self):
+        md = Path(self.paths.method_dir("RSAR", "chaff", "42", "E"))
+        old = md / "eval_chaff"
+        old.mkdir(parents=True)
+        write_json(old / "eval_old.json", {"config": "/fixture.py", "metric": {"mAP": .3}})
+        original = self.paths.eval_full_dir
+        self.paths.eval_full_dir = lambda ds, d, s, m: str(
+            Path(original(ds, d, s, m)).parent / "ddp2" / f"eval_full_{d}_ids_v1")
+        directory, _, _, _ = choose_evaluation(self.paths, {}, "RSAR", "chaff", 42, "E")
+        self.assertEqual(directory, old)
+        checkpoint = Path(self.paths.ema_path("RSAR", "chaff", "42", "E"))
+        checkpoint.write_bytes(b"fixture checkpoint")
+        (md / "terminal_status").write_text("launcher_exit=0\ncleanup\n")
+        plan = self.root / "plan.json"
+        write_json(plan, {"schema": "iraod-aligned-roi-v3-full-test", "runs": []})
+        collect_manifest(self.paths, {}, plan, self.root / "legacy-collected")
+        rows = json.loads((self.root / "legacy-collected/checkpoints.json").read_text())
+        row = next(r for r in rows if (r["dataset"], r["domain"], r["method"]) == ("RSAR", "chaff", "E"))
+        self.assertTrue(row["verified"])
+        self.assertFalse(row["source_run_marker_present"])
+        self.assertIsNone(row["source_identity_record"])
+
     def test_owner_source_clean_location_and_scoped_manifest(self):
         source = self.root / "source-eval/eval_source.json"
         source.parent.mkdir()

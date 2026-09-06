@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import importlib.util
 from pathlib import Path
+import re
 import shutil
 import sys
 
@@ -35,9 +36,15 @@ def read_identity(path):
 
 
 def choose_evaluation(paths, owner_format, dataset, domain, seed, method):
-    full = Path(paths.eval_full_dir(dataset, domain, str(seed), method))
-    candidates = [(full.with_name(full.name + "_ids_v1"), None),
-                  (full, None), (full.parent / f"eval_{domain}", None)]
+    configured = Path(paths.eval_full_dir(dataset, domain, str(seed), method))
+    full = configured.with_name(f"eval_full_{domain}")
+    method_dir = Path(paths.method_dir(dataset, domain, str(seed), method))
+    directories = ([] if configured == full else [configured]) + [
+        full.with_name(full.name + "_ids_v1"), full,
+        method_dir / f"eval_full_{domain}", full.parent / f"eval_{domain}",
+        method_dir / f"eval_{domain}",
+    ]
+    candidates = [(directory, None) for directory in dict.fromkeys(directories)]
     if method == "A" and domain == "clean":
         source = owner_format.get("A_source_clean", {}).get(dataset)
         if source:
@@ -86,11 +93,21 @@ def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
                 method_dir = Path(paths.method_dir(dataset, domain, str(seed), method))
                 checkpoint = Path(paths.ema_path(dataset, domain, str(seed), method))
                 source_record = read_identity(root / "source_ckpt.sha256")
-                matches_source = bool(source_record and source_record.split()[0] == source_ids[dataset])
-                verified = bool(paths.train_verified(dataset, domain, str(seed), method)) and matches_source
+                # The dataset source identity is already owner-confirmed. A present
+                # per-run marker must agree, but its absence is not a wrong source.
+                matches_source = not source_record or source_record.split()[0] == source_ids[dataset]
                 terminals = [method_dir / "terminal_status",
                              method_dir / "ddp2/terminal_status",
                              method_dir / "preflight_ddp2/terminal_status"]
+                terminal_records = [
+                    {"path": str(p), "record": read_identity(p)} for p in terminals if p.is_file()]
+                successful_terminal = False
+                for terminal in terminal_records:
+                    exits = re.findall(r"\b(?:tmux_wrap_exit|launcher_exit)=(-?\d+)\b",
+                                       terminal["record"])
+                    successful_terminal |= bool(exits and int(exits[-1]) == 0)
+                verified = (checkpoint.is_file() and checkpoint.stat().st_size > 0
+                            and matches_source and (method == "A" or successful_terminal))
                 checkpoints.append({
                     **base, "path": str(checkpoint), "selection": "source" if method == "A" else "final",
                     "iteration": None if method == "A" else FINAL_ITERATION[dataset],
@@ -98,10 +115,13 @@ def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
                     "bytes": checkpoint.stat().st_size if checkpoint.is_file() else None,
                     "source_identity_file": str(root / "source_ckpt.sha256"),
                     "source_identity_record": source_record,
+                    "source_run_marker_present": source_record is not None,
+                    "source_identity_basis": "owner-confirmed dataset source manifest",
                     "training_code_record": read_identity(root / "git_commit.txt"),
-                    "terminal_evidence": [
-                        {"path": str(p), "record": read_identity(p)} for p in terminals if p.is_file()],
-                    "verification_policy": "owner paths.train_verified plus matching source identity record",
+                    "terminal_evidence": terminal_records,
+                    "verification_policy": (
+                        "exact checkpoint file; final terminal tmux_wrap_exit/launcher_exit=0; "
+                        "owner-confirmed dataset source, rejecting contradictory per-run markers"),
                 })
                 directory, metric_file, searched, problem = choose_evaluation(
                     paths, owner_format, dataset, domain, seed, method)
