@@ -39,3 +39,9 @@ Final report: `results/paper_comparison/IRAOD_full_comparison_report_cn.docx`.
 DIOR per-class has 400 rows; visualizations have 288 file records; RoI has 33 directory records (528 feature files). RoI features are pre-NMS while prediction metadata is post-NMS without row mapping: class-colored instance t-SNE is not yet justified. RSAR per-class/qualitative export coverage is not equivalent to its completed 42-cell metrics.
 
 IRG/LPLD/DRU/AASFOD/SF-YOLO remain N/A, with concrete port boundaries in `results/paper_comparison/dior_ports_executability.md`; Simple-SFOD/SF-UT is covered by equivalent B on both datasets.
+
+Aligned qualitative/RoI completion tooling is documented in
+[`RESULT_COMPLETION.md`](RESULT_COMPLETION.md). Its v2 outputs are separate from
+the legacy unaligned exports. Seed42 RSAR/DIOR same-image source, final-EMA and
+Student coverage and joint t-SNE remain pending remote extraction evidence;
+planning does not upgrade the result manifests above.

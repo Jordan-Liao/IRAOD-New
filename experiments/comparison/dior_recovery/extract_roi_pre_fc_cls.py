@@ -1,58 +1,92 @@
-from iraod_runtime import ensure_iraod_runtime
-ensure_iraod_runtime()
-import argparse, json, os
-import numpy as np, torch
-from mmcv import Config
-from mmcv.parallel import MMDataParallel
-from mmcv.runner import load_checkpoint
-from mmdet.datasets import build_dataloader
-from mmrotate.datasets import build_dataset
-from mmrotate.models import build_detector
-from mmrotate.utils import compat_cfg, setup_multi_processes
-from sfod.utils import patch_config
+"""Versioned, exactly post-NMS-aligned fc_cls input export (compute owner only)."""
+
+import argparse
+import json
+from pathlib import Path
+import subprocess
+
+from experiments.comparison.result_completion import load_run
+
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("config"); ap.add_argument("checkpoint")
-    ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--ann-file", default="")
-    ap.add_argument("--img-prefix", default="")
-    args = ap.parse_args()
-    os.makedirs(args.out_dir, exist_ok=True)
-    cfg = patch_config(compat_cfg(Config.fromfile(args.config)))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan", required=True)
+    parser.add_argument("--run-id", required=True)
+    args = parser.parse_args()
+    run = load_run(args.plan, args.run_id)
+
+    from iraod_runtime import ensure_iraod_runtime
+    ensure_iraod_runtime()
+    import numpy as np
+    import torch
+    from mmcv import Config
+    from mmcv.parallel import MMDataParallel
+    from mmcv.runner import load_checkpoint, wrap_fp16_model
+    from mmdet.datasets import build_dataloader
+    from mmrotate.datasets import build_dataset
+    from mmrotate.models import build_detector
+    from mmrotate.models.roi_heads.bbox_heads import rotated_bbox_head
+    from mmrotate.utils import compat_cfg, setup_multi_processes
+    from sfod.utils import patch_config
+    from experiments.comparison.aligned_roi import AlignedRoICapture, SCHEMA
+
+    out = Path(run["out_dir"])
+    out.mkdir(parents=True, exist_ok=False)
+    cfg = patch_config(compat_cfg(Config.fromfile(run["config"])))
     setup_multi_processes(cfg)
+    cfg.model.pretrained = None
     cfg.model.train_cfg = None
     cfg.data.test.test_mode = True
-    if args.ann_file: cfg.data.test.ann_file = args.ann_file
-    if args.img_prefix: cfg.data.test.img_prefix = args.img_prefix
+    cfg.data.test.ann_file = run["ann_file"]
+    cfg.data.test.img_prefix = run["img_prefix"]
     dataset = build_dataset(cfg.data.test)
-    loader = build_dataloader(dataset, samples_per_gpu=1, workers_per_gpu=2, dist=False, shuffle=False)
+    by_id = {Path(info["filename"]).stem: i
+             for i, info in enumerate(dataset.data_infos)}
+    indices = [by_id[image_id] for image_id in run["image_ids"]]
+    loader = build_dataloader(
+        torch.utils.data.Subset(dataset, indices), samples_per_gpu=1,
+        workers_per_gpu=2, dist=False, shuffle=False)
     model = build_detector(cfg.model, test_cfg=cfg.get("test_cfg"))
-    load_checkpoint(model, args.checkpoint, map_location="cpu")
-    model = MMDataParallel(model, device_ids=[0]); model.eval()
-    feats=[]
-    def hook(_m, inp, _out):
-        feats.append(inp[0].detach().float().cpu().numpy())
-    handle = model.module.roi_head.bbox_head.fc_cls.register_forward_hook(hook)
-    recs=[]; n=0
-    with torch.no_grad():
-        for data in loader:
-            feats.clear()
+    if cfg.get("fp16") is not None:
+        wrap_fp16_model(model)
+    checkpoint = load_checkpoint(model, run["checkpoint"], map_location="cpu")
+    model.CLASSES = checkpoint.get("meta", {}).get("CLASSES", dataset.CLASSES)
+    if tuple(model.CLASSES) != tuple(dataset.CLASSES):
+        raise ValueError("Checkpoint and dataset class order differ")
+    model = MMDataParallel(model, device_ids=[0])
+    model.eval()
+    records = []
+    with AlignedRoICapture(model.module.roi_head.bbox_head,
+                          rotated_bbox_head) as capture, torch.no_grad():
+        for image_id, data in zip(run["image_ids"], loader):
+            capture.reset()
             result = model(return_loss=False, rescale=True, **data)
-            img_id = data["img_metas"][0].data[0][0]["ori_filename"]
-            per_cls = result[0] if isinstance(result, list) and result and isinstance(result[0], list) else result
-            boxes=[]
-            for cls_i, arr in enumerate(per_cls):
-                if arr is None or len(arr)==0: continue
-                for row in np.asarray(arr):
-                    boxes.append((int(cls_i), float(row[-1]), row[:5].astype(float).tolist()))
-            feat = feats[-1] if feats else np.zeros((0,1), np.float32)
-            recs.append({"image_id": img_id, "n_roi": int(feat.shape[0]), "preds": boxes})
-            np.save(os.path.join(args.out_dir, os.path.splitext(os.path.basename(img_id))[0]+".npy"), feat)
-            n += 1
-    handle.remove()
-    with open(os.path.join(args.out_dir, "index.json"), "w") as f:
-        json.dump({"checkpoint": args.checkpoint, "n_images": n, "records": recs}, f)
-    print("wrote", args.out_dir, "n", n)
+            meta = data["img_metas"][0].data[0][0]
+            if Path(meta["ori_filename"]).stem != image_id:
+                raise ValueError("Loader image order differs from fixed selection")
+            arrays = capture.aligned(image_id, result[0])
+            name = image_id + ".npz"
+            np.savez_compressed(out / name, **arrays)
+            records.append({
+                "image_id": image_id, "image_path": meta["filename"],
+                "feature_file": name, "n_roi": len(capture.features[0]),
+                "n_detections": len(arrays["labels"]),
+            })
+    index = {
+        "schema": SCHEMA, "status": "complete", "run": run,
+        "code_commit": subprocess.check_output(
+            ["git", "-C", str(Path(__file__).resolve().parents[3]),
+             "rev-parse", "HEAD"], text=True).strip(),
+        "classes": list(model.module.CLASSES), "rescale": True,
+        "test_cfg": dict(model.module.roi_head.test_cfg),
+        "feature_point": "roi_head.bbox_head.fc_cls.input",
+        "checkpoint_meta": {key: checkpoint.get("meta", {}).get(key)
+                            for key in ("epoch", "iter")},
+        "records": records,
+    }
+    (out / "index.json").write_text(json.dumps(index, indent=2) + "\n")
+    print(f"Completed {run['run_id']}: {len(records)} images -> {out}")
+
+
 if __name__ == "__main__":
     main()
