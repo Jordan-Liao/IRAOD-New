@@ -60,7 +60,7 @@ The following is the input shape, not a completed manifest:
         "clean": {
           "ann_file": "/absolute/RSAR/test/annfiles",
           "img_prefix": "/absolute/RSAR/test/images",
-          "checkpoint_domain": "chaff"
+          "checkpoint_domain": "clean"
         },
         "chaff": {
           "ann_file": "/absolute/RSAR/test/annfiles",
@@ -69,6 +69,12 @@ The following is the input shape, not a completed manifest:
         }
       },
       "checkpoints": {
+        "clean": {
+          "B": {
+            "ema": "/absolute/clean/B/final_iter_ema.pth",
+            "student": "/absolute/clean/B/final_iter.pth"
+          }
+        },
         "chaff": {
           "B": {
             "ema": "/absolute/chaff/B/final_iter_ema.pth",
@@ -79,14 +85,14 @@ The following is the input shape, not a completed manifest:
     },
     "DIOR": {
       "config": "/absolute/DIOR/reproducibility/resolved_config.py",
-      "source_checkpoint": "/absolute/DIOR/source/epoch_100.pth",
+      "source_checkpoint": "/absolute/DIOR/source/train/epoch_100.pth",
       "selection_evidence": "results/paper_comparison/dior_visualization_selection.json",
       "image_ids": ["11726", "11727", "11728", "11729", "11730", "11731", "11732", "11733", "11734", "11735", "11736", "11737", "11738", "11739", "11740", "11741"],
       "domains": {
         "clean": {
           "ann_file": "/absolute/DIOR/ImageSets/vis16.txt",
           "img_prefix": "/absolute/DIOR/clean/test/images",
-          "checkpoint_domain": "brightness"
+          "checkpoint_domain": "clean"
         },
         "brightness": {
           "ann_file": "/absolute/DIOR/ImageSets/vis16.txt",
@@ -95,6 +101,12 @@ The following is the input shape, not a completed manifest:
         }
       },
       "checkpoints": {
+        "clean": {
+          "B": {
+            "ema": "/absolute/clean/B/iter_185_ema.pth",
+            "student": "/absolute/clean/B/iter_185.pth"
+          }
+        },
         "brightness": {
           "B": {
             "ema": "/absolute/brightness/B/iter_185_ema.pth",
@@ -111,16 +123,21 @@ Expand the shape to **all** RSAR domains `clean`, `chaff`,
 `gaussian_white_noise`, `point_target`, `noise_suppression`,
 `am_noise_horizontal`, `smart_suppression`, `am_noise_vertical`; DIOR domains
 `clean`, `brightness`, `cloudy`, `contrast`; and B-F `ema` + `student` for every
-corruption. A is always `source`; there is no A/Student or A/EMA duplicate.
+domain, including clean. A is always `source`; there is no A/Student or A/EMA duplicate.
 Use the actual final iteration, not `latest`, directory mtime, or best-test
 selection. Student files from this repository's semi-runner contain the direct
 student detector state dict; EMA files contain the standalone EMA detector.
 Use the source inference config, not the adaptation/training wrapper config.
 
-For clean images, explicitly bind the adaptation domain whose checkpoint is
-being diagnosed (the example uses chaff / brightness). Clean is not a new
-adaptation run. Its checkpoint-domain provenance stays in every output and
-plot point. All B-F roles in that clean comparison use that same domain.
+Every domain must set `checkpoint_domain` to itself. Clean B-F use their
+independently clean-adapted final EMA and Student checkpoints from
+`checkpoints.clean`, as authorized under item 1; chaff/brightness or other
+corruption checkpoints are not substitutes. The planner rejects cross-domain
+bindings, including clean bound to any corruption. Checkpoint-domain provenance
+stays in every output and plot point. The full matrix remains 132 groups.
+Regenerate any plan made before this correction with a new plan filename and
+output root; old clean plans may point to corruption-adapted checkpoints and
+must not be used for this full matrix.
 
 The local repository does not contain the existing RSAR 32 IDs: the supervisor
 must read them from the completed chaff selection, retain their order, and
@@ -129,8 +146,11 @@ read by the planner and must contain either `{"image_ids": [...]}` (the DIOR
 selection format) or `{"records": [{"image_id": "name.png"}, ...]}` (the old
 extractor index format). Its ordered filename stems must match `image_ids`.
 This proves selection identity, not completion of the new extraction.
-DIOR's possibly overwritten source must be resolved by its owner before use;
-this code does not certify checkpoint history.
+The compute owner has confirmed the intended DIOR source checkpoint under
+`train/` matches the original source identity; the old duplicate was in its
+parent directory and did not overwrite that source. Use the confirmed `train/`
+checkpoint, not the duplicate. This is owner-supplied provenance, not a new
+checkpoint-history certification by this code.
 
 ## Commands
 
@@ -152,6 +172,8 @@ export PLAN=/absolute/completion-plan.json
 # Repeat for each plan run_id; examples include the missing Student roles.
 experiments/comparison/dior_recovery/run_roi.sh 4 "$PLAN" RSAR/chaff/C/student
 experiments/comparison/dior_recovery/run_roi.sh 4 "$PLAN" DIOR/cloudy/F/ema
+experiments/comparison/dior_recovery/run_roi.sh 4 "$PLAN" RSAR/clean/C/student
+experiments/comparison/dior_recovery/run_roi.sh 4 "$PLAN" DIOR/clean/F/ema
 
 # CPU: render the same stored predictions, no second detector or NMS invocation.
 experiments/comparison/dior_recovery/run_vis.sh "$PLAN" RSAR/chaff/C/student

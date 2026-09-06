@@ -131,13 +131,13 @@ def bindings(root):
             "domains": {
                 domain: {"ann_file": "/remote/test_annotations",
                          "img_prefix": f"/remote/{domain}/images",
-                         "checkpoint_domain": domain if domain != "clean" else domains[1]}
+                         "checkpoint_domain": domain}
                 for domain in domains},
             "checkpoints": {
                 domain: {
                     method: {role: f"/remote/{dataset}/{domain}/{method}/final_{role}.pth"
                              for role in ("ema", "student")} for method in "BCDEF"}
-                for domain in domains[1:]},
+                for domain in domains},
         }
     return {"output_root": str(root), "datasets": datasets}
 
@@ -191,6 +191,29 @@ class CompletionTest(unittest.TestCase):
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 2)
             self.assertIn("usage:", result.stderr)
+
+    def test_each_domain_uses_its_own_final_checkpoint(self):
+        expected = bindings(self.root)["datasets"]
+        for run in self.plan["runs"]:
+            with self.subTest(run=run["run_id"]):
+                spec = expected[run["dataset"]]
+                if run["method"] == "A":
+                    self.assertEqual(run["checkpoint_domain"], "source")
+                    self.assertEqual(run["checkpoint"], spec["source_checkpoint"])
+                else:
+                    self.assertEqual(run["checkpoint_domain"], run["domain"])
+                    self.assertEqual(
+                        run["checkpoint"],
+                        spec["checkpoints"][run["domain"]][run["method"]][run["role"]])
+
+    def test_clean_rejects_corruption_checkpoint_binding(self):
+        for dataset, domains in DOMAINS.items():
+            for corruption in domains[1:]:
+                with self.subTest(dataset=dataset, checkpoint_domain=corruption):
+                    bad = bindings(self.root)
+                    bad["datasets"][dataset]["domains"]["clean"]["checkpoint_domain"] = corruption
+                    with self.assertRaisesRegex(ValueError, "clean must use its own"):
+                        build_plan(bad)
 
     def export_fixture(self, run, arrays):
         import cv2

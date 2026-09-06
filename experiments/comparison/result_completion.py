@@ -50,10 +50,8 @@ def build_plan(bindings):
         for domain in domains:
             binding = spec["domains"][domain]
             checkpoint_domain = binding["checkpoint_domain"]
-            if domain != "clean" and checkpoint_domain != domain:
-                raise ValueError("Corruption must use its own adapted checkpoint")
-            if checkpoint_domain not in domains[1:]:
-                raise ValueError("Clean must explicitly name an adaptation domain")
+            if checkpoint_domain != domain:
+                raise ValueError(f"{domain} must use its own adapted checkpoint")
             for method, role in ROLES:
                 checkpoint = (spec["source_checkpoint"] if method == "A" else
                               spec["checkpoints"][checkpoint_domain][method][role])
