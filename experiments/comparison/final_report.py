@@ -55,7 +55,9 @@ def figures(report, out):
     return saved
 
 
-def build_report(manifest_path, out_dir, docx_python):
+def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
+    if not metadata_only and not docx_python:
+        raise ValueError("A DOCX interpreter is required unless metadata_only is explicit")
     manifest = read_json(manifest_path)
     if manifest["schema"] != SCHEMA:
         raise ValueError("Expected iraod-comparison-report-v1 input manifest")
@@ -95,6 +97,7 @@ def build_report(manifest_path, out_dir, docx_python):
         "per_class_precision": "printed AP table; never used to reconstruct full-precision metric.mAP",
         "raw_results": raw, "per_class": per_class, **stats,
         "qualitative_coverage": coverage, "embedding_index": embeddings,
+        "collection": manifest.get("collection", {}),
     }
     for name, rows, fields in (
         ("raw_results", raw, ("dataset", "domain", "method", "seed", "role", "mAP50", "status")),
@@ -104,6 +107,7 @@ def build_report(manifest_path, out_dir, docx_python):
         ("summary", stats["summary"], ("dataset", "method", "role", "metric", "mean", "sample_std")),
         ("paired_statistics", stats["paired_statistics"], ("dataset", "method", "role", "metric", "n")),
         ("embedding_index", embeddings, ("dataset", "domain", "comparison", "status")),
+        ("roi_group_coverage", coverage["roi_group_index"], ("run_id", "status")),
     ):
         write_csv(out / f"{name}.csv", rows, fields)
     history = historical_paths(manifest) + historical_paths(manifest, per_class=True)
@@ -115,16 +119,19 @@ def build_report(manifest_path, out_dir, docx_python):
                 raise ValueError("Historical file basenames must be distinct")
             names.add(Path(path).name)
             shutil.copyfile(path, out / "historical" / Path(path).name)
-    report["figures"] = figures(report, out)
+    report["figures"] = [] if metadata_only else figures(report, out)
+    report["rendering"] = "deferred_metadata_only" if metadata_only else "figures_and_docx"
     write_json(out / "report.json", report)
-    subprocess.run([
-        docx_python, "-m", "tools.build_multiseed_comparison_report",
-        "--report", str((out / "report.json").resolve()),
-        "--out", str((out / "comparison_report_cn.docx").resolve()),
-    ], cwd=ROOT, check=True)
+    if not metadata_only:
+        subprocess.run([
+            docx_python, "-m", "tools.build_multiseed_comparison_report",
+            "--report", str((out / "report.json").resolve()),
+            "--out", str((out / "comparison_report_cn.docx").resolve()),
+        ], cwd=ROOT, check=True)
     # Evidence collection may be partial; this marker means only report construction finished.
     write_json(out / "build_status.json", {
-        "report_build": "complete", "result_status": report["status"],
+        "report_build": "metadata_complete" if metadata_only else "complete",
+        "result_status": report["status"],
         "full_test_roi": coverage["full_test_roi"]})
     return report
 
@@ -133,10 +140,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--out-dir", required=True)
-    parser.add_argument("--docx-python", required=True,
-                        help="Existing python-docx interpreter; no installation or GPU launch")
+    rendering = parser.add_mutually_exclusive_group(required=True)
+    rendering.add_argument("--docx-python",
+                           help="Existing python-docx interpreter; no installation or GPU launch")
+    rendering.add_argument("--metadata-only", action="store_true",
+                           help="Scoped evidence inspection without rendering figures or final DOCX")
     args = parser.parse_args()
-    result = build_report(args.manifest, args.out_dir, args.docx_python)
+    result = build_report(args.manifest, args.out_dir, args.docx_python, args.metadata_only)
     print(f"{result['status']}: {result['quantitative_complete_cells']}/"
           f"{result['quantitative_expected_cells']} quantitative cells; "
           f"RoI {result['qualitative_coverage']['roi_complete']}/"

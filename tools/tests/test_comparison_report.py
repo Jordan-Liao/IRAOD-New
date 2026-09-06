@@ -188,6 +188,15 @@ class ArtifactConsumerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "same-inference producer sidecar"):
             collect_quantitative(self.manifest)
 
+    def test_native_wrapper_sidecar_status_without_ema_token(self):
+        (self.eval / "eval_status").write_text(
+            "eval_exit=0 2026-09-07T04:14:22+08:00 name=B domain=clean seed=42 "
+            "sidecar=predictions.pkl.image_ids.json\n")
+        raw, _, _, _ = collect_quantitative(self.manifest)
+        result = next(r for r in raw if r.get("eval_dir"))
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["mAP50"], .2446555644273758)
+
     def test_last_failed_retry_missing_image_order_and_class_placeholder(self):
         with (self.eval / "eval_status").open("a") as stream:
             stream.write("eval_exit=1 retry\n")
@@ -256,8 +265,42 @@ class ArtifactConsumerTest(unittest.TestCase):
             self.assertEqual((self.root / "report/historical" / name).read_bytes(),
                              (HISTORICAL_ROOT / name).read_bytes())
 
+    def test_metadata_only_does_not_require_renderer_or_claim_final_report(self):
+        manifest = self.root / "metadata-input.json"
+        write_json(manifest, self.manifest)
+        result = build_report(manifest, self.root / "metadata-report", metadata_only=True)
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["rendering"], "deferred_metadata_only")
+        self.assertFalse((self.root / "metadata-report/comparison_report_cn.docx").exists())
+        self.assertEqual(result["figures"], [])
+
 
 class QualitativeBoundaryTest(unittest.TestCase):
+    def test_scoped_roi_inspection_never_reads_an_in_progress_other_group(self):
+        fixture = roi_tests.CompletionTest()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        mapping = roi_tests.AlignedMappingTest()
+        mapping.setUp()
+        arrays, _, _ = mapping.capture(mapping.features, mapping.rois, mapping.delta)
+        run = fixture.plan["runs"][0]
+        fixture.export_fixture(run, arrays)
+        other = next(r for r in fixture.plan["runs"] if r["run_id"] == "RSAR/chaff/B/student")
+        other_root = Path(other["out_dir"])
+        other_root.mkdir(parents=True)
+        (other_root / "index.json").write_text("WRITING: intentionally unreadable")
+        plan = fixture.root / "scoped-plan.json"
+        write_json(plan, fixture.plan)
+        rows, _, coverage = qualitative_evidence({
+            "qualitative_plan": str(plan), "inspect_roi_run_ids": [run["run_id"]]})
+        self.assertEqual(len(rows), 35)
+        self.assertEqual(coverage["roi_expected_image_roles"], 3872)
+        self.assertEqual(coverage["roi_complete_groups"], 1)
+        self.assertEqual(coverage["roi_inspected_groups"], 1)
+        pending = next(g for g in coverage["roi_group_index"] if g["run_id"] == other["run_id"])
+        self.assertEqual(pending["status"], "not_inspected")
+        self.assertFalse(pending["inspected"])
+
     def test_capture_retains_post_nms_scores_below_visual_threshold(self):
         fixture = roi_tests.AlignedMappingTest()
         fixture.setUp()

@@ -109,16 +109,43 @@ def qualitative_evidence(manifest, roi_sink=None):
     plan = read_json(plan_path) if plan_path else None
     rows = []
     identified = roi_complete = vis_complete = 0
+    group_index = []
     if plan is not None:
         validate_plan(plan)
-        for row in collect(plan):
+        chosen = manifest.get("inspect_roi_run_ids")
+        all_ids = {run["run_id"] for run in plan["runs"]}
+        if chosen is not None and (len(set(chosen)) != len(chosen) or set(chosen) - all_ids):
+            raise ValueError("Scoped ROI inspection contains duplicate or unknown run IDs")
+        selected_ids = all_ids if chosen is None else set(chosen)
+        groups = {}
+        for run in plan["runs"]:
+            selected = run["run_id"] in selected_ids
+            group = {
+                "run_id": run["run_id"], "scope": "full_test",
+                "expected_images": len(run["image_ids"]),
+                "status": "pending" if selected else "not_inspected",
+                "inspected": selected, "validated_images": 0, "detection_rows": 0,
+                "visualizations_complete": 0, "out_dir": run["out_dir"],
+            }
+            group_index.append(group)
+            groups[run["run_id"]] = group
+        selected_plan = {**plan, "runs": [r for r in plan["runs"] if r["run_id"] in selected_ids]}
+        for row in collect(selected_plan):
             identified += 1
             roi_complete += row["roi_status"] == "complete"
             vis_complete += row["vis_status"] == "complete"
+            group = groups[f"{row['dataset']}/{row['domain']}/{row['method']}/{row['role']}"]
+            if row["roi_status"] == "complete":
+                group["validated_images"] += 1
+                group["detection_rows"] += row["n_detections"]
+            group["visualizations_complete"] += row["vis_status"] == "complete"
             if roi_sink is None:
                 rows.append(row)
             else:
                 roi_sink(row)
+        for group in group_index:
+            if group["inspected"] and group["validated_images"] == group["expected_images"]:
+                group["status"] = "complete"
     provided = {}
     for entry in manifest.get("embeddings", []):
         identity = (entry["dataset"], entry["domain"], entry["comparison"])
@@ -150,6 +177,10 @@ def qualitative_evidence(manifest, roi_sink=None):
         "roi_expected_image_roles": roi_expected,
         "roi_identified_image_roles": identified,
         "roi_complete": roi_complete,
+        "roi_detection_rows": sum(g["detection_rows"] for g in group_index),
+        "roi_inspected_groups": sum(g["inspected"] for g in group_index),
+        "roi_complete_groups": sum(g["status"] == "complete" for g in group_index),
+        "roi_group_index": group_index,
         "vis_expected_image_roles": 3520,
         "vis_complete": vis_complete,
         "embeddings_expected": 24,

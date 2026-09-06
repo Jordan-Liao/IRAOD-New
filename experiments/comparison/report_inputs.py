@@ -189,7 +189,14 @@ def inspect_cell(cell, checkpoint, source_id):
         fields = dict(token.split("=", 1) for token in shlex.split(matches[-1])
                       if "=" in token) if matches else {}
         wanted = {"eval_exit": "0", "name": cell["method"], "domain": cell["domain"],
-                  "seed": str(cell["seed"]), "ema": result.get("checkpoint")}
+                  "seed": str(cell["seed"])}
+        if "ema" in fields:
+            wanted["ema"] = result.get("checkpoint")
+        elif "sidecar" in fields and cell.get("prediction_image_ids"):
+            # The native wrapper records the sidecar; its checkpoint is checked below.
+            wanted["sidecar"] = Path(cell["prediction_image_ids"]).name
+        else:
+            issues.append("eval_status_missing_checkpoint_identity")
         if any(fields.get(k) != v for k, v in wanted.items()):
             issues.append("last_eval_status_failed_or_identity_mismatch")
     if "missing_eval_json" not in issues:
@@ -261,8 +268,12 @@ def collect_quantitative(manifest, prediction_sink=None):
                     row, classes, images = inspect_cell(
                         cell, checkpoints.get(identity), manifest["source_ids"][ds])
                 else:
-                    row = {**base, "status": "not_started", "mAP50": None,
-                           "eval_mAP50": None, "problems": ["missing_cell_manifest"]}
+                    uninspected = (base["method"] != "A" and base["seed"] not in
+                                   manifest.get("inspect_quant_seeds", SEEDS))
+                    row = {**base, "status": "not_inspected" if uninspected else "not_started",
+                           "mAP50": None, "eval_mAP50": None,
+                           "problems": ["outside_quant_inspection_scope" if uninspected
+                                        else "missing_cell_manifest"]}
                 if identity in history:
                     old = history[identity]
                     row["historical_mAP50"] = old["value"]

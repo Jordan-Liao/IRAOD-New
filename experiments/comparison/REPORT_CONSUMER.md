@@ -72,6 +72,9 @@ Per-class AP retains its printed precision (usually 3 decimals).
 The eval script appends `eval_exit=0` **before** class-table and prediction-count
 checks finish. Therefore status text alone cannot prove a complete cell. The
 consumer reads the last eval-status record and requires the actual artifacts.
+Both observed status forms are supported: the original `ema=<checkpoint>`
+record, and the native wrapper's `sidecar=predictions.pkl.image_ids.json` record.
+The latter binds checkpoint/config through the native sidecar itself.
 Select an explicit eval JSON filename; do not choose an arbitrary successful
 retry by modification time. If `class_ap.txt` includes the full-precision metric
 dictionary, it must match the selected eval JSON (the owner script searches
@@ -273,3 +276,65 @@ CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS
 
 Fixtures are temporary and synthetic; no synthetic metric, image, DOCX or
 completion record is committed as a real result.
+
+## Reusable collection and bounded production inspection
+
+`collect_report_manifest` reads the owner's inspected path-only helper and
+`consumer_format.json`. It builds `cells.json`, `checkpoints.json`,
+`collection_inventory.{json,csv}` and `report-manifest.json` from actual metadata.
+It never loads a pickle/NPZ, runs a model or invokes a queue. Checkpoint admission
+records the actual owner `train_verified` result plus matching source identity,
+file size, root code record and terminal evidence. No GPU UUID is fabricated.
+The resolver/owner-format/plan are snapshotted into the new input directory;
+live files are not modified, including no resolver pycache.
+
+Lookup order is the native `eval_full_<domain>_ids_v1`, standard
+`eval_full_<domain>`, then legacy `eval_<domain>`. The owner format supplies the
+two exceptional A/clean JSON locations. Only a unique eval JSON is selected;
+ambiguous retries are listed as missing evidence, never picked by mtime.
+Legacy subset paths in the owner format are reference-only and never passed
+as full-test RoI or embedding evidence.
+
+For the explicitly bounded three-group snapshot, use a fresh output root:
+
+```bash
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+ART=/mnt/shared/zechuan/iraod_artifacts/comparison
+SNAP=/absolute/new/partial-collector-snapshot
+export CUDA_VISIBLE_DEVICES=""
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export PYTHONDONTWRITEBYTECODE=1
+# Run from the independently deployed report checkout (or set PYTHONPATH to it).
+"$PY" -m experiments.comparison.collect_report_manifest \
+  --paths-module "$ART/xaf_s424344/paths.py" \
+  --owner-format "$ART/result_completion_v2_91548e4a/consumer_format.json" \
+  --roi-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
+  --quant-seed 42 \
+  --roi-run-id RSAR/clean/A/source \
+  --roi-run-id RSAR/chaff/A/source \
+  --roi-run-id RSAR/chaff/B/ema \
+  --out-dir "$SNAP/input"
+"$PY" -m experiments.comparison.final_report \
+  --manifest "$SNAP/input/report-manifest.json" \
+  --out-dir "$SNAP/report" --metadata-only
+```
+
+`inspect_roi_run_ids` freezes the exact groups permitted for NPZ inspection.
+All other groups (including an in-progress B/student) remain `not_inspected`;
+their index/NPZ files are not touched. The 132-group/full-image denominator
+remains unchanged. `roi_group_coverage.csv` reports each group's checked image
+count and detection rows; `roi_vis_coverage.csv` contains only inspected image
+rows, not a million invented pending rows. Seeds excluded by `--quant-seed`
+remain `not_inspected` in the inventory/report.
+
+`--metadata-only` runs the complete evidence/numeric consumer without importing
+plotting or requiring a DOCX renderer. It writes `report_build=metadata_complete`
+and `rendering=deferred_metadata_only`, not a final document. Existing training
+environments need no package changes for this partial inspection. Missing
+native sidecars stay missing even where legacy quantitative mAP is known.
+
+For final collection, repeat into a fresh snapshot without the seed/group
+filters to inspect the declared complete matrix; add only actual v3 embedding
+directories to `embeddings`. Then run the report consumer with
+`--docx-python /existing/docx/python` instead of `--metadata-only`. Reuse all
+numeric artifacts; do not rerun training to fill a report.
