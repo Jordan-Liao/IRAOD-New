@@ -45,3 +45,9 @@ Aligned qualitative/RoI completion tooling is documented in
 the legacy unaligned exports. Seed42 RSAR/DIOR same-image source, final-EMA and
 Student coverage and joint t-SNE remain pending remote extraction evidence;
 planning does not upgrade the result manifests above.
+
+The separate CPU multi-seed report consumer is documented in
+[`REPORT_CONSUMER.md`](REPORT_CONSUMER.md). It keeps fixed-source seed-block
+statistics and full-TEST prediction evidence separate from the 32/16-image
+aligned-RoI subset and sampled embeddings; none of these scopes substitutes for
+full-TEST RoI features or completion of all requested items.

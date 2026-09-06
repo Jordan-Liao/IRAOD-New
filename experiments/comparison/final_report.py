@@ -1,0 +1,138 @@
+"""Build an evidence-backed, versioned CPU comparison report; never run models."""
+
+import argparse
+import csv
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+from experiments.comparison.report_inputs import collect_quantitative, historical_paths
+from experiments.comparison.report_qualitative import qualitative_evidence
+from experiments.comparison.report_statistics import summarize
+from experiments.comparison.result_completion import read_json, write_json
+
+
+SCHEMA = "iraod-comparison-report-v1"
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def write_csv(path, rows, empty_fields):
+    fields = list(dict.fromkeys(k for row in rows for k in row)) or list(empty_fields)
+    with Path(path).open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict))
+                             else v for k, v in row.items()})
+
+
+def figures(report, out):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    saved = []
+    for ds in ("RSAR", "DIOR"):
+        for role in report["roles"]:
+            rows = [r for r in report["summary"] if r["dataset"] == ds and r["metric"] == "mPC"
+                    and r["role"] in ("source", role) and r["mean"] is not None]
+            if not rows:
+                continue
+            fig, ax = plt.subplots(figsize=(5, 3))
+            for row in rows:
+                x = "ABCDEF".index(row["method"])
+                ax.errorbar(x, row["mean"], yerr=row["sample_std"], fmt="o",
+                            capsize=3, color="black" if row["method"] == "A" else "#0072B2")
+            ax.set_xticks(range(6), list("ABCDEF"))
+            ax.set_ylabel("mPC (AP50, 0-1)")
+            ax.spines[["top", "right"]].set_visible(False)
+            for suffix in ("png", "pdf"):
+                name = f"{ds}_{role}_mpc.{suffix}"
+                fig.savefig(out / name, dpi=300, bbox_inches="tight")
+                saved.append(name)
+            plt.close(fig)
+    return saved
+
+
+def build_report(manifest_path, out_dir, docx_python):
+    manifest = read_json(manifest_path)
+    if manifest["schema"] != SCHEMA:
+        raise ValueError("Expected iraod-comparison-report-v1 input manifest")
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=False)
+    prediction_fields = [
+        "dataset", "domain", "method", "seed", "role", "prediction_image_index",
+        "image_id", "n_post_nms_detections", "predictions", "prediction_image_ids",
+        "scope", "cell_status",
+    ]
+    with (out / "prediction_image_coverage.csv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=prediction_fields)
+        writer.writeheader()
+        raw, per_class, _, roles = collect_quantitative(manifest, writer.writerow)
+    stats = summarize(raw, roles)
+    roi, embeddings, coverage = qualitative_evidence(manifest)
+    complete_cells = sum(r["status"] == "complete" for r in raw)
+    complete = (complete_cells == len(raw) and coverage["roi_complete"] == 3520
+                and coverage["vis_complete"] == 3520 and coverage["embeddings_complete"] == 24)
+    report = {
+        "schema": SCHEMA, "input_manifest": str(Path(manifest_path).resolve()),
+        "code_commit": subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
+        "status": "declared_scopes_complete_not_full_TEST_RoI" if complete else "partial",
+        "roles": roles, "quantitative_expected_cells": len(raw),
+        "quantitative_complete_cells": complete_cells,
+        "quantitative_scope": "full TEST predictions; all post-NMS rows; image-order evidence required",
+        "per_class_precision": "printed AP table; never used to reconstruct full-precision metric.mAP",
+        "raw_results": raw, "per_class": per_class, **stats,
+        "qualitative_coverage": coverage, "embedding_index": embeddings,
+    }
+    for name, rows, fields in (
+        ("raw_results", raw, ("dataset", "domain", "method", "seed", "role", "mAP50", "status")),
+        ("per_class", per_class, ("dataset", "domain", "method", "seed", "role", "class_name", "AP50")),
+        ("per_seed", stats["per_seed"], ("dataset", "method", "role", "seed", "mPC")),
+        ("per_domain", stats["per_domain"], ("dataset", "domain", "method", "role", "mean")),
+        ("summary", stats["summary"], ("dataset", "method", "role", "metric", "mean", "sample_std")),
+        ("paired_statistics", stats["paired_statistics"], ("dataset", "method", "role", "metric", "n")),
+        ("roi_vis_coverage", roi, ("dataset", "domain", "image_id", "method", "role", "scope")),
+        ("embedding_index", embeddings, ("dataset", "domain", "comparison", "status")),
+    ):
+        write_csv(out / f"{name}.csv", rows, fields)
+    history = historical_paths(manifest) + historical_paths(manifest, per_class=True)
+    if history:
+        (out / "historical").mkdir()
+        names = set()
+        for path in history:
+            if Path(path).name in names:
+                raise ValueError("Historical file basenames must be distinct")
+            names.add(Path(path).name)
+            shutil.copyfile(path, out / "historical" / Path(path).name)
+    report["figures"] = figures(report, out)
+    write_json(out / "report.json", report)
+    subprocess.run([
+        docx_python, "-m", "tools.build_multiseed_comparison_report",
+        "--report", str((out / "report.json").resolve()),
+        "--out", str((out / "comparison_report_cn.docx").resolve()),
+    ], cwd=ROOT, check=True)
+    # Evidence collection may be partial; this marker means only report construction finished.
+    write_json(out / "build_status.json", {
+        "report_build": "complete", "result_status": report["status"],
+        "full_test_roi": coverage["full_test_roi"]})
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", required=True)
+    parser.add_argument("--out-dir", required=True)
+    parser.add_argument("--docx-python", required=True,
+                        help="Existing python-docx interpreter; no installation or GPU launch")
+    args = parser.parse_args()
+    result = build_report(args.manifest, args.out_dir, args.docx_python)
+    print(f"{result['status']}: {result['quantitative_complete_cells']}/"
+          f"{result['quantitative_expected_cells']} quantitative cells; "
+          f"RoI {result['qualitative_coverage']['roi_complete']}/3520 (fixed subset, not full TEST)")
+
+
+if __name__ == "__main__":
+    main()
