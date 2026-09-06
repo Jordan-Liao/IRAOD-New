@@ -51,3 +51,10 @@ The separate CPU multi-seed report consumer is documented in
 statistics, full-TEST predictions and full-TEST aligned RoIs distinct from the
 frozen 32/16-image visualization subset and sampled embeddings; sampling never
 substitutes for complete per-instance exports or all requested items.
+
+Prediction identity is now captured in the same inference loop and saved next
+to each new `--out` pickle; see
+[`PREDICTION_IMAGE_ORDER.md`](PREDICTION_IMAGE_ORDER.md). An independent evaluation
+checkout records its own SHA separately from the checkpoint's training SHA.
+Old pickles without native sidecars remain unverified; live training/runtime
+files are not changed by this delivery.

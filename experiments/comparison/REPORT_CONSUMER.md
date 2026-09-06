@@ -77,13 +77,13 @@ retry by modification time. If `class_ap.txt` includes the full-precision metric
 dictionary, it must match the selected eval JSON (the owner script searches
 appended logs for a table, so a stale table must not silently accompany a new eval).
 
-**Missing upstream provenance:** these two scripts do not save the ordered
-image IDs corresponding to `predictions.pkl`. The owner must supply that order
-from the actual evaluation dataset's `data_infos` / dataloader order, with one
-ID per prediction entry. A matching file count is insufficient. Do not guess
-RSAR order by sorting filenames; DIOR `test.txt` is acceptable only when its
-order is confirmed to be the actual eval dataset order. The consumer cannot
-recover lost image identities from class arrays.
+**Same-inference provenance:** the updated `test.py --out` saves
+`predictions.pkl.image_ids.json` from the actual inference batch metadata,
+including distributed collection order. See
+[`PREDICTION_IMAGE_ORDER.md`](PREDICTION_IMAGE_ORDER.md) for the independent
+evaluation-checkout wiring. Old driver outputs without this native sidecar are
+not retroactively verified. A matching count, separately rebuilt dataset,
+sorted filenames or bare `test.txt` cannot certify an old pickle's order.
 
 ## Input manifest
 
@@ -130,15 +130,17 @@ Cell record:
   "method": "B",
   "seed": 42,
   "role": "ema",
-  "eval_dir": "/absolute/comparison/dior/clean/seed_42/0f98a48/methods/B/eval_full_clean",
-  "eval_json": "/absolute/comparison/dior/clean/seed_42/0f98a48/methods/B/eval_full_clean/eval_TIMESTAMP.json",
-  "prediction_image_ids": "/absolute/DIOR_actual_eval_order.json"
+  "eval_dir": "/absolute/comparison/dior/clean/seed_42/0f98a48/methods/B/eval_full_clean_ids_v1",
+  "eval_json": "/absolute/comparison/dior/clean/seed_42/0f98a48/methods/B/eval_full_clean_ids_v1/eval_TIMESTAMP.json",
+  "prediction_image_ids": "/absolute/comparison/dior/clean/seed_42/0f98a48/methods/B/eval_full_clean_ids_v1/predictions.pkl.image_ids.json"
 }
 ```
 
-Image-order JSON is `{"image_ids": ["11726", "...all actual TEST IDs in eval order..."]}`.
-A text file with one ID per line is also accepted. Optional cell `config`
-must match `eval_json.config`.
+Image-order JSON must use the native `iraod-prediction-image-order-v1` schema
+with `origin=inference_batch_img_metas`, ordered records and separate training/
+evaluation SHAs. Bare ID arrays/text files are not accepted as verified
+evidence. `eval_dir`, `eval_json` and `prediction_image_ids` must refer to the
+same new evaluation. Optional cell `config` must match `eval_json.config`.
 
 Checkpoint record, tied to the same dataset/domain/method/seed/role:
 

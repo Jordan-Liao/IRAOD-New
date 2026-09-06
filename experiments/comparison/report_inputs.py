@@ -11,6 +11,7 @@ import numpy as np
 
 from experiments.comparison.result_completion import DOMAINS, read_json
 from experiments.comparison.report_statistics import SEEDS
+from tools.prediction_export import IMAGE_ORDER_ORIGIN, IMAGE_ORDER_SCHEMA
 
 
 EXPECTED_IMAGES = {"RSAR": 8538, "DIOR": 11738}
@@ -112,13 +113,23 @@ def class_table(path, dataset):
 
 def prediction_evidence(path, ids_path, dataset):
     """Owner-generated pickles only; never infer image IDs from a file count."""
-    ids_file = Path(ids_path)
-    if ids_file.suffix == ".json":
-        ids = read_json(ids_file)["image_ids"]
-    else:
-        ids = ids_file.read_text().splitlines()
+    order = read_json(ids_path)
+    if (order.get("schema") != IMAGE_ORDER_SCHEMA
+            or order.get("origin") != IMAGE_ORDER_ORIGIN
+            or order.get("status") != "complete"
+            or order.get("predictions_file") != Path(path).name):
+        raise ValueError("Prediction image order needs a same-inference producer sidecar, not a backfill")
+    ids = order["image_ids"]
     if len(ids) != EXPECTED_IMAGES[dataset] or len(set(ids)) != len(ids):
         raise ValueError("Prediction image-order evidence must cover unique full TEST IDs")
+    if (order["n_images"] != len(ids) or order["dataset_size"] != len(ids)
+            or len(order["records"]) != len(ids)
+            or not order["evaluation_code_sha"]):
+        raise ValueError("Prediction sidecar count/provenance is incomplete")
+    for i, record in enumerate(order["records"]):
+        if (record["prediction_index"] != i or record["image_id"] != ids[i]
+                or Path(record["ori_filename"]).stem != ids[i]):
+            raise ValueError("Prediction sidecar records do not match their saved order")
     with Path(path).open("rb") as stream:
         predictions = pickle.load(stream)
     if len(predictions) != len(ids):
@@ -135,7 +146,7 @@ def prediction_evidence(path, ids_path, dataset):
             count += len(boxes)
         images.append({"prediction_image_index": index, "image_id": image_id,
                        "n_post_nms_detections": count})
-    return images
+    return images, order
 
 
 def inspect_cell(cell, checkpoint, source_id):
@@ -207,7 +218,12 @@ def inspect_cell(cell, checkpoint, source_id):
     if not ids_path or not Path(ids_path).is_file():
         issues.append("missing_prediction_image_order")
     elif "missing_predictions" not in issues:
-        images = prediction_evidence(files["predictions"], ids_path, cell["dataset"])
+        images, order = prediction_evidence(files["predictions"], ids_path, cell["dataset"])
+        if (order["checkpoint"] != result.get("checkpoint")
+                or order["config"] != result.get("config")):
+            issues.append("prediction_sidecar_checkpoint_or_config_mismatch")
+        result["training_code_sha"] = order["training_code_sha"]
+        result["evaluation_code_sha"] = order["evaluation_code_sha"]
         result["n_predictions"] = len(images)
         result["n_post_nms_detections"] = sum(i["n_post_nms_detections"] for i in images)
     if not issues:

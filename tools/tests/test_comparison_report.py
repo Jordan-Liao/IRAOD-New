@@ -20,6 +20,7 @@ from experiments.comparison.report_statistics import summarize
 from experiments.comparison.result_completion import DOMAINS, write_json, visualize
 from experiments.comparison.joint_tsne import joint_tsne
 from tools.tests import test_aligned_roi_completion as roi_tests
+from tools.prediction_export import save_predictions_with_ids
 
 
 DOCX_PYTHON = Path(os.environ.get("IRAOD_DOCX_PYTHON", sys.executable))
@@ -132,7 +133,7 @@ class ArtifactConsumerTest(unittest.TestCase):
         self.cell = {
             "dataset": self.ds, "domain": "clean", "method": "B", "seed": 42, "role": "ema",
             "eval_dir": str(self.eval), "eval_json": str(self.eval / "eval_fixture.json"),
-            "prediction_image_ids": str(self.root / "prediction_image_ids.json"),
+            "prediction_image_ids": str(self.eval / "predictions.pkl.image_ids.json"),
         }
         write_json(self.cell["eval_json"], {
             "config": "/owner/source_inference.py", "metric": {"mAP": .2446555644273758, "AP50": .245}})
@@ -144,11 +145,14 @@ class ArtifactConsumerTest(unittest.TestCase):
             + "".join(f"| {c} | 1 | 1 | 0.500 | 0.123 |\n" for c in CLASSES[self.ds])
             + "| mAP | | | | 0.245 |\n{'mAP': 0.2446555644273758, 'AP50': 0.245}\n")
         count = EXPECTED_IMAGES[self.ds]
-        write_json(self.cell["prediction_image_ids"], {"image_ids": [f"test_{i}" for i in range(count)]})
         per_class = [np.zeros((0, 6), dtype=np.float32) for _ in CLASSES[self.ds]]
         per_class[0] = np.array([[2, 3, 4, 5, .1, .15]], dtype=np.float32)
-        with (self.eval / "predictions.pkl").open("wb") as stream:
-            pickle.dump([per_class] * count, stream)
+        save_predictions_with_ids(
+            self.eval / "predictions.pkl", [per_class] * count,
+            [{"image_id": f"test_{i}", "ori_filename": f"test_{i}.png",
+              "filename": f"/fixture/test_{i}.png"} for i in range(count)],
+            {"dataset_size": count, "config": "/owner/source_inference.py",
+             "checkpoint": self.checkpoint["path"], "training_code_sha": "fixture-training"})
         (self.eval / "pred_count.txt").write_text(f"{count} expect={count}\n")
         self.manifest = {
             "schema": "iraod-comparison-report-v1", "roles": ["ema"],
@@ -175,6 +179,14 @@ class ArtifactConsumerTest(unittest.TestCase):
         self.assertEqual(classes[0]["AP50"], .123)
         self.assertEqual(roles, ("ema",))
         self.assertEqual(predictions[-1]["image_id"], "test_8537")
+        self.assertEqual(result["training_code_sha"], "fixture-training")
+        self.assertNotEqual(result["evaluation_code_sha"], result["training_code_sha"])
+
+    def test_bare_ids_cannot_backfill_verified_prediction_order(self):
+        write_json(self.cell["prediction_image_ids"],
+                   {"image_ids": [f"test_{i}" for i in range(EXPECTED_IMAGES[self.ds])]})
+        with self.assertRaisesRegex(ValueError, "same-inference producer sidecar"):
+            collect_quantitative(self.manifest)
 
     def test_last_failed_retry_missing_image_order_and_class_placeholder(self):
         with (self.eval / "eval_status").open("a") as stream:
