@@ -11,7 +11,8 @@ untouched.
 | Evidence | Exact scope | Not evidence of |
 | --- | --- | --- |
 | `predictions.pkl` + ordered IDs | Full TEST post-NMS predictions, 8,538 RSAR / 11,738 DIOR images per cell | fc_cls feature export |
-| aligned-v2 NPZ + index | All post-NMS detections on the fixed 32 RSAR / 16 DIOR images; 132 groups / 3,520 image-role records | Full TEST RoI features |
+| aligned-v3 full-test NPZ + index | Every TEST image and post-NMS detection; 132 groups / 1,267,816 image-role records | Completion of unrelated training/report requirements |
+| legacy aligned-v2 NPZ + index | Fixed 32 RSAR / 16 DIOR images only | Full TEST RoI features |
 | joint t-SNE | 24 dataset/domain/role comparisons with sampled predicted instances | Full image coverage or all predicted instances |
 
 The RoI exporter does **not** filter saved detections at the visual threshold
@@ -21,9 +22,10 @@ regression explicitly retains a post-NMS score of 0.25. Rendering and t-SNE
 eligibility separately apply `score > 0.3`; t-SNE then subsamples equally per
 method. Neither changes the stored NPZ arrays.
 
-Current implementation boundaries: `build_plan` requires exactly 32/16 IDs;
-the extractor builds `torch.utils.data.Subset`, so it has **no full-TEST RoI
-mode**. Capture supports one image / one test augmentation. An existing export
+The current v3 full-test plan and streaming extraction commands are in
+[`RESULT_COMPLETION.md`](RESULT_COMPLETION.md). Full RoI `image_ids` are separate
+from frozen `visualization_image_ids` (32/16). Capture supports one image / one
+test augmentation. An existing export
 directory is refused rather than resumed; an interrupted run needs a new output
 root. A run-level index is written only after extraction finishes, so partial
 NPZ files do not count as completed group evidence. A valid plan's individual
@@ -99,7 +101,7 @@ as trusted, owner-produced artifacts, never from untrusted third parties.
   },
   "cells": "/absolute/cells.json",
   "checkpoints": "/absolute/checkpoints.json",
-  "qualitative_plan": "/absolute/completion-plan-clean-adapted.json",
+  "qualitative_plan": "/absolute/full-test-roi-plan-v3.json",
   "embeddings": [
     {
       "dataset": "DIOR",
@@ -238,7 +240,7 @@ per_domain.csv                  # same-domain across-seed descriptive results
 summary.csv                     # mPC, delta, both separately named normalizations, clean metrics
 paired_statistics.csv           # transparent seed-level differences and tests
 prediction_image_coverage.csv   # full TEST image-index/ID/detection counts, streamed cell by cell
-roi_vis_coverage.csv            # actual 3520 fixed-subset rows once the real plan is supplied
+roi_vis_coverage.csv            # streamed 1,267,816 full ROI rows; 3520 selected vis rows
 embedding_index.csv            # 24 expected comparisons, completion requires actual files/points
 RSAR_ema_mpc.{pdf,png}           # only available complete blocks; no title/cherry-picking
 DIOR_ema_mpc.{pdf,png}
@@ -249,14 +251,14 @@ build_status.json
 ```
 
 No real plan means unknown RSAR selection identity: the RoI CSV is header-only,
-not 3,520 invented image IDs. With the plan, pending rows remain pending until
+not invented TEST image IDs. With the plan, pending rows remain pending until
 validated NPZ/PNG evidence exists. Embedding admission checks all six panels,
 the common coordinate array, point-to-feature provenance and source-normalized
 vectors. Merely having `protocol.json` is insufficient.
 
 `build_status.report_build=complete` only means the consumer finished writing.
 `result_status=partial` remains partial. Even if every declared scope completes,
-the explicit status is `declared_scopes_complete_not_full_TEST_RoI`, never
+the explicit status is `declared_scopes_complete`, never
 “all eight tasks complete”.
 
 CPU regression:

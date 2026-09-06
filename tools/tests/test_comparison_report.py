@@ -234,7 +234,7 @@ class ArtifactConsumerTest(unittest.TestCase):
         with ZipFile(self.root / "report/comparison_report_cn.docx") as archive:
             text = archive.read("word/document.xml").decode()
         self.assertIn("partial", text)
-        self.assertIn("固定 RSAR32/DIOR16", text)
+        self.assertIn("RSAR32/DIOR16 子集", text)
         self.assertIn("低功效", text)
         status = json.loads((self.root / "report/build_status.json").read_text())
         self.assertEqual(status["result_status"], "partial")
@@ -276,12 +276,12 @@ class QualitativeBoundaryTest(unittest.TestCase):
         rows, index, coverage = qualitative_evidence({
             "qualitative_plan": str(plan), "embeddings": [
                 {"dataset": "DIOR", "domain": "clean", "comparison": "ema", "directory": str(target)}]})
-        self.assertEqual(len(rows), 3520)
-        self.assertEqual(coverage["roi_complete"], 96)
+        self.assertEqual(len(rows), 3872)
+        self.assertEqual(coverage["roi_complete"], 108)
         self.assertEqual(coverage["vis_complete"], 16)
         self.assertEqual(coverage["embeddings_complete"], 1)
         self.assertEqual(len(index), 24)
-        self.assertIn("not supported", coverage["full_test_roi"])
+        self.assertEqual(coverage["full_test_roi"], "incomplete")
         (target / "DIOR_clean_ema_F_ema.pdf").unlink()
         _, index, coverage = qualitative_evidence({
             "qualitative_plan": str(plan), "embeddings": [

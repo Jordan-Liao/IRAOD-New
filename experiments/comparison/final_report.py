@@ -71,15 +71,24 @@ def build_report(manifest_path, out_dir, docx_python):
         writer.writeheader()
         raw, per_class, _, roles = collect_quantitative(manifest, writer.writerow)
     stats = summarize(raw, roles)
-    roi, embeddings, coverage = qualitative_evidence(manifest)
+    roi_fields = [
+        "dataset", "domain", "method", "role", "seed", "checkpoint_domain", "checkpoint",
+        "config", "image_id", "scope", "roi_status", "vis_status", "feature_file",
+        "n_detections", "visualization_file", "evidence",
+    ]
+    with (out / "roi_vis_coverage.csv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=roi_fields)
+        writer.writeheader()
+        _, embeddings, coverage = qualitative_evidence(manifest, writer.writerow)
     complete_cells = sum(r["status"] == "complete" for r in raw)
-    complete = (complete_cells == len(raw) and coverage["roi_complete"] == 3520
+    complete = (complete_cells == len(raw)
+                and coverage["roi_complete"] == coverage["roi_expected_image_roles"]
                 and coverage["vis_complete"] == 3520 and coverage["embeddings_complete"] == 24)
     report = {
         "schema": SCHEMA, "input_manifest": str(Path(manifest_path).resolve()),
         "code_commit": subprocess.check_output(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
-        "status": "declared_scopes_complete_not_full_TEST_RoI" if complete else "partial",
+        "status": "declared_scopes_complete" if complete else "partial",
         "roles": roles, "quantitative_expected_cells": len(raw),
         "quantitative_complete_cells": complete_cells,
         "quantitative_scope": "full TEST predictions; all post-NMS rows; image-order evidence required",
@@ -94,7 +103,6 @@ def build_report(manifest_path, out_dir, docx_python):
         ("per_domain", stats["per_domain"], ("dataset", "domain", "method", "role", "mean")),
         ("summary", stats["summary"], ("dataset", "method", "role", "metric", "mean", "sample_std")),
         ("paired_statistics", stats["paired_statistics"], ("dataset", "method", "role", "metric", "n")),
-        ("roi_vis_coverage", roi, ("dataset", "domain", "image_id", "method", "role", "scope")),
         ("embedding_index", embeddings, ("dataset", "domain", "comparison", "status")),
     ):
         write_csv(out / f"{name}.csv", rows, fields)
@@ -131,7 +139,8 @@ def main():
     result = build_report(args.manifest, args.out_dir, args.docx_python)
     print(f"{result['status']}: {result['quantitative_complete_cells']}/"
           f"{result['quantitative_expected_cells']} quantitative cells; "
-          f"RoI {result['qualitative_coverage']['roi_complete']}/3520 (fixed subset, not full TEST)")
+          f"RoI {result['qualitative_coverage']['roi_complete']}/"
+          f"{result['qualitative_coverage']['roi_expected_image_roles']} (full TEST)")
 
 
 if __name__ == "__main__":

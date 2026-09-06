@@ -48,14 +48,15 @@ def render(report_path, output):
     table(doc, ["证据类型", "已完成 / 预期", "范围"], [
         ["量化单元", f"{report['quantitative_complete_cells']} / {report['quantitative_expected_cells']}",
          "全 TEST predictions；需实际有序 image-ID 证据"],
-        ["RoI", f"{cov['roi_complete']} / 3520", "固定 RSAR32/DIOR16；不是全 TEST"],
+        ["RoI", f"{cov['roi_complete']} / {cov['roi_expected_image_roles']}", "全 TEST 对齐逐实例"],
         ["可视化", f"{cov['vis_complete']} / 3520", "固定子集，展示阈值 0.3"],
         ["joint embedding", f"{cov['embeddings_complete']} / 24", "采样分析；不是全量预测实例"],
     ])
     doc.add_paragraph(
-        "所选图片的 aligned RoI 保存全部 post-NMS 检测，不受展示阈值 0.3 二次截断；"
+        "全 TEST 图片的 aligned RoI 保存全部 post-NMS 检测，不受展示阈值 0.3 二次截断；"
         "检测器自身的 score threshold、NMS 和 max_per_img 仍生效。"
-        "固定子集计划不支持全 TEST RoI。predictions.pkl 不含 fc_cls 特征，不能替代 aligned RoI；"
+        "可视化仅使用冻结的 RSAR32/DIOR16 子集；不影响全量 RoI 完成。"
+        "旧 v2 子集不计入 full-test 完成。predictions.pkl 不含 fc_cls 特征，不能替代 aligned RoI；"
         "pred_count 相符也不能替代图像顺序证据。")
     table(doc, ["数据集/域", "方法/角色", "n", "均值", "样本 std", "状态"], [
         [f"{r['dataset']}/{r['domain']}", f"{r['method']}/{r['role']}", r["n"],
@@ -93,7 +94,7 @@ def render(report_path, output):
          r["status"], "; ".join(r["problems"])] for r in missing])
     doc.add_paragraph(
         "全部原始行与每种子聚合见 raw_results.csv、per_seed.csv；"
-        "本报告不声称完成其他基线移植、全 TEST RoI 或未在输入证据中完成的项目。")
+        "本报告不声称完成其他基线移植或未在输入证据中完成的项目。")
     doc.save(output)
 
 

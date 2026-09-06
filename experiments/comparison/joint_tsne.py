@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import heapq
 from pathlib import Path
 
 from experiments.comparison.result_completion import (
@@ -17,7 +18,7 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
     from sklearn.manifold import TSNE
 
     if plan["schema"] != SCHEMA or comparison not in ("ema", "student") or cap < 1:
-        raise ValueError("Expected a v2 plan, ema/student comparison and positive cap")
+        raise ValueError("Expected a v3 full-test plan, ema/student comparison and positive cap")
     selected = sorted(
         (r for r in plan["runs"] if r["dataset"] == dataset and r["domain"] == domain
          and (r["role"] == comparison or (r["method"], r["role"]) == ("A", "source"))),
@@ -26,7 +27,8 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
         raise ValueError("A/source plus B-F of the requested role are required")
     if len({r["checkpoint_domain"] for r in selected if r["method"] != "A"}) != 1:
         raise ValueError("B-F must share one adaptation domain within a comparison")
-    pools, provenance, stats = [], [], []
+    reservoirs, stats = [], []
+    source_mean = source_std = None
     reference = None
     for run in selected:
         index, records = load_export(run)
@@ -37,11 +39,35 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
             reference = identity
         elif identity != reference:
             raise ValueError("Comparison class order, NMS, selection or thresholds differ")
-        feats, points = [], []
+        heap = []
+        rng = np.random.default_rng(42)
+        total, norm_sum = 0, 0.0
+        mean = m2 = None
         for record, arrays in records:
-            for row in np.flatnonzero(arrays["scores"] > run["show_score_thr"]):
-                feats.append(arrays["features"][row])
-                points.append({
+            rows = np.flatnonzero(arrays["scores"] > run["show_score_thr"])
+            if not len(rows):
+                continue
+            batch = arrays["features"][rows].astype(np.float64)
+            batch_mean = batch.mean(axis=0)
+            batch_m2 = ((batch - batch_mean) ** 2).sum(axis=0)
+            if mean is None:
+                mean, m2 = batch_mean, batch_m2
+            else:
+                if mean.shape != batch_mean.shape:
+                    raise ValueError("Feature dimension changed within an export")
+                delta = batch_mean - mean
+                m2 += batch_m2 + delta ** 2 * total * len(batch) / (total + len(batch))
+                mean += delta * len(batch) / (total + len(batch))
+            norm_sum += float(np.linalg.norm(batch, axis=1).sum())
+            priorities = rng.random(len(rows))
+            # Bottom-k random priorities are a uniform bounded reservoir.
+            candidates = np.argpartition(priorities, min(cap, len(rows)) - 1)[:cap]
+            for offset in candidates:
+                priority = float(priorities[offset])
+                if len(heap) == cap and priority >= -heap[0][0]:
+                    continue
+                row = rows[offset]
+                point = {
                     **{k: run[k] for k in ("dataset", "domain", "method", "role", "seed",
                                            "checkpoint", "config", "checkpoint_domain")},
                     "image_id": record["image_id"],
@@ -55,32 +81,41 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
                     "score": float(arrays["scores"][row]),
                     **dict(zip(("cx", "cy", "w", "h", "angle"),
                                map(float, arrays["boxes"][row]))),
-                })
-        if not feats:
+                }
+                item = (-priority, -(total + int(offset)), batch[offset].copy(), point)
+                if len(heap) < cap:
+                    heapq.heappush(heap, item)
+                else:
+                    heapq.heapreplace(heap, item)
+            total += len(rows)
+        if not total:
             raise ValueError(f"No detections above the fixed threshold: {run['run_id']}")
-        pool = np.asarray(feats, dtype=np.float64)
-        pools.append(pool)
-        provenance.append(points)
+        reservoirs.append(heap)
+        if run["method"] == "A":
+            source_mean, source_std = mean.copy(), np.sqrt(m2 / total)
+        raw_mean = float(mean.mean())
         stats.append({
-            "run_id": run["run_id"], "eligible_points": len(pool),
-            "feature_dimension": pool.shape[1],
-            "raw_mean": float(pool.mean()), "raw_std": float(pool.std()),
-            "raw_l2_mean": float(np.linalg.norm(pool, axis=1).mean()),
+            "run_id": run["run_id"], "eligible_points": total,
+            "reservoir_points": len(heap), "feature_dimension": len(mean),
+            "raw_mean": raw_mean,
+            "raw_std": float(np.sqrt(np.mean(m2 / total + (mean - raw_mean) ** 2))),
+            "raw_l2_mean": norm_sum / total,
             "code_commit": index["code_commit"],
         })
-    count = min(cap, *(len(pool) for pool in pools))
-    if count * len(pools) <= perplexity or perplexity <= 0:
+    count = min(len(heap) for heap in reservoirs)
+    if count * len(reservoirs) <= perplexity or perplexity <= 0:
         raise ValueError("Fixed perplexity must be positive and below joint sample size")
-    if len({pool.shape[1] for pool in pools}) != 1:
+    if len({s["feature_dimension"] for s in stats}) != 1:
         raise ValueError("Feature dimensions differ across methods")
     # One common transform fitted only to A/source's eligible predicted instances.
-    mean, std = pools[0].mean(axis=0), pools[0].std(axis=0)
+    mean, std = source_mean, source_std
     scale = np.where(std == 0, 1.0, std)
     sampled, points = [], []
-    for pool, metadata in zip(pools, provenance):
-        chosen = np.sort(np.random.default_rng(42).choice(len(pool), count, replace=False))
-        sampled.append((pool[chosen] - mean) / scale)
-        points.extend(metadata[int(row)] for row in chosen)
+    for heap in reservoirs:
+        chosen = sorted(sorted(heap, key=lambda entry: -entry[0])[:count],
+                        key=lambda entry: -entry[1])
+        sampled.append((np.stack([entry[2] for entry in chosen]) - mean) / scale)
+        points.extend(entry[3] for entry in chosen)
     features = np.concatenate(sampled)
     estimator = TSNE(n_components=2, perplexity=perplexity, random_state=42,
                      init="random", learning_rate=200.0, metric="euclidean",
@@ -100,11 +135,13 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
     write_json(out / "protocol.json", {
         "schema": SCHEMA, "dataset": dataset, "domain": domain, "comparison": comparison,
         "sampling_seed": 42, "sample_cap": cap, "points_per_method": count,
-        "sampling": "uniform without replacement; equal count; no class/GT selection",
+        "roi_scope": "full_test",
+        "sampling": "streamed bottom-k random-priority reservoir; equal count; no class/GT selection",
+        "memory_bound": "one image NPZ plus at most cap feature vectors per method",
         "normalization": "shared z-score fitted to all eligible A/source points in this domain",
         "normalization_reference": selected[0],
         "zero_std_channels": int((std == 0).sum()),
-        "source_stats_count": len(pools[0]), "feature_stats": stats,
+        "source_stats_count": stats[0]["eligible_points"], "feature_stats": stats,
         "tsne_parameters": estimator.get_params(), "sklearn_version": sklearn.__version__,
         "numpy_version": np.__version__, "kl_divergence": float(estimator.kl_divergence_),
         "runs": selected, "classes": reference[0],

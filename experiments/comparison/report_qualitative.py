@@ -1,4 +1,4 @@
-"""Evidence indices for fixed-subset RoIs and 24 sampled joint embeddings."""
+"""Streaming evidence indices for full-TEST RoIs and sampled embeddings."""
 
 from pathlib import Path
 
@@ -6,19 +6,20 @@ import numpy as np
 
 from experiments.comparison.report_inputs import read_rows
 from experiments.comparison.result_completion import (
-    DOMAINS, ROLES, SCHEMA, collect, load_export, read_json)
+    DOMAINS, ROLES, SCHEMA, EXPECTED_TEST_IMAGES, collect, load_export, read_json, validate_run)
 
 
 def validate_plan(plan):
     if plan["schema"] != SCHEMA:
-        raise ValueError("Only aligned-v2 qualitative evidence is accepted")
+        raise ValueError("Only v3 full-test qualitative evidence is accepted")
     expected = {f"{ds}/{domain}/{method}/{role}" for ds, domains in DOMAINS.items()
                 for domain in domains for method, role in ROLES}
     if (len(plan["runs"]) != len(expected)
             or {r["run_id"] for r in plan["runs"]} != expected):
-        raise ValueError("Qualitative plan must cover exactly the 132 fixed-subset groups")
+        raise ValueError("Qualitative plan must cover exactly the 132 full-test groups")
     selections = {}
     for run in plan["runs"]:
+        validate_run(run)
         ds = run["dataset"]
         if (run["run_id"] != f"{ds}/{run['domain']}/{run['method']}/{run['role']}"
                 or run["seed"] != 42):
@@ -26,11 +27,7 @@ def validate_plan(plan):
         domain = "source" if run["method"] == "A" else run["domain"]
         if run["checkpoint_domain"] != domain:
             raise ValueError("Qualitative evidence uses a checkpoint from another domain")
-        ids = run["image_ids"]
-        if len(ids) != (32 if ds == "RSAR" else 16) or len(set(ids)) != len(ids):
-            raise ValueError("Expected 32 RSAR / 16 DIOR fixed-subset images")
-        if ds == "DIOR" and ids != [str(i) for i in range(11726, 11742)]:
-            raise ValueError("DIOR qualitative selection differs from 11726-11741")
+        ids = (run["image_ids"], run["visualization_image_ids"])
         if ds in selections and selections[ds] != ids:
             raise ValueError("Qualitative image selection differs across methods/domains")
         selections[ds] = ids
@@ -65,8 +62,14 @@ def inspect_embedding(entry, plan):
         raise ValueError("Invalid joint embedding shape/values")
     for i, run in enumerate(runs):
         export_index, records = load_export(run)
-        arrays = {r["feature_file"]: a for r, a in records}
+        wanted = {}
         for j in range(i * count, (i + 1) * count):
+            wanted.setdefault(Path(points[j]["feature_file"]).name, []).append(j)
+        matches = ((j, data) for record, data in records
+                   for j in wanted.get(record["feature_file"], ()))
+        validated = 0
+        for j, data in matches:
+            validated += 1
             point = points[j]
             feature_file = Path(point["feature_file"])
             if (point["method"] != run["method"] or point["role"] != run["role"]
@@ -77,7 +80,6 @@ def inspect_embedding(entry, plan):
                     or feature_file.parent != Path(run["out_dir"])
                     or int(point["point_index"]) != j):
                 raise ValueError("Embedding point provenance differs from its export")
-            data = arrays[feature_file.name]
             row = int(point["feature_row"])
             if row < 0 or row >= len(data["features"]):
                 raise ValueError("Embedding feature row is outside the export")
@@ -97,16 +99,26 @@ def inspect_embedding(entry, plan):
             expected = (data["features"][row].astype(np.float64) - mean) / scale
             if not np.allclose(normalized[j], expected, rtol=1e-12, atol=1e-12):
                 raise ValueError("Point feature differs from shared source normalization")
+        if validated != count:
+            raise ValueError("Embedding points reference missing exported images")
     return {"status": "complete", "problems": [], "n_points": len(points)}
 
 
-def qualitative_evidence(manifest):
+def qualitative_evidence(manifest, roi_sink=None):
     plan_path = manifest.get("qualitative_plan")
     plan = read_json(plan_path) if plan_path else None
     rows = []
+    identified = roi_complete = vis_complete = 0
     if plan is not None:
         validate_plan(plan)
-        rows = [{**r, "scope": "fixed_subset_all_post_NMS_RoI"} for r in collect(plan)]
+        for row in collect(plan):
+            identified += 1
+            roi_complete += row["roi_status"] == "complete"
+            vis_complete += row["vis_status"] == "complete"
+            if roi_sink is None:
+                rows.append(row)
+            else:
+                roi_sink(row)
     provided = {}
     for entry in manifest.get("embeddings", []):
         identity = (entry["dataset"], entry["domain"], entry["comparison"])
@@ -130,14 +142,18 @@ def qualitative_evidence(manifest):
             "dataset": ds, "domain": domain, "comparison": comparison,
             "scope": "sampled_joint_embedding_not_full_TEST",
             "directory": entry["directory"] if entry else "", **result})
+    roi_expected = (sum(len(r["image_ids"]) for r in plan["runs"]) if plan is not None else
+                    sum(len(domains) * len(ROLES) * EXPECTED_TEST_IMAGES[ds]
+                        for ds, domains in DOMAINS.items()))
     coverage = {
-        "roi_scope": "fixed RSAR32/DIOR16 subset, not full TEST",
-        "roi_expected_image_roles": 3520,
-        "roi_identified_image_roles": len(rows),
-        "roi_complete": sum(r["roi_status"] == "complete" for r in rows),
-        "vis_complete": sum(r["vis_status"] == "complete" for r in rows),
+        "roi_scope": "full_test",
+        "roi_expected_image_roles": roi_expected,
+        "roi_identified_image_roles": identified,
+        "roi_complete": roi_complete,
+        "vis_expected_image_roles": 3520,
+        "vis_complete": vis_complete,
         "embeddings_expected": 24,
         "embeddings_complete": sum(r["status"] == "complete" for r in indices),
-        "full_test_roi": "not supported by the fixed-subset extraction plan",
+        "full_test_roi": "complete" if roi_complete == roi_expected else "incomplete",
     }
     return rows, indices, coverage

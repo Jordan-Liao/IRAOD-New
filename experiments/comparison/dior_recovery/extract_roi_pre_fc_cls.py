@@ -42,6 +42,8 @@ def main():
     dataset = build_dataset(cfg.data.test)
     by_id = {Path(info["filename"]).stem: i
              for i, info in enumerate(dataset.data_infos)}
+    if len(by_id) != len(dataset) or set(by_id) != set(run["image_ids"]):
+        raise ValueError("Evaluation dataset does not match every full TEST image ID")
     indices = [by_id[image_id] for image_id in run["image_ids"]]
     loader = build_dataloader(
         torch.utils.data.Subset(dataset, indices), samples_per_gpu=1,
@@ -72,8 +74,12 @@ def main():
                 "feature_file": name, "n_roi": len(capture.features[0]),
                 "n_detections": len(arrays["labels"]),
             })
+    if len(records) != len(run["image_ids"]):
+        raise ValueError("Extraction stopped before every full TEST image was exported")
     index = {
-        "schema": SCHEMA, "status": "complete", "run": run,
+        "schema": SCHEMA, "status": "complete", "scope": "full_test", "run": run,
+        "n_images": len(records),
+        "n_post_nms_detections": sum(r["n_detections"] for r in records),
         "code_commit": subprocess.check_output(
             ["git", "-C", str(Path(__file__).resolve().parents[3]),
              "rev-parse", "HEAD"], text=True).strip(),

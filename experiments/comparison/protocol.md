@@ -41,13 +41,13 @@ DIOR per-class has 400 rows; visualizations have 288 file records; RoI has 33 di
 IRG/LPLD/DRU/AASFOD/SF-YOLO remain N/A, with concrete port boundaries in `results/paper_comparison/dior_ports_executability.md`; Simple-SFOD/SF-UT is covered by equivalent B on both datasets.
 
 Aligned qualitative/RoI completion tooling is documented in
-[`RESULT_COMPLETION.md`](RESULT_COMPLETION.md). Its v2 outputs are separate from
-the legacy unaligned exports. Seed42 RSAR/DIOR same-image source, final-EMA and
+[`RESULT_COMPLETION.md`](RESULT_COMPLETION.md). Its v3 full-TEST outputs are
+separate from legacy unaligned and v2 subset exports. Seed42 RSAR/DIOR source, final-EMA and
 Student coverage and joint t-SNE remain pending remote extraction evidence;
 planning does not upgrade the result manifests above.
 
 The separate CPU multi-seed report consumer is documented in
 [`REPORT_CONSUMER.md`](REPORT_CONSUMER.md). It keeps fixed-source seed-block
-statistics and full-TEST prediction evidence separate from the 32/16-image
-aligned-RoI subset and sampled embeddings; none of these scopes substitutes for
-full-TEST RoI features or completion of all requested items.
+statistics, full-TEST predictions and full-TEST aligned RoIs distinct from the
+frozen 32/16-image visualization subset and sampled embeddings; sampling never
+substitutes for complete per-instance exports or all requested items.

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -17,7 +18,7 @@ from mmrotate.models.roi_heads.bbox_heads.convfc_rbbox_head import (
 
 from experiments.comparison.aligned_roi import AlignedRoICapture, SCHEMA
 from experiments.comparison.result_completion import (
-    DOMAINS, build_plan, collect, load_export, visualize, write_json)
+    DOMAINS, EXPECTED_TEST_IMAGES, build_plan, collect, load_export, visualize, write_json)
 from experiments.comparison.joint_tsne import joint_tsne
 
 
@@ -116,21 +117,36 @@ class AlignedMappingTest(unittest.TestCase):
                 capture.aligned("same_image", per_class)
 
 
-def bindings(root):
+def bindings(root, full_size=False):
+    root.mkdir(parents=True, exist_ok=True)
     datasets = {}
     for dataset, domains in DOMAINS.items():
-        ids = ([f"rsar_{i:03}" for i in range(32)] if dataset == "RSAR"
-               else [str(i) for i in range(11726, 11742)])
+        count = ({"RSAR": 8538, "DIOR": 11738} if full_size else
+                 {"RSAR": 35, "DIOR": 18})[dataset]
+        ids = ([f"rsar_{i:05}" for i in range(count)] if dataset == "RSAR"
+               else [str(i) for i in range(11726, 11726 + count)])
         selection = root / f"{dataset}_selection.json"
-        write_json(selection, {"image_ids": ids})
+        write_json(selection, {"image_ids": ids[:32 if dataset == "RSAR" else 16]})
+        images = root / dataset / "images"
+        images.mkdir(parents=True, exist_ok=True)
+        for image_id in ids:
+            (images / (image_id + ".png")).touch()
+        split = root / dataset / "test.txt"
+        if dataset == "RSAR":
+            split = root / dataset / "annfiles"
+            split.mkdir(exist_ok=True)
+            for image_id in ids:
+                (split / (image_id + ".txt")).touch()
+        else:
+            split.write_text("\n".join(ids) + "\n")
         datasets[dataset] = {
             "config": "/remote/source_inference.py",
             "source_checkpoint": f"/remote/{dataset}/source/epoch_100.pth",
-            "selection_evidence": str(selection),
-            "image_ids": ids,
+            "test_split": str(split),
+            "visualization_selection_evidence": str(selection),
             "domains": {
-                domain: {"ann_file": "/remote/test_annotations",
-                         "img_prefix": f"/remote/{domain}/images",
+                domain: {"ann_file": str(split),
+                         "img_prefix": str(images),
                          "checkpoint_domain": domain}
                 for domain in domains},
             "checkpoints": {
@@ -144,6 +160,9 @@ def bindings(root):
 
 class CompletionTest(unittest.TestCase):
     def setUp(self):
+        sizes = patch.dict(EXPECTED_TEST_IMAGES, {"RSAR": 35, "DIOR": 18})
+        sizes.start()
+        self.addCleanup(sizes.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -151,34 +170,49 @@ class CompletionTest(unittest.TestCase):
 
     def test_exact_coverage_and_no_invented_student_or_completion(self):
         self.assertEqual(len(self.plan["runs"]), 132)
-        rows = collect(self.plan)
-        self.assertEqual(len(rows), 3520)
+        rows = list(collect(self.plan))
+        self.assertEqual(len(rows), 3872)
         self.assertTrue(all(row["roi_status"] == "not_started" for row in rows))
         self.assertEqual({r["role"] for r in rows if r["method"] == "A"}, {"source"})
-        self.assertEqual(len([r for r in rows if r["dataset"] == "RSAR"]), 2816)
+        self.assertEqual(len([r for r in rows if r["dataset"] == "RSAR"]), 3080)
         bad = bindings(self.root)
-        bad["datasets"]["DIOR"]["image_ids"][0] = "other_image"
+        visual = Path(bad["datasets"]["DIOR"]["visualization_selection_evidence"])
+        ids = json.loads(visual.read_text())["image_ids"]
+        ids[0], ids[1] = ids[1], ids[0]
+        write_json(visual, {"image_ids": ids})
         with self.assertRaisesRegex(ValueError, "11726-11741"):
             build_plan(bad)
         bad = bindings(self.root)
-        bad["datasets"]["RSAR"]["image_ids"].reverse()
-        with self.assertRaisesRegex(ValueError, "selection evidence"):
+        visual = Path(bad["datasets"]["RSAR"]["visualization_selection_evidence"])
+        ids = json.loads(visual.read_text())["image_ids"]
+        ids[0] = "not_in_test"
+        write_json(visual, {"image_ids": ids})
+        with self.assertRaisesRegex(ValueError, "visualization selection"):
             build_plan(bad)
 
     def test_cpu_cli_plan_collect_and_export_help(self):
         binding_file = self.root / "bindings.json"
         plan_file = self.root / "plan.json"
-        write_json(binding_file, bindings(self.root))
+        write_json(binding_file, bindings(self.root / "actual_size", full_size=True))
         subprocess.run([
             sys.executable, "-m", "experiments.comparison.result_completion",
             "plan", "--bindings", str(binding_file), "--out", str(plan_file)],
             check=True, capture_output=True, text=True)
+        full = json.loads(plan_file.read_text())
+        self.assertEqual(full["roi_image_roles"], 1267816)
+        self.assertEqual(full["visualization_image_roles"], 3520)
+        self.assertEqual(len(full["runs"]), 132)
+        self.assertEqual(len(full["runs"][0]["image_ids"]), 8538)
+        self.assertEqual(len(full["runs"][-1]["image_ids"]), 11738)
+        # The CLI check streams one full-TEST run, not a million-row temporary CSV.
+        full["runs"] = full["runs"][:1]
+        write_json(plan_file, full)
         subprocess.run([
             sys.executable, "-m", "experiments.comparison.result_completion",
             "collect", "--plan", str(plan_file)],
             check=True, capture_output=True, text=True)
-        coverage = self.root / SCHEMA / "coverage.csv"
-        self.assertEqual(len(coverage.read_text().splitlines()), 3521)
+        coverage = self.root / "actual_size" / SCHEMA / "coverage.csv"
+        self.assertEqual(len(coverage.read_text().splitlines()), 8539)
         self.assertNotIn(",complete,", coverage.read_text())
         for module in (
                 "experiments.comparison.dior_recovery.extract_roi_pre_fc_cls",
@@ -247,8 +281,8 @@ class CompletionTest(unittest.TestCase):
         for run in runs:
             self.export_fixture(run, arrays)
         visualize(runs[0])
-        rows = collect(self.plan)
-        self.assertEqual(sum(r["roi_status"] == "complete" for r in rows), 96)
+        rows = list(collect(self.plan))
+        self.assertEqual(sum(r["roi_status"] == "complete" for r in rows), 108)
         self.assertEqual(sum(r["vis_status"] == "complete" for r in rows), 16)
         coordinates, points = joint_tsne(
             self.plan, "DIOR", "clean", "ema", self.root / "tsne", cap=5, perplexity=2)
@@ -260,7 +294,12 @@ class CompletionTest(unittest.TestCase):
                 self.assertEqual(point["proposal_index"], source["proposal_indices"][row])
                 self.assertEqual(point["predicted_label"], source["labels"][row])
         protocol = json.loads((self.root / "tsne/protocol.json").read_text())
-        self.assertEqual(protocol["source_stats_count"], 64)
+        self.assertEqual(protocol["source_stats_count"], 72)
+        self.assertTrue(all(s["reservoir_points"] == 5 for s in protocol["feature_stats"]))
+        with np.load(self.root / "tsne/embedding.npz") as saved:
+            population = arrays["features"].astype(np.float64)
+            np.testing.assert_allclose(saved["source_mean"], population.mean(axis=0))
+            np.testing.assert_allclose(saved["source_std"], population.std(axis=0))
         self.assertEqual(protocol["normalization_reference"]["role"], "source")
         second, metadata = joint_tsne(
             self.plan, "DIOR", "clean", "ema", self.root / "tsne-repeat",
@@ -273,6 +312,48 @@ class CompletionTest(unittest.TestCase):
         write_json(index_path, index)
         with self.assertRaisesRegex(ValueError, "same-image selection"):
             load_export(runs[0])
+
+    def test_streaming_full_roi_empty_rows_and_visual_subset(self):
+        fixture = AlignedMappingTest()
+        fixture.setUp()
+        empty, _, _ = fixture.capture(fixture.features[:0], fixture.rois[:0], fixture.delta[:0])
+        run = self.plan["runs"][0]
+        self.export_fixture(run, empty)
+        _, records = load_export(run)
+        self.assertIs(iter(records), records)
+        self.assertEqual(next(records)[1]["features"].shape, (0, 8))
+        rows = list(collect({"schema": SCHEMA, "runs": [run]}))
+        self.assertEqual(len(rows), 35)
+        self.assertTrue(all(r["roi_status"] == "complete" and r["n_detections"] == 0 for r in rows))
+        self.assertEqual(sum(r["vis_status"] == "not_selected" for r in rows), 3)
+        self.assertEqual(sum(r["vis_status"] == "not_started" for r in rows), 32)
+        Path(run["out_dir"], run["image_ids"][-1] + ".npz").unlink()
+        with self.assertRaises(FileNotFoundError):
+            list(collect({"schema": SCHEMA, "runs": [run]}))
+
+    def test_missing_test_image_and_subset_schema_are_rejected(self):
+        spec = bindings(self.root)
+        image = next(Path(spec["datasets"]["RSAR"]["domains"]["clean"]["img_prefix"]).glob("*.png"))
+        image.unlink()
+        with self.assertRaisesRegex(ValueError, "complete TEST split"):
+            build_plan(spec)
+        with self.assertRaisesRegex(ValueError, "v3 full-test"):
+            list(collect({"schema": "iraod-aligned-roi-v2", "runs": self.plan["runs"]}))
+
+    def test_streaming_npz_rejects_non_aligned_row_fields(self):
+        fixture = AlignedMappingTest()
+        fixture.setUp()
+        arrays, _, _ = fixture.capture(fixture.features, fixture.rois, fixture.delta)
+        run = self.plan["runs"][0]
+        self.export_fixture(run, arrays)
+        path = Path(run["out_dir"]) / (run["image_ids"][0] + ".npz")
+        with np.load(path) as saved:
+            broken = {key: saved[key] for key in saved.files}
+        broken["features"] = broken["features"][:-1]
+        np.savez_compressed(path, **broken)
+        _, records = load_export(run)
+        with self.assertRaisesRegex(ValueError, "row count/shape mismatch"):
+            next(records)
 
 
 if __name__ == "__main__":
