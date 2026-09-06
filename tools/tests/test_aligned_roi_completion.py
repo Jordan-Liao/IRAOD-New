@@ -185,6 +185,12 @@ class CompletionTest(unittest.TestCase):
                 "experiments.comparison.joint_tsne"):
             subprocess.run([sys.executable, "-m", module, "--help"],
                            check=True, capture_output=True, text=True)
+        scripts = Path(__file__).resolve().parents[2] / "experiments/comparison/dior_recovery"
+        for name in ("run_roi.sh", "run_vis.sh"):
+            result = subprocess.run([str(scripts / name)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("usage:", result.stderr)
 
     def export_fixture(self, run, arrays):
         import cv2
