@@ -1,4 +1,8 @@
-# DIOR-R OrthoNet strict prep (not launched)
+# DIOR-R OrthoNet strict prep (completed)
+
+Current status: source clean val/test and 18 A–F cells are complete. The staging
+snapshot below is historical, not an active blocker. Final artifacts and the
+Chinese DOCX are indexed in `results/paper_comparison/full_comparison_delivery_cn.md`.
 
 ## Staging (.67) 2026-09-06T06:16+08 live tar, not terminal
 - Source: gpu-183 `/mnt/HDD_6TB/zechuan_files/IRAOD/dataset/DIOR` (21G)
@@ -18,4 +22,5 @@ C–F copy RSAR strict env (CLIP / SARCLIP / VLST) with DIOR 20 classes and imag
 Same freeze: seed42, final EMA, weight_l=0, use_bbox_reg=False, no target LoRA.
 
 ## Ports
-IRG/LPLD/Simple-SFOD not in this repo as OBB implementations. Executable only after faithful port; until then N/A with reason, not approximate HBB numbers.
+IRG/LPLD remain N/A without faithful OBB implementations. Simple-SFOD/SF-UT is
+covered by equivalent method B, already executed on RSAR and DIOR; no duplicate run.

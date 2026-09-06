@@ -1,7 +1,7 @@
 # IRAOD strict Source-Free comparison protocol
 
 ## Claim
-Fair OBB Source-Free comparison of A–F on RSAR corruptions (and DIOR-R when staged) with a shared OrthoNet-50 + Oriented R-CNN source, final-EMA evaluation, no target GT in adaptation/selection.
+Fair OBB Source-Free comparison of A–F on RSAR and DIOR-R corruptions with a shared OrthoNet-50 + Oriented R-CNN source within each dataset, final-EMA evaluation, no target GT in adaptation/selection.
 
 ## Frozen scientific identity
 - Code: `0f98a48b539f9260055fc305784ffbc924f50451`
@@ -31,4 +31,11 @@ Fair OBB Source-Free comparison of A–F on RSAR corruptions (and DIOR-R when st
 - seed=42 only → mean±std N/A until more seeds
 
 ## Status
-RSAR 7 corruptions × A–F final-EMA seed=42 completed (42 cells + A clean TEST). Single seed; mean±std N/A until more seeds. Numbers taken from gpu-67 eval jsons under `/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/*/seed_42/`. DIOR-R staging incomplete on `.67`. IRG/LPLD not started.
+RSAR 7 corruptions × A–F seed=42 completed (42 cells + A clean TEST), unchanged from b852746. DIOR-R brightness/cloudy/contrast × A–F completed (18 cells + A clean val/test). A is source-only; B–F are final EMA. Single seed; mean±std N/A. RSAR eval jsons remain under `/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/*/seed_42/`.
+
+DIOR uses its own `epoch_100.pth` source (SHA256 and paths in `results/paper_comparison/dior_checkpoint_manifest.json`), 5863 image-only val inputs, one epoch / 185 iterations, global batch 32 and LR 0.02. B–D: 1×32; E/F: 2×16. Test has 11738 images and 20 classes. Clean val/test are 0.40987735986709595 / 0.2948998510837555; rPC uses TEST, not val.
+
+Final report: `results/paper_comparison/IRAOD_full_comparison_report_cn.docx`.
+DIOR per-class has 400 rows; visualizations have 288 file records; RoI has 33 directory records (528 feature files). RoI features are pre-NMS while prediction metadata is post-NMS without row mapping: class-colored instance t-SNE is not yet justified. RSAR per-class/qualitative export coverage is not equivalent to its completed 42-cell metrics.
+
+IRG/LPLD/DRU/AASFOD/SF-YOLO remain N/A, with concrete port boundaries in `results/paper_comparison/dior_ports_executability.md`; Simple-SFOD/SF-UT is covered by equivalent B on both datasets.

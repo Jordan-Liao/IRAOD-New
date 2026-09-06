@@ -15,6 +15,17 @@ cells:
   rsar_chaff_clsap_BCDF: done
   rsar_chaff_vis_A_F_ema_32img: done
   rsar_chaff_roi_A_B_C_D_E_F: done_or_partial
-  dior_r: staging_in_progress_on_67
+  dior_r: done_18_cells_plus_source_clean_val_test
   irg_lpld: not_started
   visualizations_roi: chaff_32_subset_done
+dior:
+  source_manifest: results/paper_comparison/dior_checkpoint_manifest.json
+  raw_results: results/paper_comparison/dior_raw_results.csv
+  evaluation_manifest: results/paper_comparison/dior_evaluation_manifest.csv
+  per_class_rows: 400
+  visualization_file_manifest: results/paper_comparison/dior_visualization_files.csv
+  visualization_files: 288
+  roi_manifest: results/paper_comparison/dior_roi_manifest.csv
+  roi_groups: 33
+  roi_feature_files: 528
+  roi_limitation: pre_nms_features_post_nms_predictions_without_row_mapping
