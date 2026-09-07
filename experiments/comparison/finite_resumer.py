@@ -85,6 +85,23 @@ def load_cells(train_files, eval_files):
     return cells
 
 
+def load_work(args):
+    cells = load_cells(args.train_list, args.eval_list + args.external_train_list)
+    external = set(load_cells(args.external_train_list, [])) if args.external_train_list else set()
+    for cell in external:
+        cells[cell] = False
+    owners = {}
+    for value in args.external_owner_session:
+        name, spec = value.split("=", 1)
+        gpus = tuple(int(g) for g in spec.split(","))
+        if not external or not name or not gpus or len(set(gpus)) != len(gpus) or not set(gpus).issubset(APPROVED):
+            raise ValueError("External owner sessions require reserved training cells and approved GPUs")
+        if name in owners:
+            raise ValueError("Duplicate external owner session")
+        owners[name] = gpus
+    return cells, external, owners
+
+
 def write_json(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -367,6 +384,30 @@ class TmuxBackend:
                     found.append(handle)
         return found
 
+    def discover_external_owners(self, owners, active):
+        if not owners:
+            return []
+        panes = self.panes()
+        found = []
+        for name, gpus in owners.items():
+            key = "external-owner:" + name
+            if key in active or name not in panes or panes[name]["dead"]:
+                continue
+            pane = panes[name]
+            if pane.get("multiple"):
+                raise Blocked(f"External owner must have one identifiable pane: {name}")
+            try:
+                fd = open_pidfd(pane["pid"])
+            except ProcessLookupError:
+                continue
+            handle = {"cell": None, "phase": "external_owner", "owner_key": key,
+                      "gpus": tuple(gpus), "fd": fd, "pid": pane["pid"],
+                      "spec": None, "adoption_lock": None}
+            self.handles[fd] = handle
+            self.selector.register(fd, selectors.EVENT_READ, handle)
+            found.append(handle)
+        return found
+
     def available(self):
         free = idle_devices(self.gpus)
         available = set()
@@ -452,8 +493,11 @@ def choose_training(ready, free):
     return None
 
 
-def run_finite(cells, backend):
+def run_finite(cells, backend, external=(), external_owners=None):
+    external = set(external)
+    external_owners = external_owners or {}
     state = {c.key: {"cell": asdict(c), "train_requested": requested,
+                     "training_ownership": "external" if c in external else "producer" if requested else "eval_only",
                      "train": "pending", "eval": "pending", "reasons": [], "adopted": []}
              for c, requested in cells.items()}
     active = {}
@@ -463,8 +507,10 @@ def run_finite(cells, backend):
         data = {"scope": "finite_input_only", "status": status, "reason": reason,
                 "producer_pid": os.getpid(),
                 "cells": list(state.values()),
-                "active": [{"cell": asdict(h["cell"]), "phase": h["phase"],
-                            "gpus": h["gpus"], "pid": h["pid"]} for h in active.values()]}
+                "external_reservations": {name: list(gpus) for name, gpus in external_owners.items()},
+                "active": [{"cell": asdict(h["cell"]) if h["cell"] is not None else None, "phase": h["phase"],
+                            "gpus": h["gpus"], "pid": h["pid"],
+                            "external_owner": h.get("owner_key")} for h in active.values()]}
         write_json(backend.run_dir / "state.json", data)
         return data
 
@@ -479,6 +525,8 @@ def run_finite(cells, backend):
     with backend.producer():
         try:
             while True:
+                for handle in backend.discover_external_owners(external_owners, active):
+                    active[handle["owner_key"]] = handle
                 for handle in backend.discover(cells, active):
                     cell, phase = handle["cell"], handle["phase"]
                     active[cell.session(phase)] = handle
@@ -492,9 +540,12 @@ def run_finite(cells, backend):
                     row = state[cell.key]
                     if cell in occupied:
                         continue
-                    if row["train"] == "pending":
+                    if row["train"] in ("pending", "external"):
                         evidence = backend.evidence(cell, "train")
-                        row["train"] = "ready" if evidence == "pending" and requested else evidence
+                        if evidence == "pending" and cell in external:
+                            row["train"] = "external"
+                        else:
+                            row["train"] = "ready" if evidence == "pending" and requested else evidence
                         if row["train"] == "pending":
                             row["train"] = "blocked"
                             row["reasons"].append("eval dependency is not trained; no training authorized")
@@ -509,6 +560,8 @@ def run_finite(cells, backend):
                 while True:
                     occupied = {h["cell"] for h in active.values()}
                     free = backend.available() - {g for h in active.values() for g in h["gpus"]}
+                    if any(state[c.key]["train"] not in ("complete", "failed", "blocked") for c in external):
+                        free -= {g for gpus in external_owners.values() for g in gpus}
                     trains = [c for c in cells if c not in occupied and state[c.key]["train"] == "ready"
                               and (c, "train") not in attempted]
                     picked = choose_training(trains, free)
@@ -536,12 +589,17 @@ def run_finite(cells, backend):
                         return snapshot("complete")
                     if "failed" in statuses:
                         return snapshot("failed", "one or more finite tasks failed; no automatic retries")
+                    if "external" in statuses:
+                        return snapshot("blocked", "external training incomplete; no live canonical task or owner to await")
                     return snapshot("blocked", "no allocatable approved GPU group and no tracked live task")
                 snapshot()
                 for handle in backend.wait():
                     cell, phase = handle["cell"], handle["phase"]
-                    terminal(cell, phase, handle["spec"])
-                    active.pop(cell.session(phase))
+                    if phase == "external_owner":
+                        active.pop(handle["owner_key"])
+                    else:
+                        terminal(cell, phase, handle["spec"])
+                        active.pop(cell.session(phase))
                     backend.close(handle)
         except (Blocked, KeyboardInterrupt, OSError, ValueError, KeyError, TypeError,
                 subprocess.SubprocessError) as error:
@@ -616,9 +674,13 @@ def main():
         resume.add_argument("--run-dir", required=True)
         resume.add_argument("--train-list", action="append", default=[])
         resume.add_argument("--eval-list", action="append", default=[])
+        resume.add_argument("--external-train-list", action="append", default=[],
+                            help="Finite externally owned cells: never submit their training, only observe/evaluate")
+        resume.add_argument("--external-owner-session", action="append", default=[],
+                            help="SESSION=GPU[,GPU]: reserve cards and observe this existing owner's exit")
         resume.add_argument("--gpus", default="4,5,6,7")
         resume.add_argument("--handoff-confirmed", action="store_true",
-                            help="Operator stopped old producers only and retained independent canonical jobs")
+                            help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
     run_worker = commands.add_parser("worker")
     run_worker.add_argument("job")
     args = parser.parse_args()
@@ -640,7 +702,7 @@ def main():
         previous = old_producers(args.queue)
         if previous:
             raise SystemExit(f"blocked: old producer PIDs {previous}; GPU job sessions must be preserved")
-        load_cells(args.train_list, args.eval_list)
+        load_work(args)
         log = Path(str(args.run_dir) + ".producer.log")
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("x"):
@@ -660,8 +722,8 @@ def main():
 
     signal.signal(signal.SIGTERM, stop_producer)
     try:
-        result = run_finite(load_cells(args.train_list, args.eval_list),
-                            TmuxBackend(args.queue, args.run_dir, gpus))
+        cells, external, owners = load_work(args)
+        result = run_finite(cells, TmuxBackend(args.queue, args.run_dir, gpus), external, owners)
     except Blocked as error:
         print(f"blocked: {error}", file=sys.stderr)
         raise SystemExit(2)

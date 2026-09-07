@@ -162,18 +162,26 @@ else: raise SystemExit(2)
         os.close(self.events_fd)
         self.temp.cleanup()
 
-    def start(self, cells, name="run", eval_cells=()):
+    def start(self, cells, name="run", eval_cells=(), external=(), owners=()):
         train = self.q / (name + "-train.txt")
         evaluate = self.q / (name + "-eval.txt")
         train.write_text("".join(f"{c.dataset} {c.domain} {c.seed} {c.method}\n" for c in cells))
         evaluate.write_text("".join(f"{c.dataset} {c.domain} {c.seed} {c.method}\n" for c in eval_cells))
+        extra = []
+        if external:
+            reserved = self.q / (name + "-external.txt")
+            reserved.write_text("".join(
+                f"{c.dataset} {c.domain} {c.seed} {c.method}\n" for c in external))
+            extra += ["--external-train-list", str(reserved)]
+        for owner in owners:
+            extra += ["--external-owner-session", owner]
         run_dir = self.root / name
         log = (self.root / (name + ".log")).open("w")
         self.addCleanup(log.close)
         process = subprocess.Popen([
             sys.executable, "-u", "-m", "experiments.comparison.finite_resumer", "resume",
             "--queue", str(self.q), "--run-dir", str(run_dir),
-            "--train-list", str(train), "--eval-list", str(evaluate), "--handoff-confirmed",
+            "--train-list", str(train), "--eval-list", str(evaluate), "--handoff-confirmed", *extra,
         ], env=self.env, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
         self.processes.append(process)
         return process, run_dir
@@ -352,6 +360,58 @@ else: raise SystemExit(2)
         adopted = next(r for r in state["cells"] if r["cell"] == external.__dict__)
         self.assertEqual(adopted["adopted"][0]["gpus"], [5])
         self.assertEqual(sum(e["event"] == "start" and e["name"] == name for e in self.events), 1)
+
+    def test_external_future_cell_is_never_submitted_and_owner_exit_unblocks_eval(self):
+        cloudy = Cell("DIOR", "cloudy", 44, "C")
+        contrast = Cell("DIOR", "contrast", 44, "C")
+        own = Cell("RSAR", "clean", 43, "B")
+
+        def external_train(cell):
+            name = cell.session("train")
+            command = shlex.join(["bash", str(self.q / "run_train_1gpu.sh"), "5",
+                                  cell.dataset, cell.domain, str(cell.seed), cell.method])
+            command += f"; echo wrap_exit=$? >> {self.q}/wrap_{name}.status"
+            subprocess.run(["tmux", "new-session", "-d", "-s", name, command],
+                           env=self.env, check=True)
+
+        owner_name = "gpu5-xaf-pair-owner"
+        owner_fifo = self.q / "release" / owner_name
+        os.mkfifo(owner_fifo)
+        subprocess.run(["tmux", "new-session", "-d", "-s", owner_name,
+                        shlex.join(["cat", str(owner_fifo)])], env=self.env, check=True)
+        external_train(cloudy)
+        self.assertEqual(self.next_start()["name"], cloudy.session("train"))
+        process, directory = self.start(
+            [cloudy, contrast, own], external=(cloudy, contrast), owners=(owner_name + "=5",))
+        self.assertEqual(self.next_start()["name"], own.session("train"))
+        self.release(cloudy.session("train"))
+        evaluation = self.next_start()
+        self.assertEqual(evaluation["name"], cloudy.session("eval"))
+        self.assertNotIn(5, evaluation["gpus"])  # Owner retains GPU5 across the gap.
+        self.assertFalse((directory / "jobs" / (contrast.session("train") + ".json")).exists())
+
+        self.release(own.session("train"))
+        self.assertEqual(self.next_start()["name"], own.session("eval"))
+        self.release(cloudy.session("eval"))
+        self.release(own.session("eval"))
+        # The auxiliary owner, not the new producer, creates the future canonical task.
+        external_train(contrast)
+        self.assertEqual(self.next_start()["name"], contrast.session("train"))
+        self.release(contrast.session("train"))
+        self.release(owner_name)
+        last = self.next_start()
+        self.assertEqual(last["name"], contrast.session("eval"))
+        self.release(last["name"])
+        self.assertEqual(process.wait(timeout=10), 0)
+        state = json.loads((directory / "state.json").read_text())
+        self.assertEqual(state["status"], "complete")
+        for cell in (cloudy, contrast):
+            row = next(r for r in state["cells"] if r["cell"] == cell.__dict__)
+            self.assertFalse(row["train_requested"])
+            self.assertEqual(row["training_ownership"], "external")
+            self.assertFalse((directory / "jobs" / (cell.session("train") + ".json")).exists())
+            self.assertEqual(sum(e["event"] == "start" and e["name"] == cell.session("train")
+                                 for e in self.events), 1)
 
     def test_cell_lock_blocks_a_second_gpu_worker_without_overwriting_winner_status(self):
         cell = Cell("RSAR", "clean", 43, "C")

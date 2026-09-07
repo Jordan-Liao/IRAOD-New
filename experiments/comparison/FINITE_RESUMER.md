@@ -62,11 +62,11 @@ use `launch` for production, not a short-lived unanchored tmux server.
 ## Mandatory producer handoff — preserve live GPU jobs
 
 Before starting, the coordinator must stop further submissions from the old
-resumer and coordinate the auxiliary producer's handoff. Keep all already
-running canonical GPU sessions, including the GPU5 auxiliary instances.
-If an auxiliary owner retains an unstarted cell, exclude that cell from this
-invocation until ownership transfers; do not run two producers for the same
-pending work.
+primary resumer. Keep all already running canonical GPU sessions. A declared
+external owner may finish its explicit reservation: exclude its training
+ownership with `--external-train-list`, even when those cells also occur in
+the stale main lists, and monitor its lifetime with `--external-owner-session`.
+Do not stop that declared external producer or its GPU jobs.
 
 Read-only discovery of the actual old producer PIDs:
 
@@ -117,6 +117,41 @@ current terminal/final evidence is checked, so successful cells are not
 retrained. A trained listed cell still gets its missing native eval.
 An optional `--eval-list /actual/missing_native_eval.txt` includes already
 trained eval-only work outside those lists, without authorizing new training.
+
+### Current GPU5 external reservation
+
+The auxiliary owner retains **DIOR/cloudy/44/C and DIOR/contrast/44/C**.
+The second canonical session may not exist yet; that does not transfer its
+training ownership. Create a separate reservation list (do not edit the live
+main remaining lists):
+
+```text
+DIOR cloudy 44 C
+DIOR contrast 44 C
+```
+
+Add these flags to `launch`/`resume`:
+
+```bash
+--external-train-list /absolute/gpu5-external-training.txt \
+--external-owner-session gpu5-xaf-pair-owner=5
+```
+
+The external list overrides `--train-list`: the new producer never submits
+these two training jobs, but still adopts any existing canonical task and
+queues its eval after real completion. It rechecks a reserved pending
+dependency on completion events, not a timer. The existing owner session is
+observed using its current pane PID (not a stale hardcoded PID), and GPU5 stays
+reserved across the cloudy-to-contrast gap until the owner exits/releases it.
+The observer does not acquire the owner's GPU lock or change its process.
+
+If contrast finishes between events, the owner's exit wakes the finite loop
+to validate its final files and enable eval. If the owner disappears without
+finishing the reserved cell, the new producer reports blocked rather than
+stealing training ownership. Keep these flags on recovery until the owner
+has completed both cells or the coordinator explicitly transfers that scope.
+`--handoff-confirmed` here applies to the competing old primary producer;
+**do not terminate `gpu5-xaf-pair-owner`**.
 
 Use a **new run directory** on recovery with the same actual remaining lists.
 Do not delete checkpoint/prediction files to make the scheduler proceed.
@@ -173,5 +208,6 @@ The tests run the actual entry, tmux, kernel flocks and pidfd exit loop against
 temporary CPU runners. They exercise4-card mixed packing, simultaneous pairs,
 immediate refill before eval, legacy GPU5 canonical adoption, producer
 replacement, cell uniqueness across different GPU locks, success skipping,
-bad terminal/ID rejection and blocked-with-no-active-work. No real training,
+bad terminal/ID rejection, delayed external canonical creation/GPU reservation,
+and blocked-with-no-active-work. No real training,
 GPU probing or live queue is used by the tests.
