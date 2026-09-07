@@ -13,7 +13,7 @@ import tempfile
 import time
 import unittest
 
-from experiments.comparison.finite_resumer import Cell, EVAL_SHA, open_pidfd, runner_command
+from experiments.comparison.finite_resumer import Cell, EVAL_SHA, open_pidfd, pane_job, runner_command
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -245,6 +245,20 @@ else: raise SystemExit(2)
         command = runner_command(self.q, cells[1], "train", (6, 7))
         self.assertEqual(command[2:], ["6,7", "29806", "DIOR", "clean", "43", "F"])
         self.finish(process, 4)
+
+    def test_actual_six_argument_bridge_abi_and_canonical_adoption_identity(self):
+        cell = Cell("RSAR", "clean", 43, "F")
+        for pair, port in (((4, 5), "29804"), ((6, 7), "29806")):
+            with self.subTest(pair=pair):
+                command = runner_command(self.q, cell, "train", pair)
+                self.assertEqual(command[2:], [
+                    ",".join(map(str, pair)), port, "RSAR", "clean", "43", "F"])
+                parsed = pane_job(cell.session("train"), {
+                    "command": shlex.quote(shlex.join(command) + "; echo wrap_exit=$?"),
+                }, self.q)
+                self.assertEqual(parsed, (cell, "train", pair, None))
+        with self.assertRaisesRegex(ValueError, "only supports 4,5 and 6,7"):
+            runner_command(self.q, cell, "train", (4, 6))
 
     def test_replacement_producer_adopts_live_jobs_without_restarting_them(self):
         cells = [Cell("RSAR", "clean", 43, "C"), Cell("DIOR", "clean", 43, "B"),
