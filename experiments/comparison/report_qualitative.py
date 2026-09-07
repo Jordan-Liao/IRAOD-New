@@ -6,7 +6,8 @@ import numpy as np
 
 from experiments.comparison.report_inputs import read_rows
 from experiments.comparison.result_completion import (
-    DOMAINS, ROLES, SCHEMA, EXPECTED_TEST_IMAGES, collect, load_export, read_json, validate_run)
+    DOMAINS, ROLES, SCHEMA, EXPECTED_TEST_IMAGES, collect, iter_export_records,
+    load_export, read_json, validate_run)
 
 
 def validate_plan(plan):
@@ -61,10 +62,13 @@ def inspect_embedding(entry, plan):
     if normalized.shape != (len(points), len(mean)) or not np.isfinite(coords).all():
         raise ValueError("Invalid joint embedding shape/values")
     for i, run in enumerate(runs):
-        export_index, records = load_export(run)
+        export_index, _ = load_export(run)
         wanted = {}
         for j in range(i * count, (i + 1) * count):
             wanted.setdefault(Path(points[j]["feature_file"]).name, []).append(j)
+        # Full ROI coverage is checked separately. Audit only the NPZs actually
+        # referenced by these sampled points, not the entire dataset again.
+        records = iter_export_records(run, export_index, {Path(name).stem for name in wanted})
         matches = ((j, data) for record, data in records
                    for j in wanted.get(record["feature_file"], ()))
         validated = 0

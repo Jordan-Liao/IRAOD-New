@@ -35,16 +35,49 @@ RSAR 7 corruptions × A–F seed=42 completed (42 cells + A clean TEST), unchang
 
 DIOR uses its own `epoch_100.pth` source (SHA256 and paths in `results/paper_comparison/dior_checkpoint_manifest.json`), 5863 image-only val inputs, one epoch / 185 iterations, global batch 32 and LR 0.02. B–D: 1×32; E/F: 2×16. Test has 11738 images and 20 classes. Clean val/test are 0.40987735986709595 / 0.2948998510837555; rPC uses TEST, not val.
 
-Final report: `results/paper_comparison/IRAOD_full_comparison_report_cn.docx`.
-DIOR per-class has 400 rows; visualizations have 288 file records; RoI has 33 directory records (528 feature files). RoI features are pre-NMS while prediction metadata is post-NMS without row mapping: class-colored instance t-SNE is not yet justified. RSAR per-class/qualitative export coverage is not equivalent to its completed 42-cell metrics.
+Legacy seed42 report (unchanged, not the final multi-seed report):
+`results/paper_comparison/IRAOD_full_comparison_report_cn.docx`.
+Its DIOR per-class table has 400 rows, visualizations 288 file records, and
+RoI 33 directory records (528 feature files). Those legacy RoI features are
+pre-NMS without row mapping and are not valid class-colored instance features;
+these historical counts do not describe the new full-test evidence below.
 
 IRG/LPLD/DRU/AASFOD/SF-YOLO remain N/A, with concrete port boundaries in `results/paper_comparison/dior_ports_executability.md`; Simple-SFOD/SF-UT is covered by equivalent B on both datasets.
 
 Aligned qualitative/RoI completion tooling is documented in
 [`RESULT_COMPLETION.md`](RESULT_COMPLETION.md). Its v3 full-TEST outputs are
 separate from legacy unaligned and v2 subset exports. Seed42 RSAR/DIOR source, final-EMA and
-Student coverage and joint t-SNE remain pending remote extraction evidence;
-planning does not upgrade the result manifests above.
+Student qualitative coverage is now independently validated as complete;
+no legacy/subset artifact was promoted based on planning.
+
+### Validated qualitative integration, 2026-09-07
+
+The CPU streaming consumer validated all **132 groups / 1,267,816 image-role
+NPZs / 18,468,211 detection rows**, all **3,520 frozen-subset visualizations**
+and **24 full-ROI-source joint embeddings**. The authoritative detection total
+is the actual row sum, correcting the earlier manual estimate by 7,000.
+The embeddings contain 141,984 sampled points, not 18 million full instances;
+their fixed settings are shared across all 24 comparisons.
+
+Small versioned evidence is under `results/paper_comparison/`:
+`qualitative_full_test_summary.json`, `qualitative_roi_groups.csv`,
+`qualitative_embedding_index.csv` and `qualitative_report_input.json`.
+The full per-image CSV, NPZs, images and embedding binaries remain remote at
+the paths recorded in the summary. Collection/integration commands are in
+[`QUALITATIVE_INTEGRATION.md`](QUALITATIVE_INTEGRATION.md).
+
+The 180 missing RSAR seed42 non-chaff B-F AP rows are now appended to
+`per_class_summary.csv` (78 -> 258 rows). Original rows and exact canonical
+mAP strings are unchanged; new class AP values retain the three-decimal
+precision of their actual class tables. Per-group source paths are in
+`rsar_nonchaff_per_class_evidence.json`. This table covers all seven corruption
+A-F comparisons plus source clean, not a completed multi-seed/clean-B-F table.
+
+**Quantitative completion and the final all-item report remain pending.**
+The coordinator's 08:31 UTC progress report was 58/130 training runs and
+85/192 native-ID evaluations; this qualitative collection did not re-audit or
+upgrade those counts. No final multi-seed CSV/DOCX or all-eight completion is
+claimed, and the existing quantitative report is not overwritten.
 
 The separate CPU multi-seed report consumer is documented in
 [`REPORT_CONSUMER.md`](REPORT_CONSUMER.md). It keeps fixed-source seed-block
