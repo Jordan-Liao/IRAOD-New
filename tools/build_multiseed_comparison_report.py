@@ -28,6 +28,15 @@ def render(report_path, output):
                       "报告生成成功不等于实验或全部八项任务完成。")
     doc.add_paragraph("输入清单：" + report["input_manifest"])
     doc.add_paragraph("消费者提交：" + report["code_commit"])
+    corrections = report.get("producer_metadata_corrections", [])
+    if corrections:
+        doc.add_heading("Source producer 元数据更正审计", 1)
+        doc.add_paragraph("以下仅更正报告中的 source producer 解释：原 sidecar 保留，"
+                          "权重、预测、实际图像 ID 和 mAP 均不改变，不因此重训或重推理。"
+                          "recorded 与 actual 明确分列；B–F 的适配训练 producer 不套用 source producer。")
+        table(doc, ["数据集/域", "sidecar recorded", "source actual", "原始依据"], [
+            [f"{r['dataset']}/{r['domain']}", str(r["recorded"]), r["actual"], r["source_record"]]
+            for r in corrections])
     doc.add_heading("1. 统计单位与适用范围", 1)
     doc.add_paragraph(
         "实验单位为适配种子 42、43、44。先在每个种子内对全部腐蚀域求 mPC，"

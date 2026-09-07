@@ -12,6 +12,7 @@ import numpy as np
 from experiments.comparison.result_completion import DOMAINS, read_json
 from experiments.comparison.report_statistics import SEEDS
 from tools.prediction_export import IMAGE_ORDER_ORIGIN, IMAGE_ORDER_SCHEMA
+from experiments.comparison.source_provenance import annotate_producer
 
 
 EXPECTED_IMAGES = {"RSAR": 8538, "DIOR": 11738}
@@ -267,6 +268,8 @@ def collect_quantitative(manifest, prediction_sink=None):
                 if cell:
                     row, classes, images = inspect_cell(
                         cell, checkpoints.get(identity), manifest["source_ids"][ds])
+                    if "training_code_sha" in row:
+                        row = annotate_producer(row, manifest.get("source_provenance", {}).get(ds))
                 else:
                     uninspected = (base["method"] != "A" and base["seed"] not in
                                    manifest.get("inspect_quant_seeds", SEEDS))

@@ -145,6 +145,30 @@ evaluation SHAs. Bare ID arrays/text files are not accepted as verified
 evidence. `eval_dir`, `eval_json` and `prediction_image_ids` must refer to the
 same new evaluation. Optional cell `config` must match `eval_json.config`.
 
+### Source-only producer metadata audit
+
+The original RSAR source producer record is
+`rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt`:
+`b474aaa5f7718746215ce13beceb071617bb823e`. The A/clean native sidecar incorrectly
+recorded adaptation `0f98a48...`; its source weights, predictions and IDs remain
+valid, and evaluation `331d213...` is correct. The explicit read-only correction
+record is `results/paper_comparison/source_producer_metadata_corrections.json`.
+
+New collection snapshots each dataset's original source producer record into
+`source_records/` and adds `source_provenance` to the report manifest. No model
+weights are rehashed or rerun for this metadata field. Source record/checkpoint/
+weight identity must agree before applying a correction.
+
+The consumer preserves `training_code_sha` and additionally emits
+`recorded_training_code_sha`, `actual_source_producer_sha` (A only),
+`effective_training_code_sha`, and an explicit `producer_metadata_correction`.
+Corrections are written to `producer_metadata_audit.csv` / report JSON and
+shown in the DOCX audit section. The original sidecar and numerical validity
+status are not changed. B-F retain their recorded adaptation producer.
+If the actual source record is unavailable, A's effective producer remains
+null/unknown instead of inheriting adaptation GIT. Refresh metadata manifests,
+not training or inference, to obtain this correction.
+
 Checkpoint record, tied to the same dataset/domain/method/seed/role:
 
 ```json

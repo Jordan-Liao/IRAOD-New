@@ -12,6 +12,7 @@ import sys
 from experiments.comparison.final_report import SCHEMA, write_csv
 from experiments.comparison.report_inputs import FINAL_ITERATION
 from experiments.comparison.result_completion import DOMAINS, read_json, write_json
+from experiments.comparison.source_provenance import read_source_producer
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,9 +67,16 @@ def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
                      inspect_roi_run_ids=None, paths_file=None, owner_format_file=None):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=False)
-    source_ids = {
-        "RSAR": read_json(ROOT / "experiments/comparison/checkpoint_manifest.json")["source"]["sha256"],
-        "DIOR": read_json(ROOT / "results/paper_comparison/dior_checkpoint_manifest.json")["source_sha256"],
+    rsar_source = read_json(ROOT / "experiments/comparison/checkpoint_manifest.json")["source"]
+    dior_source = read_json(ROOT / "results/paper_comparison/dior_checkpoint_manifest.json")
+    source_ids = {"RSAR": rsar_source["sha256"], "DIOR": dior_source["source_sha256"]}
+    source_checkpoints = {"RSAR": rsar_source["path"], "DIOR": dior_source["source_ckpt"]}
+    source_provenance = {
+        ds: read_source_producer(
+            checkpoint, source_ids[ds],
+            Path(checkpoint).parent.parent / "reproducibility/git_commit.txt",
+            out / "source_records" / f"{ds}_producer_git_commit.txt")
+        for ds, checkpoint in source_checkpoints.items()
     }
     if not set(quant_seeds).issubset({42, 43, 44}):
         raise ValueError("Only declared adaptation seeds 42,43,44 may be collected")
@@ -155,6 +163,7 @@ def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
     write_csv(out / "collection_inventory.csv", inventory, ("dataset", "domain", "status"))
     manifest = {
         "schema": SCHEMA, "roles": ["ema"], "source_ids": source_ids,
+        "source_provenance": source_provenance,
         "inspect_quant_seeds": list(quant_seeds),
         "cells": str((out / "cells.json").resolve()),
         "checkpoints": str((out / "checkpoints.json").resolve()),

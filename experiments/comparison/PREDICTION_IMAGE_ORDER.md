@@ -73,6 +73,15 @@ running adaptation code, the known `0f98...` SHA), not `EVAL_SHA`. For unknown
 training provenance omit the flag instead of guessing. Source checkpoints may
 have a different producer commit from adaptation checkpoints.
 
+For A/source specifically, resolve `TRAIN_SHA` from the source run's original
+`reproducibility/git_commit.txt`, not the adaptation queue's `GIT`.
+RSAR's verified value is `b474aaa5f7718746215ce13beceb071617bb823e`;
+B-F adaptation stays `0f98a48...`. A future evaluation invocation should pass
+that source value, or omit `--training-code-sha` when unknown. Do not rerun
+already valid predictions to repair this field: the report consumer records
+both recorded/actual values in its explicit metadata-correction audit.
+The current live controller/wrapper is not patched by this report correction.
+
 Retain the existing wrapper's success-status, class-table and prediction-count
 postprocessing for this **new** directory. A separate eval wrapper may point
 to this entry point; do not patch/source-overwrite the live training queue.

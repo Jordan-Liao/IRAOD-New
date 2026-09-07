@@ -118,7 +118,30 @@ retrained. A trained listed cell still gets its missing native eval.
 An optional `--eval-list /actual/missing_native_eval.txt` includes already
 trained eval-only work outside those lists, without authorizing new training.
 
-### Latest deployment handoff
+### Accepted production cutover
+
+Coordinator report at **2026-09-07 19:08 UTC** confirms production uses the
+already accepted **c91bc3541b0bfa144d6bbe2550f76e8ed291b3db** checkout:
+
+```text
+/mnt/SSD2_8TB/zechuan/IRAOD-New-finite-c91bc35
+Q/finite_runs/full-20260907T185024Z
+```
+
+The reported producer PID was3301246, with explicit train.list130 /
+eval.list192; train92 complete +2 running +36 ready, eval141 complete +13 ready
++38 pending, blocked0. It adopted DIOR/contrast/44/D on GPU5, launched
+DIOR/brightness/43/E on6/7, and excluded the foreign GPU4 occupancy.
+Two old serial producer PIDs were retired and the old script archived under
+history; no GPU model was stopped.
+
+This is a dated coordinator-confirmed snapshot, not a new runtime scan.
+GPU5's earlier two-C external reservation is finished, so this production
+invocation needs no external-reservation flags. **Do not upgrade/replace the
+running controller or launch a second producer for subsequent report-only
+metadata changes.** Final quantitative statistics remain pending.
+
+### Pre-cutover capacity history
 
 Coordinator update at **2026-09-07 18:57 UTC**: the GPU5 auxiliary owner has
 completed both DIOR/cloudy/44/C and DIOR/contrast/44/C, with final iter185

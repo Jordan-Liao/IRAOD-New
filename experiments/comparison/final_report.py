@@ -96,6 +96,8 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         "quantitative_scope": "full TEST predictions; all post-NMS rows; image-order evidence required",
         "per_class_precision": "printed AP table; never used to reconstruct full-precision metric.mAP",
         "raw_results": raw, "per_class": per_class, **stats,
+        "producer_metadata_corrections": [
+            r["producer_metadata_correction"] for r in raw if "producer_metadata_correction" in r],
         "qualitative_coverage": coverage, "embedding_index": embeddings,
         "collection": manifest.get("collection", {}),
     }
@@ -108,6 +110,8 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         ("paired_statistics", stats["paired_statistics"], ("dataset", "method", "role", "metric", "n")),
         ("embedding_index", embeddings, ("dataset", "domain", "comparison", "status")),
         ("roi_group_coverage", coverage["roi_group_index"], ("run_id", "status")),
+        ("producer_metadata_audit", report["producer_metadata_corrections"],
+         ("dataset", "domain", "method", "field", "recorded", "actual", "source_record")),
     ):
         write_csv(out / f"{name}.csv", rows, fields)
     history = historical_paths(manifest) + historical_paths(manifest, per_class=True)
