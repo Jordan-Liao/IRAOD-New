@@ -12,8 +12,10 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from experiments.comparison.finite_resumer import Cell, EVAL_SHA, open_pidfd, pane_job, runner_command
+from experiments.comparison.finite_resumer import (
+    Cell, EVAL_SHA, TmuxBackend, idle_devices, open_pidfd, pane_job, runner_command)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -118,9 +120,11 @@ class FiniteResumerTest(unittest.TestCase):
         smi = self.q / "bin/nvidia-smi"
         smi.write_text(f"""#!{sys.executable}
 import json,sys
-busy=json.load(open({str(self.gpu_state)!r}))
+state=json.load(open({str(self.gpu_state)!r}))
+busy=state.get("busy",[]) if isinstance(state,dict) else state
+memory=state.get("memory",{{}}) if isinstance(state,dict) else {{}}
 if any(a.startswith('--query-gpu=') for a in sys.argv):
-    print('\\n'.join(str(g)+', GPU-fixture-'+str(g)+', '+str(1000 if g in busy else 0) for g in (4,5,6,7)))
+    print('\\n'.join(str(g)+', GPU-fixture-'+str(g)+', '+str(memory.get(str(g),1000 if g in busy else 0)) for g in (4,5,6,7)))
 elif any(a.startswith('--query-compute-apps=') for a in sys.argv):
     print('\\n'.join('GPU-fixture-'+str(g)+', 999' for g in busy))
 else: raise SystemExit(2)
@@ -291,6 +295,46 @@ else: raise SystemExit(2)
         self.assertEqual(process.wait(timeout=8), 2)
         self.assertEqual(json.loads((directory / "state.json").read_text())["status"], "blocked")
         self.assertEqual(self.events, [])
+
+    def test_external_gpu4_is_excluded_even_when_our_gpu_lock_is_empty(self):
+        self.gpu_state.write_text(json.dumps({"busy": [4], "memory": {"4": 57662}}))
+        (self.q / "gpu_locks/gpu4.lock").touch()
+        cells = [Cell("RSAR", "clean", 43, "C"), Cell("RSAR", "chaff", 43, "E")]
+        process, _ = self.start(cells)
+        starts = [self.next_start(), self.next_start()]
+        self.assertEqual({g for event in starts for g in event["gpus"]}, {5, 6, 7})
+        self.assertEqual({tuple(event["gpus"]) for event in starts}, {(5,), (6, 7)})
+        self.finish(process, 4)
+        self.assertTrue(all(4 not in e["gpus"] for e in self.events if e["event"] == "start"))
+        self.assertEqual(json.loads(self.gpu_state.read_text())["memory"]["4"], 57662)
+
+    def test_worker_rechecks_external_occupancy_after_gpu_lock_acquisition(self):
+        # Parent sees a free GPU; a foreign process appears before worker admission.
+        with patch.dict(os.environ, self.env):
+            backend = TmuxBackend(self.q, self.root / "probe")
+            self.assertIn(4, backend.available())
+            backend.selector.close()
+        self.gpu_state.write_text(json.dumps({"busy": [4], "memory": {"4": 57662}}))
+        cell = Cell("RSAR", "clean", 43, "C")
+        receipt = self.root / "foreign-receipt.json"
+        job = self.root / "foreign-job.json"
+        job.write_text(json.dumps({
+            "cell": cell.__dict__, "phase": "train", "gpus": [4], "queue": str(self.q),
+            "receipt": str(receipt), "tmux": ["tmux"]}))
+        process = subprocess.Popen([
+            sys.executable, "-m", "experiments.comparison.finite_resumer", "worker", str(job)],
+            cwd=ROOT, env=self.env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        self.processes.append(process)
+        self.assertEqual(process.wait(timeout=8), 75)
+        result = json.loads(receipt.read_text())
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("occupied by another process", result["reason"])
+        self.assertEqual(self.events, [])
+
+    def test_compute_app_blocks_even_when_reported_memory_is_low(self):
+        self.gpu_state.write_text(json.dumps({"busy": [4], "memory": {"4": 0}}))
+        with patch.dict(os.environ, self.env):
+            self.assertNotIn(4, idle_devices((4, 5, 6, 7)))
 
     def test_failure_does_not_launch_dependent_eval_or_become_success(self):
         cell = Cell("RSAR", "clean", 43, "C")

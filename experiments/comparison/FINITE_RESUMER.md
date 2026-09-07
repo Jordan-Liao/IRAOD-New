@@ -126,9 +126,18 @@ EMA/Student and successful terminals, and released GPU5/ownership. New launches
 should **omit the former GPU5 external-reservation flags** and use the normal
 success checks to skip both training cells.
 
-The reported live main bridge is
-`xaf-RSAR-noise_suppression-43-F` on GPUs6/7; adopt its current canonical pane/PID
-without restarting it. RSAR seed43 clean F, chaff E/F, point_target E/F and
+Capacity update at **2026-09-07 18:59 UTC**: the coordinator reports an external
+`beichen/python` on GPU4 (PID3259071, 57,662MiB). A free queue `gpu4.lock` is
+not permission to allocate GPU4 or the 4,5 pair. The existing producer checks
+real compute applications/memory before allocation, and the worker checks them
+again after acquiring GPU locks. It never terminates external processes; no
+new monitoring/polling loop is required.
+
+The reported live queue tasks are DIOR/cloudy/44/D on GPU5 and
+`xaf-RSAR-smart_suppression-43-E` on GPUs6/7. Adopt their current canonical
+panes/PIDs without restarting them. GPU5 can become available as a single card
+after its own task releases it; it is not interchangeable with a safe 4,5 pair
+while GPU4 is externally occupied. RSAR seed43 clean F, chaff E/F, point_target E/F and
 noise_suppression E were also reported complete and must not be retrained.
 These are coordinator handoff facts, not new scans or GPU actions by this
 code delivery. The producer-only cutover rule still applies.
