@@ -118,9 +118,25 @@ retrained. A trained listed cell still gets its missing native eval.
 An optional `--eval-list /actual/missing_native_eval.txt` includes already
 trained eval-only work outside those lists, without authorizing new training.
 
-### Current GPU5 external reservation
+### Latest deployment handoff
 
-The auxiliary owner retains **DIOR/cloudy/44/C and DIOR/contrast/44/C**.
+Coordinator update at **2026-09-07 18:57 UTC**: the GPU5 auxiliary owner has
+completed both DIOR/cloudy/44/C and DIOR/contrast/44/C, with final iter185
+EMA/Student and successful terminals, and released GPU5/ownership. New launches
+should **omit the former GPU5 external-reservation flags** and use the normal
+success checks to skip both training cells.
+
+The reported live main bridge is
+`xaf-RSAR-noise_suppression-43-F` on GPUs6/7; adopt its current canonical pane/PID
+without restarting it. RSAR seed43 clean F, chaff E/F, point_target E/F and
+noise_suppression E were also reported complete and must not be retrained.
+These are coordinator handoff facts, not new scans or GPU actions by this
+code delivery. The producer-only cutover rule still applies.
+
+### Historical GPU5 reservation example
+
+During the earlier handoff, the auxiliary owner retained
+**DIOR/cloudy/44/C and DIOR/contrast/44/C**.
 The second canonical session may not exist yet; that does not transfer its
 training ownership. Create a separate reservation list (do not edit the live
 main remaining lists):
