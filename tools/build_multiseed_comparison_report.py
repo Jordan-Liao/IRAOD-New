@@ -52,6 +52,18 @@ def render(report_path, output):
         "历史 rPC 始终为 100 × mPC / 固定 A clean TEST；"
         "method_clean_normalized_percent 另列，分母为同方法同种子的独立 clean 适配实测值。"
         "缺域或缺种子时不生成完整多种子均值、标准差或 CI，不据少量已完成结果排名。")
+    doc.add_paragraph(
+        "Recovery ratio = (方法 corruption AP50 − A corruption AP50) / "
+        "(A clean TEST AP50 − A corruption AP50)。分母非正时未定义，接近零时不稳定；"
+        "不截断负值或大于 1 的值，不据此排名，逐种子逐域数值见 recovery.csv。")
+    if report.get("method_matrix"):
+        doc.add_heading("公平性与方法边界", 1)
+        table(doc, ["方法", "公平组", "框", "VLM", "目标标签", "状态"], [
+            [r["id"], r["fairness_group"], r["box"], r["vlm"], r["target_labels"], r["status"]]
+            for r in report["method_matrix"]])
+        doc.add_paragraph("Source-Free A–F 为同一主表组；source-available 未运行，"
+                          "target-supervised oracle 未运行。B/D/E/F 为已有组件组合比较，"
+                          "不冒充额外消融训练。IRG/LPLD 等未移植方法无虚构分数。")
     doc.add_heading("2. 量化与逐实例覆盖", 1)
     cov = report["qualitative_coverage"]
     table(doc, ["证据类型", "已完成 / 预期", "范围"], [

@@ -143,7 +143,26 @@ def summarize(rows, roles=("ema",)):
             for t in members:
                 t[adjusted] = corrected[t["method"]] if t[raw] is not None else None
                 t["holm_status"] = "complete_family"
-    return {"per_seed": per_seed, "per_domain": per_domain,
+    recovery = []
+    for row in rows:
+        if row["domain"] == "clean":
+            continue
+        clean = value(row["dataset"], "clean", "A", 42, "source")
+        source = value(row["dataset"], row["domain"], "A", 42, "source")
+        gap = clean - source if clean is not None and source is not None else None
+        delta = (row["mAP50"] - source
+                 if row["status"] == "complete" and source is not None else None)
+        recovery.append({
+            **{k: row[k] for k in ("dataset", "domain", "method", "seed", "role")},
+            "status": row["status"], "source_clean_TEST": clean,
+            "source_corruption_mAP50": source, "source_degradation": gap,
+            "delta_A": delta,
+            "recovery_ratio": delta / gap if delta is not None and gap is not None and gap > 0 else None,
+            "interpretation": ("descriptive_only_unstable_near_zero_gap"
+                               if gap is not None and gap > 0 else
+                               "undefined_nonpositive_or_missing_source_degradation"),
+        })
+    return {"per_seed": per_seed, "per_domain": per_domain, "recovery": recovery,
             "summary": summary, "paired_statistics": tests,
             "statistical_protocol": {
                 "unit": "adaptation seed; corruptions averaged within seed first",
@@ -156,4 +175,7 @@ def summarize(rows, roles=("ema",)):
                 "holm": "planned five B-F tests per dataset/role/metric; no adjustment until family complete",
                 "rPC": "100 * seed mPC / fixed A clean TEST",
                 "method_clean_normalized": "separate: 100 * seed mPC / same-method same-seed clean",
+                "recovery": "(method - A_corruption) / (A_clean_TEST - A_corruption); "
+                            "undefined for nonpositive gap; descriptive only, unstable near zero; "
+                            "no clipping or ranking",
             }}

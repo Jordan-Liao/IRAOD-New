@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from experiments.comparison.report_inputs import collect_quantitative, historical_paths
+from experiments.comparison.report_inputs import collect_quantitative, historical_paths, read_rows
 from experiments.comparison.report_qualitative import qualitative_evidence
 from experiments.comparison.report_statistics import summarize
 from experiments.comparison.result_completion import read_json, write_json
@@ -55,6 +55,23 @@ def figures(report, out):
     return saved
 
 
+def render_report(report, out, docx_python):
+    """Render already collected numbers locally without reopening remote model artifacts."""
+    out = Path(out)
+    report["figures"] = figures(report, out)
+    report["rendering"] = "figures_and_docx"
+    write_json(out / "report.json", report)
+    subprocess.run([
+        docx_python, "-m", "tools.build_multiseed_comparison_report",
+        "--report", str((out / "report.json").resolve()),
+        "--out", str((out / "comparison_report_cn.docx").resolve()),
+    ], cwd=ROOT, check=True)
+    write_json(out / "build_status.json", {
+        "report_build": "complete", "result_status": report["status"],
+        "full_test_roi": report["qualitative_coverage"]["full_test_roi"]})
+    return report
+
+
 def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
     if not metadata_only and not docx_python:
         raise ValueError("A DOCX interpreter is required unless metadata_only is explicit")
@@ -78,16 +95,21 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         "config", "image_id", "scope", "roi_status", "vis_status", "feature_file",
         "n_detections", "visualization_file", "evidence",
     ]
-    with (out / "roi_vis_coverage.csv").open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=roi_fields)
-        writer.writeheader()
-        _, embeddings, coverage = qualitative_evidence(manifest, writer.writerow)
+    if manifest.get("qualitative_evidence"):
+        _, embeddings, coverage = qualitative_evidence(manifest)
+        (out / "roi_vis_coverage.csv").symlink_to(coverage["roi_image_manifest"])
+    else:
+        with (out / "roi_vis_coverage.csv").open("w", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=roi_fields)
+            writer.writeheader()
+            _, embeddings, coverage = qualitative_evidence(manifest, writer.writerow)
     complete_cells = sum(r["status"] == "complete" for r in raw)
     complete = (complete_cells == len(raw)
                 and coverage["roi_complete"] == coverage["roi_expected_image_roles"]
                 and coverage["vis_complete"] == 3520 and coverage["embeddings_complete"] == 24)
     report = {
         "schema": SCHEMA, "input_manifest": str(Path(manifest_path).resolve()),
+        "artifact_directory": str(out.resolve()),
         "code_commit": subprocess.check_output(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
         "status": "declared_scopes_complete" if complete else "partial",
@@ -100,6 +122,9 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
             r["producer_metadata_correction"] for r in raw if "producer_metadata_correction" in r],
         "qualitative_coverage": coverage, "embedding_index": embeddings,
         "collection": manifest.get("collection", {}),
+        "source_ids": manifest["source_ids"],
+        "source_provenance": manifest.get("source_provenance", {}),
+        "checkpoints": read_rows(manifest["checkpoints"]),
     }
     for name, rows, fields in (
         ("raw_results", raw, ("dataset", "domain", "method", "seed", "role", "mAP50", "status")),
@@ -108,6 +133,7 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         ("per_domain", stats["per_domain"], ("dataset", "domain", "method", "role", "mean")),
         ("summary", stats["summary"], ("dataset", "method", "role", "metric", "mean", "sample_std")),
         ("paired_statistics", stats["paired_statistics"], ("dataset", "method", "role", "metric", "n")),
+        ("recovery", stats["recovery"], ("dataset", "domain", "method", "seed", "recovery_ratio")),
         ("embedding_index", embeddings, ("dataset", "domain", "comparison", "status")),
         ("roi_group_coverage", coverage["roi_group_index"], ("run_id", "status")),
         ("producer_metadata_audit", report["producer_metadata_corrections"],
@@ -123,34 +149,40 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
                 raise ValueError("Historical file basenames must be distinct")
             names.add(Path(path).name)
             shutil.copyfile(path, out / "historical" / Path(path).name)
-    report["figures"] = [] if metadata_only else figures(report, out)
-    report["rendering"] = "deferred_metadata_only" if metadata_only else "figures_and_docx"
+    report["figures"] = []
+    report["rendering"] = "deferred_metadata_only"
     write_json(out / "report.json", report)
-    if not metadata_only:
-        subprocess.run([
-            docx_python, "-m", "tools.build_multiseed_comparison_report",
-            "--report", str((out / "report.json").resolve()),
-            "--out", str((out / "comparison_report_cn.docx").resolve()),
-        ], cwd=ROOT, check=True)
     # Evidence collection may be partial; this marker means only report construction finished.
     write_json(out / "build_status.json", {
-        "report_build": "metadata_complete" if metadata_only else "complete",
+        "report_build": "metadata_complete",
         "result_status": report["status"],
         "full_test_roi": coverage["full_test_roi"]})
+    if not metadata_only:
+        render_report(report, out, docx_python)
     return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", required=True)
-    parser.add_argument("--out-dir", required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--manifest")
+    inputs.add_argument("--render-dir", help="Render an existing collected report without artifact reinspection")
+    parser.add_argument("--out-dir")
     rendering = parser.add_mutually_exclusive_group(required=True)
     rendering.add_argument("--docx-python",
                            help="Existing python-docx interpreter; no installation or GPU launch")
     rendering.add_argument("--metadata-only", action="store_true",
                            help="Scoped evidence inspection without rendering figures or final DOCX")
     args = parser.parse_args()
-    result = build_report(args.manifest, args.out_dir, args.docx_python, args.metadata_only)
+    if args.render_dir:
+        if not args.docx_python or args.out_dir:
+            parser.error("--render-dir requires --docx-python and no --out-dir")
+        result = render_report(read_json(Path(args.render_dir) / "report.json"),
+                               args.render_dir, args.docx_python)
+    else:
+        if not args.out_dir:
+            parser.error("--manifest requires --out-dir")
+        result = build_report(args.manifest, args.out_dir, args.docx_python, args.metadata_only)
     print(f"{result['status']}: {result['quantitative_complete_cells']}/"
           f"{result['quantitative_expected_cells']} quantitative cells; "
           f"RoI {result['qualitative_coverage']['roi_complete']}/"

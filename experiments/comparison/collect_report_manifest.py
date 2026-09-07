@@ -64,7 +64,8 @@ def choose_evaluation(paths, owner_format, dataset, domain, seed, method):
 
 
 def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
-                     inspect_roi_run_ids=None, paths_file=None, owner_format_file=None):
+                     inspect_roi_run_ids=None, paths_file=None, owner_format_file=None,
+                     qualitative_evidence=None):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=False)
     rsar_source = read_json(ROOT / "experiments/comparison/checkpoint_manifest.json")["source"]
@@ -182,6 +183,8 @@ def collect_manifest(paths, owner_format, roi_plan, out_dir, quant_seeds=(42,),
     }
     if inspect_roi_run_ids is not None:
         manifest["inspect_roi_run_ids"] = list(inspect_roi_run_ids)
+    if qualitative_evidence:
+        manifest["qualitative_evidence"] = str(Path(qualitative_evidence).resolve())
     write_json(out / "report-manifest.json", manifest)
     return manifest
 
@@ -196,11 +199,13 @@ def main():
                         help="Repeat for selected seeds; default inspects 42,43,44")
     parser.add_argument("--roi-run-id", action="append",
                         help="Repeat to freeze the exact ROI groups allowed for this inspection")
+    parser.add_argument("--qualitative-evidence",
+                        help="Completed streaming evidence directory; reuse without NPZ rescanning")
     args = parser.parse_args()
     manifest = collect_manifest(
         load_resolver(args.paths_module), read_json(args.owner_format),
         args.roi_plan, args.out_dir, tuple(args.quant_seed or (42, 43, 44)),
-        args.roi_run_id, args.paths_module, args.owner_format)
+        args.roi_run_id, args.paths_module, args.owner_format, args.qualitative_evidence)
     print(f"{Path(args.out_dir) / 'report-manifest.json'}: "
           f"{manifest['collection']['metric_files_found']} actual metric JSONs; metadata only")
 

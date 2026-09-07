@@ -362,8 +362,96 @@ and `rendering=deferred_metadata_only`, not a final document. Existing training
 environments need no package changes for this partial inspection. Missing
 native sidecars stay missing even where legacy quantitative mAP is known.
 
-For final collection, repeat into a fresh snapshot without the seed/group
-filters to inspect the declared complete matrix; add only actual v3 embedding
-directories to `embeddings`. Then run the report consumer with
-`--docx-python /existing/docx/python` instead of `--metadata-only`. Reuse all
-numeric artifacts; do not rerun training to fill a report.
+## Final delivery readiness and accepted-evidence reuse
+
+**Readiness only: final publication is still blocked on coordinator-supplied
+130/130 training and 192/192 native evaluation terminal evidence.** No watcher,
+model execution or partial final report is part of this consumer work.
+
+The accepted collector is at:
+`/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence`.
+Pass `--qualitative-evidence` to collection. The report then reuses the completed
+streaming audit, reconciles all compact group/embedding counts with the summary,
+and binds the current plan (including checkpoints/config/ordered IDs) to the
+132 export indices, frozen visualization indices and 24 embedding protocols.
+It never opens an NPZ or resamples/recomputes an embedding. It does not claim to
+reaudit feature bytes; acceptance rests on the already completed streaming audit.
+The large ROI CSV remains remote, linked rather than copied or falsely replaced
+by a header-only file. Quantitative completion is still independently required.
+
+After the coordinator supplies the genuine finite `state.json` terminal snapshot,
+run CPU-only collection on `.67` from an independent **report** checkout containing
+this commit, never the live runner/training/evaluation checkout:
+
+```bash
+export CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export PYTHONDONTWRITEBYTECODE=1
+ART=/mnt/shared/zechuan/iraod_artifacts/comparison
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+SNAP=/absolute/new/final-consumer-snapshot
+"$PY" -m experiments.comparison.collect_report_manifest \
+  --paths-module "$ART/xaf_s424344/paths.py" \
+  --owner-format "$ART/result_completion_v2_91548e4a/consumer_format.json" \
+  --roi-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
+  --qualitative-evidence "$ART/qualitative_complete_20260907_stream/evidence" \
+  --out-dir "$SNAP/input"
+"$PY" -m experiments.comparison.final_report \
+  --manifest "$SNAP/input/report-manifest.json" \
+  --out-dir "$SNAP/report" --metadata-only
+```
+
+No seed/group filters are used. This is the one full numeric/prediction consumer;
+it validates actual native prediction IDs and per-class evidence remotely.
+Metric conflicts remain blockers, not an excuse to replace frozen originals.
+Download the small report directory files and `historical/` plus input provenance
+and the coordinator's terminal snapshot. **Exclude** `prediction_image_coverage.csv`
+and the `roi_vis_coverage.csv` symlink from download/Git; do not dereference the
+701 MB accepted ROI manifest. `report.json` retains their absolute remote paths
+and inline checkpoint evidence for portable rendering.
+
+Use the existing local CPU/DOCX interpreters above:
+
+```bash
+"$CPU_PY" -m experiments.comparison.final_report \
+  --render-dir /absolute/downloaded/report --docx-python "$DOCX_PY"
+"$CPU_PY" -m experiments.comparison.publish_report \
+  --report-dir /absolute/downloaded/report \
+  --terminal-state /absolute/downloaded/terminal_state.json \
+  --out-dir /absolute/new/final-delivery --docx-python "$DOCX_PY"
+```
+
+Rendering never reopens model artifacts. Publishing rejects partial/metadata-only
+reports, incomplete or mismatched finite terminal matrices, missing per-class or
+source/code/ID provenance, and seed42 qualitative/quantitative checkpoint mismatch.
+It emits every exact original required filename under `results/paper_comparison/`
+and all six required `experiments/comparison/` files. Supplementary CSVs include
+per-seed blocks and explicitly labeled per-domain/seed `recovery.csv`, with
+nonpositive source degradation undefined and near-zero degradation not ranked.
+
+The tables reuse the same numeric summary as the DOCX/Chinese summary:
+Source-Free A-F, OBB, VLM and target-label usage; clean/mPC/historical rPC/delta,
+mean +/- sample std; bold only within the displayed fair group. The B/D/E/F
+component table reuses those main runs, not invented ablations. Unrun oracle,
+source-available comparisons and extra baselines/ablations are labeled not run.
+LaTeX requires `booktabs`, `graphicx`, and `xcolor` with the `table` option.
+
+### Installing the staged package (repository owner only)
+
+`publication.json` marks a **staged**, not installed/pushed delivery. Before
+overlaying its two directories in this integration worktree, move the old
+versioned top-level result files into `results/paper_comparison/historical/seed42/`
+(the package includes byte-identical copies). Keep accepted `qualitative*`,
+`source_producer_metadata_corrections.json` and `dior_checkpoint_manifest.json`
+at their current paths, as the staged package does. Do not move unrelated
+untracked files or anything in the main checkout. Then copy the staged
+`results/paper_comparison/` and `experiments/comparison/` into this worktree,
+retaining the historical tree. Old `dior_*` supplementary reports must not remain
+beside the new combined reports as if current. The old experiment documents are
+also archived by the package under `historical/experiment_docs/`.
+
+Once installed, the consumer's mandatory historical locks resolve exclusively
+to `historical/seed42/`, not the newly generated combined raw/per-class schemas.
+Version the compact manifests, tables, report, DOCX and documentation together.
+Only then update draft PR4 with actual completion evidence and commit/push the
+integration branch; do not merge or push main. Preserve source-producer
+correction `9e2b5f` and do not infer all-eight completion from a build marker.

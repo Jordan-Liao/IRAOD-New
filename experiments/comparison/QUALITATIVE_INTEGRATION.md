@@ -48,6 +48,13 @@ invent any quantitative completion. Source snapshots and the base commit/
 working-tree flag distinguish a tested staged collector from a clean committed
 checkout.
 
+The completed production collector at
+`/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence`
+must be reused for the final consumer, not run again. Supply that directory via
+`collect_report_manifest --qualitative-evidence`; see `REPORT_CONSUMER.md`.
+Reuse checks plan/index bindings and reconciles counts without reading feature
+NPZs. The accepted full streaming audit remains the evidence of row alignment.
+
 Only the small summary, group/embedding indices and provenance are versioned
 in `results/paper_comparison/`. NPZs, images, embedding binaries and the
 1.26-million-row CSV remain remote.

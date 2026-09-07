@@ -31,8 +31,10 @@ def historical_paths(manifest, per_class=False):
     names = (("per_class_summary.csv", "dior_per_class.csv") if per_class else
              ("raw_results.csv", "dior_raw_results.csv"))
     extra = manifest.get("historical_per_class" if per_class else "historical_raw", [])
+    frozen = HISTORICAL_ROOT / "historical/seed42"
+    root = frozen if frozen.is_dir() else HISTORICAL_ROOT
     return list(dict.fromkeys(str(Path(p).resolve())
-                             for p in [*(HISTORICAL_ROOT / n for n in names), *extra]))
+                             for p in [*(root / n for n in names), *extra]))
 
 
 def read_rows(value):
