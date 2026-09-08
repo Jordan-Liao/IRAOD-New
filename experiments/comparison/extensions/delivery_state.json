@@ -142,6 +142,12 @@
       },
       "prerequisites": "AASFOD TSD and matching completed domain TAM are waiting, not falsely ready; independent B_REG/F work may proceed",
       "smoke": "smoke_frozen_training uses1-4 actual optimizer updates, fresh NON_RESULT roots, original0f98 model imports and no formal checkpoints",
+      "smoke_patch_code": "integration_code_adb6ba4",
+      "smoke_failure_resolution": {
+        "B_REG": "Real legacy cell lacks world_size; adb6ba4 resolves through existing finite Cell.width/single-GPU dispatch without modifying the cell or scientific settings",
+        "F_text_only": "Compute owner confirmed outer with_gpu_lock.sh4,5 plus internal acquisition of gpu4.lock; next smoke retry removes only the outer wrapper, never bypasses locks"
+      },
+      "smoke_lock_contract": "Smoke entry acquires GPU/cell locks itself; native evaluation/TSD/TAM/LoRA retain their existing outer-lock contracts",
       "live_a39_changed": false
     },
     "DRU": {"status": "explicitly_excluded_no_proxy"}

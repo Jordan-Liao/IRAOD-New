@@ -159,14 +159,26 @@ supervisor's orchestrator, without `with_gpu_lock.sh`, `flock`, or a
 owns both locks itself and sets `IRAOD_GPU_LOCKED=1` only for its native child
 after acquisition. An inherited flag never bypasses acquisition. If another
 holder exists, the smoke must fail; do not unlink lock files or bypass locks.
-Native detector/Student evaluation, TSD and TAM entries retain their existing
-outer-lock contract; do not apply the smoke contract to those entries.
+Native detector/Student evaluation, TSD, TAM and the LoRA trainer retain their
+existing outer-lock contract; do not apply the smoke contract to those entries.
+
+The compute owner confirmed the actual16:07 F failure: its launcher held
+`with_gpu_lock.sh` for4,5, while `smoke_frozen_training.run` opened and tried
+to acquire the same `xaf_s424344/gpu_locks/gpu4.lock` again. This was nested
+acquisition, not evidence that a GPU-use check should override a lock.
+The owner's next smoke retry removes the outer wrapper; the smoke remains
+the sole shared-lock acquirer. LoRA keeps its outer wrapper because it has
+no internal GPU lock. Failed752 logs remain preserved.
 
 Legacy `b_reg_manifests_0e5f8f7` cells do not contain `world_size`. Their
 topology comes from the existing finite runner's B_REG single-GPU dispatch
 (`Cell.width`), not from the four-GPU source-training checkpoint pathname and
 not from an arbitrary safety default. The cell/config are not rewritten;
 the smoke still uses1x32 and records the topology's resolution basis.
+The corrected harness is deployed as `ROOT/integration_code_adb6ba4`; use it
+with the existing `ROOT/release_manifests_752a139`, fresh NON_RESULT output
+roots and the direct launcher contract above. No source queue or752 snapshot
+was overwritten.
 
 ```bash
 "$PY" -m experiments.comparison.smoke_frozen_training \
