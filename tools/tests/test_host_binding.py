@@ -1,12 +1,13 @@
 """CPU-only selected-host paths, frozen config views, locks and native routing."""
 
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 import copy
 import json
 import os
 import pickle
 from pathlib import Path
 import subprocess
+import socket
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -35,6 +36,61 @@ def target(stack):
 
 
 class HostBindingTest(unittest.TestCase):
+    def test_ddp_launcher_rank_before_native_is_forwarded(self):
+        for option, rank in (("--local-rank=0", 0), ("--local_rank=1", 1)):
+            with self.subTest(option=option), ExitStack() as stack:
+                old_path = list(sys.path)
+                stack.callback(lambda: sys.path.__setitem__(slice(None), old_path))
+                entry = "/bound/frozen/train.py"
+                arguments = ["config.py", "--launcher", "pytorch",
+                             "--cfg-options", "data.samples_per_gpu=16"]
+                stack.enter_context(patch.object(sys, "argv", [
+                    host.__file__, option, "native", entry, *arguments]))
+                stack.enter_context(patch.object(host, "is_target_host", return_value=False))
+                stack.enter_context(patch.object(host, "native_config_paths", return_value=nullcontext()))
+                stack.enter_context(patch.object(host, "native_integrity", return_value=nullcontext()))
+
+                def native(path, run_name):
+                    self.assertEqual(path, entry)
+                    self.assertEqual(run_name, "__main__")
+                    self.assertEqual(sys.argv, [entry, *arguments, f"--local-rank={rank}"])
+
+                run = stack.enter_context(patch.object(host.runpy, "run_path", side_effect=native))
+                host.main()
+                run.assert_called_once()
+
+    def test_actual_two_process_cpu_launcher_forwards_both_local_ranks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            probe = root / "rank_probe.py"
+            probe.write_text(
+                "import argparse,json,os\nfrom pathlib import Path\n"
+                "p=argparse.ArgumentParser()\n"
+                "p.add_argument('--local-rank','--local_rank',type=int,required=True)\n"
+                "p.add_argument('--out-dir',required=True)\n"
+                "a=p.parse_args()\n"
+                "assert a.local_rank == int(os.environ['LOCAL_RANK'])\n"
+                "(Path(a.out_dir)/f'rank_{a.local_rank}.json').write_text("
+                "json.dumps({'argument_rank':a.local_rank,'environment_rank':int(os.environ['LOCAL_RANK'])}))\n")
+            with socket.socket() as listener:
+                listener.bind(("127.0.0.1", 0))
+                port = listener.getsockname()[1]
+            command = [
+                sys.executable, "-m", "torch.distributed.launch", "--nproc_per_node=2",
+                "--master_addr=127.0.0.1", f"--master_port={port}",
+                str(Path(host.__file__).absolute()), "native", str(probe), "--out-dir", str(root),
+            ]
+            result = subprocess.run(
+                command, cwd=training.ROOT,
+                env={**os.environ, "CUDA_VISIBLE_DEVICES": "", "OMP_NUM_THREADS": "1",
+                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
+                     "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"},
+                text=True, capture_output=True, timeout=45)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for rank in (0, 1):
+                self.assertEqual(json.loads((root / f"rank_{rank}.json").read_text()),
+                                 {"argument_rank": rank, "environment_rank": rank})
+
     def test_stdlib_only_import(self):
         result = subprocess.run([
             sys.executable, "-S", "-c",

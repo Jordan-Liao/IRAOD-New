@@ -21,6 +21,9 @@ This is an operational overlay for exact hostname `73F3-5xA6000-221`
 - `native_command(argv, entry)` inserts the path-only native shim around
   `train.py` / `test.py` on the target. It leaves the bound model code and
   interpreter unchanged.
+- Torch's `--local-rank` / `--local_rank` injected before `native` is accepted
+  by the wrapper and forwarded unchanged to the underlying native entry.
+  The parser does not alter rank/GPU mapping, world size or remaining arguments.
 
 `load_cell` follows mapped `source_queues` and returns mapped runtime views.
 `finite_resumer.load_paths` follows copied resolver symlinks with their targets
