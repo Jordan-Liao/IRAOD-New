@@ -100,10 +100,12 @@ def render(report_path, output):
             "本次只收集声明角色的全 TEST 量化结果；不把既有 core 的定性覆盖分母"
             "当作扩展任务范围。新增 RoI、固定可视化与联合嵌入仍由已批准扩展清单跟踪。")
     else:
+        expected_vis = cov["vis_expected_image_roles"] if "methods" in report else 3520
+        expected_embeddings = cov["embeddings_expected"] if "methods" in report else 24
         coverage_rows.extend([
         ["RoI", f"{cov['roi_complete']} / {cov['roi_expected_image_roles']}", "全 TEST 对齐逐实例"],
-        ["可视化", f"{cov['vis_complete']} / 3520", "固定子集，展示阈值 0.3"],
-        ["joint embedding", f"{cov['embeddings_complete']} / 24",
+        ["可视化", f"{cov['vis_complete']} / {expected_vis}", "固定子集，展示阈值 0.3"],
+        ["joint embedding", f"{cov['embeddings_complete']} / {expected_embeddings}",
          "采样分析；不是全量预测实例"],
         ])
     table(doc, ["证据类型", "已完成 / 预期", "范围"], coverage_rows)

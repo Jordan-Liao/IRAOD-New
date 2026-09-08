@@ -8,9 +8,9 @@ import shutil
 import subprocess
 
 from experiments.comparison.report_inputs import collect_quantitative, historical_paths, read_rows
-from experiments.comparison.report_qualitative import qualitative_evidence
+from experiments.comparison.report_qualitative import qualitative_evidence, validate_plan
 from experiments.comparison.report_statistics import comparison_groups, declared_methods, summarize
-from experiments.comparison.result_completion import read_json, write_json
+from experiments.comparison.result_completion import read_json, write_json, plan_methods
 
 
 SCHEMA = "iraod-comparison-report-v1"
@@ -134,7 +134,12 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
     methods = declared_methods(manifest.get("methods"))
     quant_only = manifest.get("quantitative_only", False)
     if "methods" in manifest and not quant_only:
-        raise ValueError("Explicit-method reports are quantitative-only; extension RoI/t-SNE remain pending")
+        if not manifest.get("qualitative_plan"):
+            raise ValueError("Explicit-method reports need a declared qualitative plan or quantitative-only scope")
+        qualitative_plan = read_json(manifest["qualitative_plan"])
+        validate_plan(qualitative_plan)
+        if set(plan_methods(qualitative_plan)) - set(methods) - set("ABCDEF"):
+            raise ValueError("New qualitative methods must belong to the declared report method set")
     if "comparison_groups" in manifest and manifest["comparison_groups"] != comparison_groups(methods):
         raise ValueError("Comparison groups must preserve the declared budget/supervision boundaries")
     out = Path(out_dir)
@@ -174,9 +179,12 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
             writer.writeheader()
             _, embeddings, coverage = qualitative_evidence(manifest, writer.writerow)
     complete_cells = sum(r["status"] == "complete" for r in raw)
+    expected_vis = coverage["vis_expected_image_roles"] if "methods" in manifest else 3520
+    expected_embeddings = coverage["embeddings_expected"] if "methods" in manifest else 24
     complete = (not quant_only and complete_cells == len(raw)
                 and coverage["roi_complete"] == coverage["roi_expected_image_roles"]
-                and coverage["vis_complete"] == 3520 and coverage["embeddings_complete"] == 24)
+                and coverage["vis_complete"] == expected_vis
+                and coverage["embeddings_complete"] == expected_embeddings)
     report = {
         "schema": SCHEMA, "input_manifest": str(Path(manifest_path).resolve()),
         "artifact_directory": str(out.resolve()),
@@ -203,6 +211,10 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         report["methods"] = methods
         report["comparison_groups"] = comparison_groups(methods)
         report["latex_tables"] = extension_tables(report, out)
+        if not quant_only:
+            report["qualitative_adaptation_seed"] = qualitative_plan.get("adaptation_seed", 42)
+            report["qualitative_reference_methods"] = [
+                m for m in plan_methods(qualitative_plan) if m not in methods]
     for name, rows, fields in (
         ("raw_results", raw, ("dataset", "domain", "method", "seed", "role", "mAP50", "status")),
         ("per_class", per_class, ("dataset", "domain", "method", "seed", "role", "class_name", "AP50")),

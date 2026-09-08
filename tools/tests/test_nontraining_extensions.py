@@ -1,21 +1,88 @@
 """Finite Student jobs and seeded qualitative source reuse, without GPU execution."""
 
 import json
+import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from experiments.comparison.extension_manifest import prepare, seeded_plan
 from experiments.comparison.finite_resumer import Cell, load_cells, pane_job, runner_command
 from experiments.comparison.joint_tsne import joint_tsne
 from experiments.comparison.report_qualitative import inspect_embedding, validate_plan
-from tools.tests import test_aligned_roi_completion as roi_tests
 from tools.tests import test_finite_resumer as finite_tests
 
 
 class StudentFiniteTest(unittest.TestCase):
+    def test_five_port_student_rows_are_single_gpu_and_controls_remain_excluded(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "student.list"
+            for method in ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO"):
+                path.write_text(f"DIOR clean 42 {method} student\n")
+                cell = Cell("DIOR", "clean", 42, method, "student")
+                self.assertEqual(load_cells([], [path]), {cell: False})
+                self.assertEqual(cell.width, 1)
+                self.assertEqual(cell.model, Cell("DIOR", "clean", 42, method))
+            for method in ("A", "B_REG", "F_text_only", "F_veto_only", "ORACLE"):
+                path.write_text(f"DIOR clean 42 {method} student\n")
+                with self.assertRaises(ValueError):
+                    load_cells([], [path])
+            self.assertEqual(Cell("DIOR", "clean", 42, "F", "student").width, 1)
+            self.assertEqual(Cell("DIOR", "clean", 42, "F", "student").session("eval"),
+                             "xafS-DIOR-clean-42-F")
+
+    def test_real_pidfd_serializes_training_and_both_roles_for_one_model(self):
+        fixture = finite_tests.FiniteResumerTest()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        model = Cell("DIOR", "clean", 42, "IRG")
+        student = Cell("DIOR", "clean", 42, "IRG", "student")
+        process, directory = fixture.start([model], "both-roles", eval_cells=[student])
+        for expected in (model.session("train"), model.session("eval"), student.session("eval")):
+            event = fixture.next_start()
+            self.assertEqual(event["name"], expected)
+            self.assertEqual(len(fixture.live), 1)
+            self.assertEqual(len(event["gpus"]), 1)
+            fixture.release(event["name"])
+        self.assertEqual(process.wait(timeout=10), 0)
+        state = json.loads((directory / "state.json").read_text())
+        self.assertEqual(state["status"], "complete")
+        self.assertEqual(len([e for e in fixture.events if e["phase"] == "train"
+                              and e["event"] == "start"]), 1)
+
+    def test_student_only_scope_adopts_original_ema_training_without_relaunch(self):
+        fixture = finite_tests.FiniteResumerTest()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        model = Cell("DIOR", "clean", 42, "IRG")
+        student = Cell("DIOR", "clean", 42, "IRG", "student")
+        command = shlex.join(runner_command(fixture.q, model, "train", (5,)))
+        subprocess.run(["tmux", "new-session", "-d", "-s", model.session("train"), command],
+                       env=fixture.env, check=True)
+        event = fixture.next_start()
+        process, directory = fixture.start([], "adopt-model", eval_cells=[student])
+        # Exercise discovery of a model not itself listed in this Student-only scope.
+        from experiments.comparison.finite_resumer import TmuxBackend, take_lock
+        lock_path = fixture.q / "cell_locks" / (model.session("train") + ".lock")
+        with patch.dict(os.environ, fixture.env):
+            backend = TmuxBackend(fixture.q, fixture.root / "adoption-probe")
+            handles = backend.discover({student: False}, {})
+            self.assertEqual([(h["cell"], h["phase"]) for h in handles], [(model, "train")])
+            self.assertIsNone(take_lock(lock_path))
+            for handle in handles:
+                backend.close(handle)
+            backend.selector.close()
+        fixture.release(event["name"])
+        event = fixture.next_start()
+        self.assertEqual(event["name"], student.session("eval"))
+        fixture.release(event["name"])
+        self.assertEqual(process.wait(timeout=10), 0)
+        self.assertEqual(json.loads((directory / "state.json").read_text())["status"], "complete")
+
     def test_student_native_finite_job_reuses_training_but_not_ema_evaluation(self):
         fixture = finite_tests.FiniteResumerTest()
         fixture.setUp()
@@ -66,9 +133,12 @@ class StudentFiniteTest(unittest.TestCase):
 
 class SeededQualitativeTest(unittest.TestCase):
     def test_prepare_emits_only_new_student_and_seeded_non_source_jobs(self):
-        fixture = roi_tests.CompletionTest()
+        from tools.tests.test_extension_training import ExtensionTrainingTest
+
+        fixture = ExtensionTrainingTest()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
+        fixture.plan = json.loads(fixture.base.read_text())
         source = fixture.root / "paths.py"
         source.write_text(
             f"ROOT = {str(fixture.root / 'weights')!r}\n"
@@ -114,6 +184,8 @@ class SeededQualitativeTest(unittest.TestCase):
         subprocess.run(["bash", "-n", str(out / "student_queue/run_eval_full.sh")], check=True)
 
     def test_seeded_plan_reuses_exact_source_objects_and_rejects_mixed_adaptation_seeds(self):
+        from tools.tests import test_aligned_roi_completion as roi_tests
+
         fixture = roi_tests.CompletionTest()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
@@ -142,6 +214,8 @@ class SeededQualitativeTest(unittest.TestCase):
             validate_plan(plan)
 
     def test_seed43_joint_embedding_binds_source42_and_actual_per_point_seeds(self):
+        from tools.tests import test_aligned_roi_completion as roi_tests
+
         fixture = roi_tests.CompletionTest()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)

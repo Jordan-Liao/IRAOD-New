@@ -66,7 +66,8 @@ class ExtensionTrainingTest(unittest.TestCase):
                     runs.append({
                         "run_id": f"{ds}/{domain}/{method}/{role}", "dataset": ds,
                         "domain": domain, "method": method, "role": role, "seed": 42,
-                        "scope": "full_test", "checkpoint_domain": "source" if method == "A" else domain,
+                        "scope": "full_test", "show_score_thr": 0.3,
+                        "checkpoint_domain": "source" if method == "A" else domain,
                         "checkpoint": str(source) if method == "A" else "/unused/core_final.pth",
                         "config": "/unused/plan_config.py", "ann_file": str(ann),
                         "img_prefix": str(images), "image_ids": ids,
@@ -165,9 +166,11 @@ class ExtensionTrainingTest(unittest.TestCase):
         Path(cell["tam_checkpoint"]).parent.mkdir(parents=True)
         Path(cell["tam_checkpoint"]).write_bytes(b"fixture; real model validates completed payload")
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch("experiments.comparison.tam_artifacts.load_completed_tam") as tam_load, \
                 patch.object(training.subprocess, "run",
                              side_effect=lambda *a, **kw: self.complete(cell)) as run:
             self.train(method="SFYOLO")
+        tam_load.assert_called_once_with(Path(cell["tam_checkpoint"]), cell["tam_identity"], "cpu")
         command = run.call_args.args[0]
         for binding in ("runner.max_epochs=2", "model.cfg.tam_seed=42",
                         "model.cfg.tam_dataset=DIOR", "model.cfg.tam_domain=cloudy",
@@ -510,8 +513,10 @@ class ExtensionTrainingTest(unittest.TestCase):
     def test_train_requires_approved_gpu_and_lock_without_writes(self):
         self.prepare()
         with patch.object(training.subprocess, "run") as run:
-            with self.assertRaisesRegex(ValueError, "GPU4-7"):
+            with self.assertRaisesRegex(ValueError, "GPU4,5,6"):
                 self.train(gpu=3)
+            with self.assertRaisesRegex(ValueError, "GPU4,5,6"):
+                self.train(gpu=7)
             with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": ""}):
                 with self.assertRaisesRegex(RuntimeError, "shared GPU lock"):
                     self.train()

@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+import shlex
 
 
 SCHEMA = "iraod-aligned-roi-v3-full-test"
@@ -16,6 +17,89 @@ DOMAINS = {
 }
 ROLES = [("A", "source")] + [
     (method, role) for method in "BCDEF" for role in ("ema", "student")]
+PORT_METHODS = ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO")
+FEATURE_POINT = "roi_head.bbox_head.fc_cls.input"
+FEATURE_VERSION = "post-nms-fc-cls-input-v1"
+
+
+def plan_methods(plan):
+    """Legacy plans retain A-F; extended plans must explicitly declare methods."""
+    methods = plan.get("methods", list("ABCDEF"))
+    if (not methods or methods[0] != "A" or len(set(methods)) != len(methods)
+            or set(methods) - set((*"ABCDEF", *PORT_METHODS))):
+        raise ValueError("Declare A/source and unique approved qualitative methods")
+    return methods
+
+
+def comparison_runs(plan, dataset, domain, role):
+    methods = plan_methods(plan)
+    selected = sorted(
+        (r for r in plan["runs"] if r["dataset"] == dataset and r["domain"] == domain
+         and (r["role"] == role or (r["method"], r["role"]) == ("A", "source"))),
+        key=lambda r: methods.index(r["method"]))
+    if [r["method"] for r in selected] != methods:
+        raise ValueError("Comparison must contain exactly the plan-declared method set")
+    seed = plan.get("adaptation_seed", 42)
+    if seed not in (42, 43, 44) or any(
+            r["seed"] != (42 if r["method"] == "A" else seed) for r in selected):
+        raise ValueError("Joint embedding requires source42 and one declared adaptation seed")
+    return selected
+
+
+def native_binding_evidence(run):
+    """Inspect real native completion; absent inputs are pending, never backfilled."""
+    binding = run["native_prediction"]
+    root = Path(binding["eval_dir"])
+    required = [Path(run["checkpoint"]), root / "eval_status", root / "execution.json",
+                root / "predictions.pkl", root / "predictions.pkl.image_ids.json"]
+    missing = [str(p) for p in required if not p.is_file() or not p.stat().st_size]
+    if missing:
+        return {"status": "pending", "missing": missing}
+    records = [line for line in (root / "eval_status").read_text().splitlines()
+               if line.startswith("eval_exit=")]
+    fields = dict(token.split("=", 1) for token in shlex.split(records[-1])
+                  if "=" in token) if records else {}
+    wanted = {"eval_exit": "0", "name": run["method"], "domain": run["domain"],
+              "seed": str(run["seed"]), "role": run["role"], "checkpoint": run["checkpoint"]}
+    if any(fields.get(key) != value for key, value in wanted.items()):
+        return {"status": "pending", "missing": ["successful_native_evaluation"]}
+    execution = read_json(root / "execution.json")
+    identity = {key: run[key] for key in ("dataset", "domain", "seed", "method", "role",
+                                         "checkpoint", "config")}
+    identity.update(source_id=binding["source_id"],
+                    evaluation_code_sha=binding["evaluation_code_sha"])
+    if (any(execution.get(key) != value for key, value in identity.items())
+            or not execution.get("training_code_sha")):
+        raise ValueError("Native evaluation execution identity differs from ROI binding")
+    sidecar = read_json(root / "predictions.pkl.image_ids.json")
+    ids = sidecar["image_ids"]
+    if (sidecar["schema"] != "iraod-prediction-image-order-v1"
+            or sidecar["origin"] != "inference_batch_img_metas"
+            or sidecar["status"] != "complete"
+            or sidecar["predictions_file"] != "predictions.pkl"
+            or sidecar["checkpoint"] != run["checkpoint"]
+            or sidecar["config"] != run["config"]
+            or sidecar["training_code_sha"] != execution["training_code_sha"]
+            or sidecar["evaluation_code_sha"] != binding["evaluation_code_sha"]
+            or sidecar["n_images"] != len(run["image_ids"])
+            or sidecar["dataset_size"] != len(run["image_ids"])
+            or len(ids) != len(set(ids)) or set(ids) != set(run["image_ids"])
+            or len(sidecar["records"]) != len(ids)
+            or any(r["prediction_index"] != i or r["image_id"] != ids[i]
+                   or Path(r["ori_filename"]).stem != ids[i]
+                   for i, r in enumerate(sidecar["records"]))):
+        raise ValueError("Native prediction checkpoint/config/code/TEST ID binding mismatch")
+    options = sidecar["cfg_options"]
+    if (options["data.test.ann_file"] != run["ann_file"]
+            or options["data.test.img_prefix"] != run["img_prefix"]):
+        raise ValueError("Native prediction TEST split/domain differs from ROI")
+    return {"status": "complete", "sidecar": str(root / "predictions.pkl.image_ids.json"),
+            "execution": str(root / "execution.json"),
+            "checkpoint_bytes": Path(run["checkpoint"]).stat().st_size,
+            "prepared_training_code_sha": binding["prepared_training_code_sha"],
+            "training_code_sha": sidecar["training_code_sha"],
+            "evaluation_code_sha": sidecar["evaluation_code_sha"],
+            "source_id": binding["source_id"]}
 
 
 def read_json(path):
@@ -122,8 +206,17 @@ def load_export(run):
     index = read_json(root / "index.json")
     if index["schema"] != SCHEMA or index["status"] != "complete" or index["run"] != run:
         raise ValueError(f"Export identity/completion mismatch: {root}")
+    if "feature_point" in index and index["feature_point"] != FEATURE_POINT:
+        raise ValueError("Export must contain the aligned fc_cls input features")
     if [r["image_id"] for r in index["records"]] != run["image_ids"]:
         raise ValueError("Export does not cover the exact ordered full TEST same-image selection")
+    if "native_prediction" in run:
+        evidence = native_binding_evidence(run)
+        if (evidence["status"] != "complete" or index.get("native_prediction") != evidence
+                or index.get("feature_version") != FEATURE_VERSION
+                or index.get("feature_point") != FEATURE_POINT
+                or index["code_commit"] != run["export_code_sha"]):
+            raise ValueError("ROI feature version/native prediction/provenance binding mismatch")
     return index, iter_export_records(run, index)
 
 
@@ -238,6 +331,8 @@ def main():
         sub.add_argument("--plan", required=True)
         if name == "visualize":
             sub.add_argument("--run-id", required=True)
+        else:
+            sub.add_argument("--out", help="Explicit new CSV path; required for declared-method plans")
     args = parser.parse_args()
     if args.command == "plan":
         plan = build_plan(read_json(args.bindings))
@@ -252,7 +347,12 @@ def main():
             raise ValueError("Expected a v3 full-test plan")
         rows = collect(plan)
         # Write only the new versioned manifest, never overwrite legacy evidence.
-        out = Path(plan["runs"][0]["out_dir"]).parents[3] / "coverage.csv"
+        if "methods" in plan and not args.out:
+            parser.error("Declared-method collection requires --out; run IDs have seed-specific depth")
+        out = (Path(args.out) if args.out else
+               Path(plan["runs"][0]["out_dir"]).parents[3] / "coverage.csv")
+        if args.out and out.exists():
+            raise FileExistsError(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         first = next(rows)
         complete = total = 0

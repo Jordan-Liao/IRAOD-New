@@ -88,7 +88,24 @@
       "five_new_ports": {"models": 180, "EMA_and_Student_eval_cells": 360, "roi_groups": 360},
       "quantitative_consumer": "Implemented collect_extension_report with explicit approved methods/roles, exact native evidence, separate common/SFYOLO/oracle statistical families, CSV/LaTeX/figures/DOCX and default core compatibility",
       "quantitative_consumer_doc": "experiments/comparison/EXTENSION_REPORT_CONSUMER.md",
-      "next": "Collect supervisor-relayed terminal extension outputs; complete generalized qualitative ROI/visualization/joint-tSNE consumers and artifacts. Quantitative-only reports do not close this gate."
+      "qualitative_implementation": "Implemented full-TEST native-bound ROI export, fixed visualization, streamed collection and72 grouped eleven-method joint-tSNE jobs, preserving inherited core/BF objects and exact budgets",
+      "qualitative_consumer_doc": "experiments/comparison/GENERALIZED_QUALITATIVE.md",
+      "student_evaluation_binding": "Explicit five-port Student180 eval-only preparation and mixed finite routing; no IRG/LPLD/SFUT retraining or accepted BFStudent180 re-evaluation",
+      "next": "Execute required native EMA/Student evaluations and360 ROI/9600 fixed-view/72 joint-embedding jobs when their real checkpoints/predictions/features are ready; collect actual outputs. No results are fabricated by preparation."
+    },
+    "next_release_executor": {
+      "status": "implemented_native_CPU_accepted_not_launched",
+      "interface": "experiments/comparison/EXECUTION.md",
+      "producer": "one existing finite_resumer with source-queue routing, shared model locks and pidfd events",
+      "allowed_gpus": [4, 5, 6],
+      "F_pair": [4, 5],
+      "F_port": 29804,
+      "detector_train_cells": 180,
+      "detector_EMA_eval_cells": 180,
+      "five_port_Student_eval_cells": 180,
+      "prerequisites": "AASFOD TSD and matching completed domain TAM are waiting, not falsely ready; independent B_REG/F work may proceed",
+      "smoke": "smoke_frozen_training uses1-4 actual optimizer updates, fresh NON_RESULT roots, original0f98 model imports and no formal checkpoints",
+      "live_a39_changed": false
     },
     "DRU": {"status": "explicitly_excluded_no_proxy"}
   },

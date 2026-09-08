@@ -7,17 +7,22 @@ import numpy as np
 from experiments.comparison.report_inputs import read_rows
 from experiments.comparison.result_completion import (
     DOMAINS, ROLES, SCHEMA, EXPECTED_TEST_IMAGES, collect, iter_export_records,
-    load_export, read_json, validate_run)
+    load_export, read_json, validate_run, plan_methods, comparison_runs)
 
 
 def validate_plan(plan):
     if plan["schema"] != SCHEMA:
         raise ValueError("Only v3 full-test qualitative evidence is accepted")
-    expected = {f"{ds}/{domain}/{method}/{role}" for ds, domains in DOMAINS.items()
-                for domain in domains for method, role in ROLES}
+    methods = plan_methods(plan)
+    roles = [("A", "source")] + [(m, r) for m in methods if m != "A"
+                                for r in ("ema", "student")]
+    expected = {(ds, domain, method, role) for ds, domains in DOMAINS.items()
+                for domain in domains for method, role in roles}
     if (len(plan["runs"]) != len(expected)
-            or {r["run_id"] for r in plan["runs"]} != expected):
-        raise ValueError("Qualitative plan must cover exactly the 132 full-test groups")
+            or {(r["dataset"], r["domain"], r["method"], r["role"])
+                for r in plan["runs"]} != expected
+            or len({r["run_id"] for r in plan["runs"]}) != len(expected)):
+        raise ValueError("Qualitative plan must cover exactly the declared full-test groups")
     adaptation_seed = plan.get("adaptation_seed", 42)
     if adaptation_seed not in (42, 43, 44):
         raise ValueError("Qualitative adaptation seed must be 42,43,44")
@@ -25,7 +30,22 @@ def validate_plan(plan):
     for run in plan["runs"]:
         validate_run(run)
         ds = run["dataset"]
-        if (run["run_id"] != f"{ds}/{run['domain']}/{run['method']}/{run['role']}"
+        legacy_id = f"{ds}/{run['domain']}/{run['method']}/{run['role']}"
+        seeded_id = f"{ds}/{run['domain']}/seed_{run['seed']}/{run['method']}/{run['role']}"
+        allowed = {legacy_id} if "methods" not in plan else {legacy_id, seeded_id}
+        if run["method"] not in "ABCDEF":
+            allowed = {seeded_id}
+            iteration = ({"RSAR": 531, "DIOR": 369} if run["method"] == "SFYOLO"
+                         else {"RSAR": 266, "DIOR": 185})[ds]
+            if (not run.get("native_prediction") or not run.get("export_code_sha")
+                    or run.get("allowed_gpus") != [4, 5, 6]
+                    or run.get("final_checkpoint_iteration") != iteration
+                    or run.get("detector_epochs") != (2 if run["method"] == "SFYOLO" else 1)
+                    or (run["method"] == "SFYOLO"
+                        and (run.get("budget_group") != "extended_two_epoch_TAM"
+                             or run.get("rank_with_common_one_epoch") is not False))):
+                raise ValueError("Port ROI requires native bindings and method-specific final budget")
+        if (run["run_id"] not in allowed
                 or run["seed"] != (42 if run["method"] == "A" else adaptation_seed)):
             raise ValueError("Qualitative run identity differs from the fixed matrix")
         domain = "source" if run["method"] == "A" else run["domain"]
@@ -35,13 +55,14 @@ def validate_plan(plan):
         if ds in selections and selections[ds] != ids:
             raise ValueError("Qualitative image selection differs across methods/domains")
         selections[ds] = ids
+        if run["show_score_thr"] != 0.3:
+            raise ValueError("Only the frozen .3 visualization/embedding threshold is supported")
 
 
 def inspect_embedding(entry, plan):
     root = Path(entry["directory"])
     ds, domain, role = entry["dataset"], entry["domain"], entry["comparison"]
-    runs = sorted((r for r in plan["runs"] if r["dataset"] == ds and r["domain"] == domain
-                   and (r["role"] == role or r["method"] == "A")), key=lambda r: r["method"])
+    runs = comparison_runs(plan, ds, domain, role)
     files = ["protocol.json", "embedding.npz", "points.csv", "predicted_class_legend.pdf"]
     files += [f"{ds}_{domain}_{role}_{r['method']}_{r['role']}.pdf" for r in runs]
     missing = [name for name in files
@@ -60,12 +81,16 @@ def inspect_embedding(entry, plan):
         coords, normalized = saved["coordinates"], saved["normalized_features"]
         mean, scale = saved["source_mean"], saved["source_scale"]
     count = protocol["points_per_method"]
-    if coords.shape != (6 * count, 2) or len(points) != len(coords):
-        raise ValueError("Joint embedding does not contain all six equally sampled panels")
+    if not 0 < count <= protocol["sample_cap"]:
+        raise ValueError("Invalid equal sample count")
+    if coords.shape != (len(runs) * count, 2) or len(points) != len(coords):
+        raise ValueError("Joint embedding does not contain all declared equally sampled panels")
     if normalized.shape != (len(points), len(mean)) or not np.isfinite(coords).all():
         raise ValueError("Invalid joint embedding shape/values")
     for i, run in enumerate(runs):
         export_index, _ = load_export(run)
+        if protocol["feature_stats"][i]["code_commit"] != export_index["code_commit"]:
+            raise ValueError("Embedding feature producer differs from its export")
         wanted = {}
         for j in range(i * count, (i + 1) * count):
             wanted.setdefault(Path(points[j]["feature_file"]).name, []).append(j)
@@ -127,6 +152,7 @@ def qualitative_evidence(manifest, roi_sink=None):
             raise ValueError("Scoped ROI inspection contains duplicate or unknown run IDs")
         selected_ids = all_ids if chosen is None else set(chosen)
         groups = {}
+        identities = {}
         for run in plan["runs"]:
             selected = run["run_id"] in selected_ids
             group = {
@@ -135,15 +161,20 @@ def qualitative_evidence(manifest, roi_sink=None):
                 "status": "pending" if selected else "not_inspected",
                 "inspected": selected, "validated_images": 0, "detection_rows": 0,
                 "visualizations_complete": 0, "out_dir": run["out_dir"],
+                **{k: run[k] for k in ("dataset", "domain", "seed", "method", "role")},
+                "budget_group": run.get("budget_group", "source" if run["method"] == "A"
+                                        else "common_one_epoch"),
+                "checkpoint": run["checkpoint"],
             }
             group_index.append(group)
             groups[run["run_id"]] = group
+            identities[tuple(run[k] for k in ("dataset", "domain", "seed", "method", "role"))] = group
         selected_plan = {**plan, "runs": [r for r in plan["runs"] if r["run_id"] in selected_ids]}
         for row in collect(selected_plan):
             identified += 1
             roi_complete += row["roi_status"] == "complete"
             vis_complete += row["vis_status"] == "complete"
-            group = groups[f"{row['dataset']}/{row['domain']}/{row['method']}/{row['role']}"]
+            group = identities[tuple(row[k] for k in ("dataset", "domain", "seed", "method", "role"))]
             if row["roi_status"] == "complete":
                 group["validated_images"] += 1
                 group["detection_rows"] += row["n_detections"]
@@ -176,6 +207,8 @@ def qualitative_evidence(manifest, roi_sink=None):
             result["problems"] = ["missing_qualitative_plan"]
         indices.append({
             "dataset": ds, "domain": domain, "comparison": comparison,
+            "adaptation_seed": plan.get("adaptation_seed", 42) if plan else 42,
+            "methods": ",".join(plan_methods(plan)) if plan else "A,B,C,D,E,F",
             "scope": "sampled_joint_embedding_not_full_TEST",
             "directory": entry["directory"] if entry else "", **result})
     roi_expected = (sum(len(r["image_ids"]) for r in plan["runs"]) if plan is not None else
@@ -190,11 +223,14 @@ def qualitative_evidence(manifest, roi_sink=None):
         "roi_inspected_groups": sum(g["inspected"] for g in group_index),
         "roi_complete_groups": sum(g["status"] == "complete" for g in group_index),
         "roi_group_index": group_index,
-        "vis_expected_image_roles": 3520,
+        "vis_expected_image_roles": (sum(len(r["visualization_image_ids"]) for r in plan["runs"])
+                                     if plan else 3520),
         "vis_complete": vis_complete,
         "embeddings_expected": 24,
         "embeddings_complete": sum(r["status"] == "complete" for r in indices),
         "full_test_roi": "complete" if roi_complete == roi_expected else "incomplete",
+        "methods": plan_methods(plan) if plan else list("ABCDEF"),
+        "adaptation_seed": plan.get("adaptation_seed", 42) if plan else 42,
     }
     return rows, indices, coverage
 
@@ -223,8 +259,8 @@ def reuse_completed_evidence(manifest):
             raise ValueError(f"Missing or mismatched accepted qualitative artifact: {field}")
     groups = read_rows(root / "roi_group_summary.csv")
     by_id = {g["run_id"]: g for g in groups}
-    if len(groups) != 132 or set(by_id) != {r["run_id"] for r in plan["runs"]}:
-        raise ValueError("Accepted qualitative groups differ from the 132-group plan")
+    if len(groups) != len(plan["runs"]) or set(by_id) != {r["run_id"] for r in plan["runs"]}:
+        raise ValueError("Accepted qualitative groups differ from the declared plan")
     visualizations = []
     for run in plan["runs"]:
         group = by_id[run["run_id"]]
@@ -238,6 +274,13 @@ def reuse_completed_evidence(manifest):
                 or group["visualizations_complete"] != len(run["visualization_image_ids"])):
             raise ValueError("Accepted group binding/count mismatch")
         group["inspected"] = True
+        if "methods" in plan:
+            expected_binding = {k: run[k] for k in ("dataset", "domain", "seed", "method",
+                                                    "role", "checkpoint")}
+            expected_binding["budget_group"] = run.get(
+                "budget_group", "source" if run["method"] == "A" else "common_one_epoch")
+            if any(str(group[k]) != str(value) for k, value in expected_binding.items()):
+                raise ValueError("Accepted group method/seed/role/budget binding mismatch")
         index, _ = load_export(run)  # The returned NPZ iterator is deliberately not consumed.
         if sum(r["n_detections"] for r in index["records"]) != group["detection_rows"]:
             raise ValueError("Accepted detection count differs from export index")
@@ -268,14 +311,11 @@ def reuse_completed_evidence(manifest):
         entry["n_points"] = int(entry["n_points"])
         entry["problems"] = []
         protocol = read_json(Path(entry["directory"]) / "protocol.json")
-        runs = sorted((r for r in plan["runs"]
-                       if r["dataset"] == entry["dataset"] and r["domain"] == entry["domain"]
-                       and (r["method"] == "A" or r["role"] == entry["comparison"])),
-                      key=lambda r: r["method"])
+        runs = comparison_runs(plan, entry["dataset"], entry["domain"], entry["comparison"])
         if (entry["status"] != "complete" or protocol["schema"] != SCHEMA
                 or protocol["runs"] != runs or protocol["sampling_seed"] != 42
                 or protocol["tsne_parameters"]["random_state"] != 42
-                or entry["n_points"] != 6 * protocol["points_per_method"]
+                or entry["n_points"] != len(runs) * protocol["points_per_method"]
                 or not 0 < protocol["points_per_method"] <= 1000
                 or entry["directory"] != next(e["directory"] for e in provided
                                               if identity(e) == identity(entry))):

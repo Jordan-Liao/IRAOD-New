@@ -27,7 +27,9 @@ from experiments.comparison.result_completion import DOMAINS
 APPROVED = (4, 5, 6, 7)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
-FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "B_REG", "F_text_only", "F_veto_only")
+FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO",
+                       "B_REG", "F_text_only", "F_veto_only")
+STUDENT_METHODS = (*tuple("BCDEF"), "IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO")
 SCRIPT = Path(__file__).resolve()
 LIBC = ctypes.CDLL(None, use_errno=True)
 LIBC.syscall.restype = ctypes.c_long
@@ -57,6 +59,11 @@ class Cell:
     role: str = "ema"
 
     @property
+    def model(self):
+        """EMA and Student are two evaluations of the same trained model."""
+        return Cell(self.dataset, self.domain, self.seed, self.method)
+
+    @property
     def key(self):
         suffix = "/student" if self.role == "student" else ""
         return f"{self.dataset}/{self.domain}/{self.seed}/{self.method}{suffix}"
@@ -69,7 +76,7 @@ class Cell:
 
     @property
     def width(self):
-        return 2 if self.method in ("E", "F", "F_text_only", "F_veto_only") else 1
+        return 2 if self.role == "ema" and self.method in ("E", "F", "F_text_only", "F_veto_only") else 1
 
 
 def load_cells(train_files, eval_files):
@@ -89,7 +96,7 @@ def load_cells(train_files, eval_files):
                         or (training and method == "A")
                         or (method == "A" and cell.seed != 42)
                         or cell.role not in ("ema", "student")
-                        or (cell.role == "student" and (training or method not in tuple("BCDEF")))):
+                        or (cell.role == "student" and (training or method not in STUDENT_METHODS))):
                     raise ValueError(f"Cell outside the approved finite protocol: {line}")
                 cells[cell] = cells.get(cell, False) or training
     if not cells:
@@ -164,6 +171,7 @@ def load_paths(queue):
 
 
 def train_state(queue, paths, cell, check_wrap=True):
+    cell = cell.model
     args = (cell.dataset, cell.domain, str(cell.seed), cell.method)
     ema = Path(paths.ema_path(*args))
     if cell.method == "A":
@@ -174,11 +182,33 @@ def train_state(queue, paths, cell, check_wrap=True):
         return "blocked" if ema.exists() or student.exists() else "pending"
     terminal = ema.parent.parent / "terminal_status"
     rc = last_exit(terminal, ("tmux_wrap_exit", "launcher_exit"))
-    wrap = last_exit(Path(queue) / f"wrap_{cell.session('train')}.status", ("wrap_exit",))
-    if rc == 0 and (not check_wrap or wrap in (None, 0)):
+    if rc == 0 and (not check_wrap or wrappers_complete(queue, paths, cell, "train")):
         return "complete"
     # Existing final files with conflicting terminal evidence must not be retrained.
     return "blocked"
+
+
+def prerequisite_state(paths, cell):
+    if cell.role == "student" or cell.method not in ("AASFOD", "SFYOLO"):
+        return "ready", ""
+    from experiments.comparison.extension_training import require_prerequisites
+
+    try:
+        require_prerequisites(paths.binding(cell.dataset, cell.domain, str(cell.seed), cell.method))
+    except (OSError, ValueError, KeyError, RuntimeError, EOFError, pickle.UnpicklingError) as error:
+        return "waiting", f"{cell.method} prerequisite: {error}"
+    return "ready", ""
+
+
+def allowed_gpus(paths):
+    # Historical core queues intentionally retain their original four-card API.
+    return tuple(getattr(paths, "DATA", {}).get("allowed_gpus", APPROVED))
+
+
+def wrappers_complete(queue, paths, cell, phase):
+    origin = getattr(paths, "DATA", {}).get("source_queues", {}).get(cell.key, queue)
+    return all(last_exit(Path(q) / f"wrap_{cell.session(phase)}.status", ("wrap_exit",)) in (None, 0)
+               for q in {str(queue), str(origin)})
 
 
 def eval_state(queue, paths, cell, check_wrap=True):
@@ -203,8 +233,7 @@ def eval_state(queue, paths, cell, check_wrap=True):
         expected_status["role"] = "student"
     if any(fields.get(key) != value for key, value in expected_status.items()):
         return "blocked"
-    wrap = last_exit(Path(queue) / f"wrap_{cell.session('eval')}.status", ("wrap_exit",))
-    if check_wrap and wrap not in (None, 0):
+    if check_wrap and not wrappers_complete(queue, paths, cell, "eval"):
         return "blocked"
     try:
         order = json.loads(sidecar.read_text())
@@ -316,6 +345,9 @@ def pane_job(name, pane, queue):
             cell = Cell(ds, domain, int(seed), method, role)
             parent = Path(token).parent
             allowed_parent = parent == Path(queue)
+            if not allowed_parent:
+                origin = getattr(load_paths(queue), "DATA", {}).get("source_queues", {}).get(cell.key)
+                allowed_parent = origin is not None and parent == Path(origin)
             if not allowed_parent and filename == "run_eval_student.sh":
                 legacy = getattr(load_paths(queue), "LEGACY_STUDENT_QUEUE", None)
                 allowed_parent = legacy is not None and parent == Path(legacy)
@@ -337,6 +369,8 @@ class TmuxBackend:
         self.gpus, self.tmux = tuple(gpus), tuple(tmux)
         self.lock_dir = lock_root(queue)
         self.paths = load_paths(queue)
+        if not set(self.gpus).issubset(allowed_gpus(self.paths)):
+            raise Blocked("GPU assignment exceeds this prepared queue's allowed_gpus")
         self.selector = selectors.DefaultSelector()
         self.handles = {}
 
@@ -389,7 +423,7 @@ class TmuxBackend:
         except ProcessLookupError:
             return None
         # Old canonical jobs do not hold cell locks; pin their cell while adopted.
-        cell_lock = (take_lock(self.lock_dir.parent / "cell_locks" / (cell.session("train") + ".lock"))
+        cell_lock = (take_lock(self.lock_dir.parent / "cell_locks" / (cell.model.session("train") + ".lock"))
                      if spec is None else None)
         handle = {"cell": cell, "phase": phase, "gpus": tuple(gpus), "fd": fd,
                   "pid": pane["pid"], "spec": spec, "adoption_lock": cell_lock}
@@ -400,8 +434,9 @@ class TmuxBackend:
     def discover(self, cells, active):
         panes = self.panes()
         found = []
-        for cell in cells:
-            for phase in ("train", "eval"):
+        # Eval-only Students must also adopt the existing canonical model jobs.
+        for cell in dict.fromkeys([*cells, *(c.model for c in cells)]):
+            for phase in (("eval",) if cell.role == "student" else ("train", "eval")):
                 name = cell.session(phase)
                 if name not in panes or name in active or panes[name]["dead"]:
                     continue
@@ -450,6 +485,9 @@ class TmuxBackend:
     def evidence(self, cell, phase, check_wrap=True):
         return (train_state if phase == "train" else eval_state)(
             self.queue, self.paths, cell, check_wrap=check_wrap)
+
+    def prerequisites(self, cell):
+        return prerequisite_state(self.paths, cell)
 
     def start(self, cell, phase, gpus):
         name = cell.session(phase)
@@ -545,6 +583,8 @@ def run_finite(cells, backend, external=(), external_owners=None):
 
     def terminal(cell, phase, spec=None):
         status, reason = backend.finish(cell, phase, spec)
+        if cell.key not in state:
+            return  # Adopted model job; its Student dependency is checked after exit.
         state[cell.key][phase] = status
         if reason:
             state[cell.key]["reasons"].append(reason)
@@ -558,45 +598,64 @@ def run_finite(cells, backend, external=(), external_owners=None):
                     active[handle["owner_key"]] = handle
                 for handle in backend.discover(cells, active):
                     cell, phase = handle["cell"], handle["phase"]
+                    if any(h["cell"] is not None and h["cell"].model == cell.model
+                           for h in active.values()):
+                        raise Blocked(f"Concurrent canonical jobs share model {cell.model.key}")
                     active[cell.session(phase)] = handle
+                    if cell.key not in state:
+                        continue
                     state[cell.key][phase] = "running"
                     state[cell.key]["adopted"].append({
                         "phase": phase, "pid": handle["pid"], "gpus": list(handle["gpus"])})
                     if phase == "eval":
                         state[cell.key]["train"] = backend.evidence(cell, "train")
-                occupied = {h["cell"] for h in active.values()}
-                for cell, requested in cells.items():
+                occupied = {h["cell"].model for h in active.values() if h["cell"] is not None}
+                for cell, requested in sorted(cells.items(), key=lambda item: item[0].role != "ema"):
                     row = state[cell.key]
-                    if cell in occupied:
+                    if cell.model in occupied:
+                        if (row["train"] != "complete"
+                                and cell.session("eval") not in active and cell.session("train") not in active):
+                            row["train"] = row["eval"] = "waiting"
                         continue
-                    if row["train"] in ("pending", "external"):
+                    if row["train"] in ("pending", "external", "waiting"):
                         evidence = backend.evidence(cell, "train")
+                        model_row = state.get(cell.model.key)
+                        waiting_model = (cell.role == "student" and model_row is not None
+                                         and (cells.get(cell.model) or cell.model in external)
+                                         and model_row["train"] not in ("complete", "failed", "blocked"))
+                        if evidence != "complete" and waiting_model:
+                            row["train"] = row["eval"] = "waiting"
+                            continue
                         if evidence == "pending" and cell in external:
                             row["train"] = "external"
                         else:
                             row["train"] = "ready" if evidence == "pending" and requested else evidence
+                        if row["train"] == "ready" and cell.method in ("AASFOD", "SFYOLO"):
+                            row["train"], row["prerequisite_reason"] = backend.prerequisites(cell)
+                            row["eval"] = "waiting" if row["train"] == "waiting" else "pending"
                         if row["train"] == "pending":
                             row["train"] = "blocked"
                             row["reasons"].append("eval dependency is not trained; no training authorized")
                         if row["train"] == "blocked":
                             row["eval"] = "blocked"
                             row["reasons"].append("missing/conflicting final training evidence")
-                    if row["train"] == "complete" and row["eval"] == "pending":
+                    if row["train"] == "complete" and row["eval"] in ("pending", "waiting"):
                         evidence = backend.evidence(cell, "eval")
                         row["eval"] = "ready" if evidence == "pending" else evidence
                         if evidence == "blocked":
                             row["reasons"].append("existing incomplete/conflicting native evaluation; preserve it")
                 while True:
-                    occupied = {h["cell"] for h in active.values()}
+                    occupied = {h["cell"].model for h in active.values() if h["cell"] is not None}
                     free = backend.available() - {g for h in active.values() for g in h["gpus"]}
                     if any(state[c.key]["train"] not in ("complete", "failed", "blocked") for c in external):
                         free -= {g for gpus in external_owners.values() for g in gpus}
-                    trains = [c for c in cells if c not in occupied and state[c.key]["train"] == "ready"
+                    trains = [c for c in cells if c.model not in occupied and state[c.key]["train"] == "ready"
+                              and cells[c] and c.role == "ema"
                               and (c, "train") not in attempted]
                     picked = choose_training(trains, free)
                     phase = "train"
                     if picked is None and free:
-                        evaluations = [c for c in cells if c not in occupied
+                        evaluations = [c for c in cells if c.model not in occupied
                                        and state[c.key]["train"] == "complete"
                                        and state[c.key]["eval"] == "ready" and (c, "eval") not in attempted]
                         if evaluations:
@@ -620,6 +679,8 @@ def run_finite(cells, backend, external=(), external_owners=None):
                         return snapshot("failed", "one or more finite tasks failed; no automatic retries")
                     if "external" in statuses:
                         return snapshot("blocked", "external training incomplete; no live canonical task or owner to await")
+                    if "waiting" in statuses:
+                        return snapshot("blocked", "detector prerequisites waiting; ready independent work exhausted")
                     return snapshot("blocked", "no allocatable approved GPU group and no tracked live task")
                 snapshot()
                 for handle in backend.wait():
@@ -644,7 +705,9 @@ def worker(job_file):
     status, reason, rc = "failed", "worker did not reach a terminal outcome", 1
     owns_cell = False
     try:
-        lock = take_lock(root.parent / "cell_locks" / (cell.session("train") + ".lock"))
+        if phase == "train" and cell.role != "ema":
+            raise Blocked("Student quantitative extensions are evaluation-only")
+        lock = take_lock(root.parent / "cell_locks" / (cell.model.session("train") + ".lock"))
         if lock is None:
             raise Blocked("cell lock busy; no runner invoked")
         locks.append(lock)
@@ -656,8 +719,12 @@ def worker(job_file):
         elif state == "blocked":
             raise Blocked("existing contradictory/partial final evidence; no runner invoked")
         else:
-            if not set(gpus).issubset(APPROVED) or len(gpus) != (cell.width if phase == "train" else 1):
+            if not set(gpus).issubset(allowed_gpus(paths)) or len(gpus) != (cell.width if phase == "train" else 1):
                 raise Blocked("invalid GPU assignment")
+            if phase == "train":
+                admission, detail = prerequisite_state(paths, cell)
+                if admission != "ready":
+                    raise Blocked(detail)
             for gpu in sorted(gpus):
                 lock = take_lock(root / f"gpu{gpu}.lock")
                 if lock is None:

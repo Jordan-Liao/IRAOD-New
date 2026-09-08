@@ -15,9 +15,11 @@ from experiments.comparison.result_completion import DOMAINS, read_json, write_j
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT_METHODS = ("IRG", "LPLD", "SFUT")
+STUDENT_METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO")
 F_DELETIONS = ("F_text_only", "F_veto_only")
 METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO", "B_REG", *F_DELETIONS)
-PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
+ALLOWED_GPUS = (4, 5, 6)
+PAIR_PORTS = {(4, 5): 29804}
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
 EVALUATION_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
@@ -231,6 +233,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         "methods": methods, "seeds": SEEDS, "domains": DOMAINS,
         "train_cells": len(cells), "eval_cells": len(cells),
         "source_training_cells": 0, "cells": cells,
+        "allowed_gpus": list(ALLOWED_GPUS), "pair_ports": {"4,5": 29804},
     }
     out.mkdir(parents=True, exist_ok=False)
     for name, text in overlays.items():
@@ -266,6 +269,12 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         "    return binding(ds, domain, seed, method)['student_checkpoint']\n"
         "def eval_full_dir(ds, domain, seed, method):\n"
         "    return binding(ds, domain, seed, method)['eval_dir']\n")
+    write_runners(out, python, lock)
+    return out
+
+
+def write_runners(out, python, lock):
+    """Use the current isolated executor, not wrappers in a live source queue."""
     for action, filename in (("train", "run_train_1gpu.sh"), ("evaluate", "run_eval_full.sh")):
         script = out / filename
         script.write_text(
@@ -274,7 +283,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
             f"export PYTHONPATH={shlex.quote(str(ROOT))}\n"
             f"exec {shlex.quote(python)} -m experiments.comparison.extension_training {action}"
             f" --queue {shlex.quote(str(out))}"
-            ' --gpu "$1" --dataset "$2" --domain "$3" --seed "$4" --method "$5"\n')
+            ' --gpu "$1" --dataset "$2" --domain "$3" --seed "$4" --method "$5"'
+            + (' --role "${6:-ema}"' if action == "evaluate" else '') + '\n')
         script.chmod(0o755)
     ddp = out / "run_train_2gpu.sh"
     ddp.write_text(
@@ -285,24 +295,46 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         ' --gpu-pair "$1" --port "$2" --dataset "$3" --domain "$4" --seed "$5" --method "$6"\n')
     ddp.chmod(0o755)
     (out / "with_gpu_lock.sh").symlink_to(lock)
-    return out
 
 
-def load_cell(queue, dataset, domain, seed, method):
+def load_cell(queue, dataset, domain, seed, method, role="ema"):
     runtime = read_json(Path(queue) / "runtime.json")
-    return runtime, runtime["cells"][cell_key(dataset, domain, seed, method)]
+    key = cell_key(dataset, domain, seed, method)
+    cell = runtime["student_cells" if role == "student" else "cells"][key]
+    route = key + ("/student" if role == "student" else "")
+    while "source_queues" in runtime:
+        origin = runtime["source_queues"].get(route, runtime["source_queues"][key])
+        runtime = read_json(Path(origin) / "runtime.json")
+    return runtime, cell
+
+
+def require_prerequisites(cell):
+    """The same scientific admission boundary for producer and native worker."""
+    if cell["method"] == "AASFOD":
+        from experiments.comparison.aasfod_protocol import validate_split
+
+        validate_split(read_json(require_file(cell["tsd_split"])), cell)
+    elif cell["method"] == "SFYOLO":
+        from experiments.comparison.tam_artifacts import load_completed_tam
+
+        expected = {"dataset": cell["dataset"], "domain": cell["domain"], "seed": 42}
+        if cell["tam_identity"] != expected:
+            raise ValueError("SFYOLO requires its matching domain TAM fit at seed42")
+        # Validates actual160k completion, preprocessing, learned components and
+        # strict external Oxford encoder tensors. Never runs a detector forward.
+        load_completed_tam(require_file(cell["tam_checkpoint"]), expected, "cpu")
 
 
 def train(queue, gpu, dataset, domain, seed, method):
-    if gpu not in (4, 5, 6, 7):
-        raise ValueError("Training requires an approved GPU4-7")
+    if gpu not in ALLOWED_GPUS:
+        raise ValueError("Training requires an approved GPU4,5,6")
     return _train(queue, (gpu,), None, dataset, domain, seed, method)
 
 
 def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
     gpus = tuple(int(gpu) for gpu in gpu_pair.split(","))
     if PAIR_PORTS.get(gpus) != port:
-        raise ValueError("DDP requires approved pair4,5/29804 or6,7/29806")
+        raise ValueError("DDP requires approved pair4,5/29804")
     return _train(queue, gpus, port, dataset, domain, seed, method)
 
 
@@ -312,9 +344,38 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
     if len(gpus) != cell.get("world_size", 1):
         raise ValueError("GPU topology differs from the frozen cell binding")
+    require_prerequisites(cell)
     work = Path(cell["work_dir"])
     if work.exists():
         raise FileExistsError(f"Refusing existing work directory: {work}")
+    code, producer_sha, command, env = training_invocation(
+        queue, runtime, cell, gpus, port, work)
+    work.mkdir(parents=True, exist_ok=False)
+    write_json(Path(cell["method_dir"]) / "execution.json", {
+        **cell, "training_code": str(code), "training_code_sha": producer_sha,
+        "orchestration_code": str(ROOT), "orchestration_code_sha": code_sha(ROOT),
+        "command": command, "gpu": gpus[0] if len(gpus) == 1 else None,
+        "gpus": list(gpus), "status": "invoked_not_completion_evidence",
+    })
+    terminal = Path(cell["terminal_status"])
+    rc = 1
+    try:
+        with (Path(cell["method_dir"]) / "train.log").open("w") as log:
+            result = subprocess.run(command, cwd=code, env=env, stdout=log, stderr=subprocess.STDOUT)
+        if result.returncode:
+            rc = result.returncode
+            raise subprocess.CalledProcessError(result.returncode, command)
+        require_file(cell["student_checkpoint"])
+        require_file(cell["checkpoint"])
+        rc = 0
+    finally:
+        with terminal.open("a") as stream:
+            stream.write(f"tmux_wrap_exit={rc}\n")
+
+
+def training_invocation(queue, runtime, cell, gpus, port, work):
+    """One frozen native command/environment shared by formal and bounded smoke."""
+    dataset, domain, seed, method = (cell[k] for k in ("dataset", "domain", "seed", "method"))
     source = str(require_file(cell["source_checkpoint"]))
     python = runtime["python"]
     code = Path(cell.get("training_code", runtime["training_code"]))
@@ -340,16 +401,12 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
     if len(gpus) == 2:
         command.append("find_unused_parameters=True")
     if method == "SFYOLO":
-        require_file(cell["tam_checkpoint"])
         command += [
             "runner.max_epochs=2", "model.cfg.tam_checkpoint=" + cell["tam_checkpoint"],
             "model.cfg.tam_dataset=" + dataset, "model.cfg.tam_domain=" + domain,
             "model.cfg.tam_seed=42",
         ]
     if method == "AASFOD":
-        from experiments.comparison.aasfod_protocol import validate_split
-
-        validate_split(read_json(require_file(cell["tsd_split"])), cell)
         command = [
             python, "-m", "experiments.comparison.train_aasfod",
             "--queue", str(Path(queue).resolve()), "--dataset", dataset,
@@ -370,35 +427,20 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
         env.update(cell["model_environment"])
         env.update(cell["wrapper_environment"])
         env.update(MASTER_PORT=str(port), PYTHONDONTWRITEBYTECODE="1")
-    work.mkdir(parents=True, exist_ok=False)
-    write_json(Path(cell["method_dir"]) / "execution.json", {
-        **cell, "training_code": str(code), "training_code_sha": producer_sha,
-        "orchestration_code": str(ROOT), "orchestration_code_sha": code_sha(ROOT),
-        "command": command, "gpu": gpus[0] if len(gpus) == 1 else None,
-        "gpus": list(gpus), "status": "invoked_not_completion_evidence",
-    })
-    terminal = Path(cell["terminal_status"])
-    rc = 1
-    try:
-        with (Path(cell["method_dir"]) / "train.log").open("w") as log:
-            result = subprocess.run(command, cwd=code, env=env, stdout=log, stderr=subprocess.STDOUT)
-        if result.returncode:
-            rc = result.returncode
-            raise subprocess.CalledProcessError(result.returncode, command)
-        require_file(cell["student_checkpoint"])
-        require_file(cell["checkpoint"])
-        rc = 0
-    finally:
-        with terminal.open("a") as stream:
-            stream.write(f"tmux_wrap_exit={rc}\n")
+    return code, producer_sha, command, env
 
 
-def evaluate(queue, gpu, dataset, domain, seed, method):
-    runtime, cell = load_cell(queue, dataset, domain, seed, method)
+def evaluate(queue, gpu, dataset, domain, seed, method, role="ema"):
+    if gpu not in ALLOWED_GPUS:
+        raise ValueError("Evaluation requires an approved GPU4,5,6")
+    if role not in ("ema", "student") or role == "student" and method not in STUDENT_METHODS:
+        raise ValueError("Student native evaluations are limited to the five approved ports")
+    runtime, cell = load_cell(queue, dataset, domain, seed, method, role)
     execution = read_json(Path(cell["method_dir"]) / "execution.json")
     binding = {
-        **cell, "role": "ema", "checkpoint": cell["checkpoint"],
+        **cell, "role": role, "checkpoint": cell["checkpoint"],
         "config": cell["eval_config"], "training_code_sha": execution["training_code_sha"],
+        "training_code": execution["training_code"],
     }
     return evaluate_binding(binding, runtime, gpu)
 
@@ -418,6 +460,8 @@ def main():
         for name in ("queue", "dataset", "domain"):
             entry.add_argument("--" + name, required=True)
         entry.add_argument("--method", choices=METHODS, required=True)
+        if action == "evaluate":
+            entry.add_argument("--role", choices=("ema", "student"), default="ema")
         if action == "train-ddp":
             entry.add_argument("--gpu-pair", required=True)
             entry.add_argument("--port", required=True, type=int)

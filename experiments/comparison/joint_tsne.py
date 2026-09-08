@@ -6,7 +6,7 @@ import heapq
 from pathlib import Path
 
 from experiments.comparison.result_completion import (
-    load_export, read_json, write_json, SCHEMA)
+    load_export, read_json, write_json, SCHEMA, comparison_runs, plan_methods, FEATURE_VERSION)
 
 
 def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=30):
@@ -19,18 +19,13 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
 
     if plan["schema"] != SCHEMA or comparison not in ("ema", "student") or cap < 1:
         raise ValueError("Expected a v3 full-test plan, ema/student comparison and positive cap")
-    selected = sorted(
-        (r for r in plan["runs"] if r["dataset"] == dataset and r["domain"] == domain
-         and (r["role"] == comparison or (r["method"], r["role"]) == ("A", "source"))),
-        key=lambda r: r["method"])
-    if [r["method"] for r in selected] != list("ABCDEF"):
-        raise ValueError("A/source plus B-F of the requested role are required")
+    selected = comparison_runs(plan, dataset, domain, comparison)
     adaptation_seed = plan.get("adaptation_seed", 42)
-    if (adaptation_seed not in (42, 43, 44) or any(
-            r["seed"] != (42 if r["method"] == "A" else adaptation_seed) for r in selected)):
-        raise ValueError("Joint embedding requires fixed source42 and one declared adaptation seed")
     if len({r["checkpoint_domain"] for r in selected if r["method"] != "A"}) != 1:
-        raise ValueError("B-F must share one adaptation domain within a comparison")
+        raise ValueError("Methods must share one adaptation domain within a comparison")
+    out = Path(out_dir)
+    if out.exists():
+        raise FileExistsError(out)
     reservoirs, stats = [], []
     source_mean = source_std = None
     reference = None
@@ -124,7 +119,6 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
                      init="random", learning_rate=200.0, metric="euclidean",
                      method="barnes_hut", angle=0.5, n_jobs=1)
     coords = estimator.fit_transform(features)
-    out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=False)
     np.savez_compressed(out / "embedding.npz", coordinates=coords,
                         normalized_features=features, source_mean=mean,
@@ -138,6 +132,15 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
     write_json(out / "protocol.json", {
         "schema": SCHEMA, "dataset": dataset, "domain": domain, "comparison": comparison,
         "adaptation_seed": adaptation_seed,
+        "methods": plan_methods(plan), "feature_version": FEATURE_VERSION,
+        "budget_labels": {r["method"]: {
+            "budget_group": r.get("budget_group", "source" if r["method"] == "A"
+                                 else "common_one_epoch"),
+            "final_checkpoint_iteration": r.get("final_checkpoint_iteration"),
+            "rank_with_common_one_epoch": r.get("rank_with_common_one_epoch", r["method"] != "A"),
+        } for r in selected},
+        "interpretation": "Qualitative geometry, not statistical ranking across budgets; "
+                          "SFYOLO uses two detector epochs plus TAM.",
         "sampling_seed": 42, "sample_cap": cap, "points_per_method": count,
         "roi_scope": "full_test",
         "sampling": "streamed bottom-k random-priority reservoir; equal count; no class/GT selection",

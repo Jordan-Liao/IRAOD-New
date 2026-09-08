@@ -2,10 +2,19 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 
-from experiments.comparison.result_completion import load_run
+from experiments.comparison.result_completion import (
+    load_run, native_binding_evidence, read_json, FEATURE_POINT, FEATURE_VERSION)
+
+
+def require_owned_gpu(run):
+    if os.environ.get("IRAOD_GPU_LOCKED") != "1":
+        raise RuntimeError("Port ROI extraction requires the existing owner's actual GPU lock")
+    if os.environ.get("CUDA_VISIBLE_DEVICES") not in tuple(map(str, run["allowed_gpus"])):
+        raise ValueError("Port ROI extraction requires one bound physical GPU4,5,6")
 
 
 def main():
@@ -14,6 +23,25 @@ def main():
     parser.add_argument("--run-id", required=True)
     args = parser.parse_args()
     run = load_run(args.plan, args.run_id)
+    code_commit = subprocess.check_output(
+        ["git", "-C", str(Path(__file__).resolve().parents[3]), "rev-parse", "HEAD"],
+        text=True).strip()
+    native = predictions = prediction_indices = None
+    if "native_prediction" in run:
+        require_owned_gpu(run)
+        native = native_binding_evidence(run)
+        if native["status"] != "complete":
+            raise ValueError(f"ROI pending native inputs: {native['missing']}")
+        if code_commit != run["export_code_sha"]:
+            raise ValueError("Export checkout differs from the prepared binding")
+        import pickle
+        root = Path(run["native_prediction"]["eval_dir"])
+        order = read_json(root / "predictions.pkl.image_ids.json")
+        with (root / "predictions.pkl").open("rb") as stream:
+            predictions = pickle.load(stream)
+        if len(predictions) != len(order["image_ids"]):
+            raise ValueError("Native prediction list differs from its same-inference ID binding")
+        prediction_indices = {image_id: i for i, image_id in enumerate(order["image_ids"])}
 
     from iraod_runtime import ensure_iraod_runtime
     ensure_iraod_runtime()
@@ -28,7 +56,8 @@ def main():
     from mmrotate.models.roi_heads.bbox_heads import rotated_bbox_head
     from mmrotate.utils import compat_cfg, setup_multi_processes
     from sfod.utils import patch_config
-    from experiments.comparison.aligned_roi import AlignedRoICapture, SCHEMA
+    from experiments.comparison.aligned_roi import (
+        AlignedRoICapture, SCHEMA, validate_native_predictions)
 
     out = Path(run["out_dir"])
     out.mkdir(parents=True, exist_ok=False)
@@ -67,6 +96,8 @@ def main():
             if Path(meta["ori_filename"]).stem != image_id:
                 raise ValueError("Loader image order differs from fixed selection")
             arrays = capture.aligned(image_id, result[0])
+            if predictions is not None:
+                validate_native_predictions(arrays, predictions[prediction_indices[image_id]])
             name = image_id + ".npz"
             np.savez_compressed(out / name, **arrays)
             records.append({
@@ -80,16 +111,16 @@ def main():
         "schema": SCHEMA, "status": "complete", "scope": "full_test", "run": run,
         "n_images": len(records),
         "n_post_nms_detections": sum(r["n_detections"] for r in records),
-        "code_commit": subprocess.check_output(
-            ["git", "-C", str(Path(__file__).resolve().parents[3]),
-             "rev-parse", "HEAD"], text=True).strip(),
+        "code_commit": code_commit,
         "classes": list(model.module.CLASSES), "rescale": True,
         "test_cfg": dict(model.module.roi_head.test_cfg),
-        "feature_point": "roi_head.bbox_head.fc_cls.input",
+        "feature_point": FEATURE_POINT, "feature_version": FEATURE_VERSION,
         "checkpoint_meta": {key: checkpoint.get("meta", {}).get(key)
                             for key in ("epoch", "iter")},
         "records": records,
     }
+    if native is not None:
+        index["native_prediction"] = native
     (out / "index.json").write_text(json.dumps(index, indent=2) + "\n")
     print(f"Completed {run['run_id']}: {len(records)} images -> {out}")
 

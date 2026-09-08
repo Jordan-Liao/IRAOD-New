@@ -44,8 +44,20 @@ The method-aware quantitative consumer is implemented in
 `experiments/comparison/EXTENSION_REPORT_CONSUMER.md`, including separate
 common/SFYOLO/oracle statistics, CSV, LaTeX, figures and DOCX. It needs the
 supervisor's actual terminal evaluation artifacts and explicit Student
-bindings. Generalized qualitative consumers and full qualitative extensions
-remain unfinished; quantitative exports do not close the parent gate.
+bindings. Generalized qualitative producers/consumers and explicit native Student
+evaluation bindings are now implemented. `experiments/comparison/EXECUTION.md`
+documents one mixed finite producer with truthful TSD/TAM waiting states,
+shared EMA/Student model locks, GPU4/5/6-only release metadata and bounded
+NON_RESULT B_REG/F smokes. No live controller or GPU execution is changed.
+
+`experiments/comparison/GENERALIZED_QUALITATIVE.md` binds360 new port ROI
+groups,3,457,680 image-role records,9600 fixed views and72 new eleven-method
+joint embeddings. Existing core/B-F exports and accepted embeddings are reused,
+not regenerated. Actual native execution revisions, last eval status and exact
+post-NMS predictions bind the new ROI features. GPU exports and CPU
+visualization/embedding/collection use separate explicit environments.
+Formal GPU inputs and these generated artifacts are still pending;
+implementation and metadata do not close the parent gate.
 
 CPU collection from the existing compatibility queue (new output directories):
 

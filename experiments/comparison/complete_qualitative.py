@@ -22,6 +22,8 @@ def collect_completion(plan_path, embedding_root, out_dir, expected_detections=N
     source_dir.mkdir()
     for source in (Path(__file__), Path(report_qualitative.__file__)):
         shutil.copyfile(source, source_dir / source.name)
+    plan = read_json(plan_path)
+    report_qualitative.validate_plan(plan)
     fragment = {
         "qualitative_plan": str(Path(plan_path).resolve()),
         "embeddings": [
@@ -52,10 +54,10 @@ def collect_completion(plan_path, embedding_root, out_dir, expected_detections=N
     temporary.replace(out / "roi_vis_coverage.csv")
     write_csv(out / "roi_group_summary.csv", coverage["roi_group_index"], ("run_id", "status"))
     write_csv(out / "embedding_index.csv", embeddings, ("dataset", "domain", "comparison", "status"))
-    complete = (coverage["roi_complete_groups"] == 132
+    complete = (coverage["roi_complete_groups"] == len(plan["runs"])
                 and coverage["roi_complete"] == coverage["roi_expected_image_roles"]
-                and coverage["vis_complete"] == 3520
-                and coverage["embeddings_complete"] == 24)
+                and coverage["vis_complete"] == coverage["vis_expected_image_roles"]
+                and coverage["embeddings_complete"] == coverage["embeddings_expected"])
     summary = {
         "schema": "iraod-qualitative-completion-summary-v1",
         "created_at": datetime.now(timezone.utc).isoformat(),

@@ -7,6 +7,17 @@ import numpy as np
 from experiments.comparison.result_completion import SCHEMA
 
 
+def validate_native_predictions(arrays, per_class):
+    """Check every retained box/score against the bound native result, not .3-filtered rows."""
+    for label, predictions in enumerate(per_class):
+        selected = arrays["labels"] == label
+        actual = np.column_stack((arrays["boxes"][selected], arrays["scores"][selected]))
+        if not np.array_equal(actual, np.asarray(predictions)):
+            raise ValueError("ROI detections differ from the bound native predictions")
+    if np.any(arrays["labels"] >= len(per_class)):
+        raise ValueError("ROI class count differs from native predictions")
+
+
 class AlignedRoICapture:
     """Single-image, single-augmentation capture at the input of fc_cls.
 
