@@ -1,8 +1,8 @@
 # DIOR-R OrthoNet strict prep (completed)
 
-Current status: source clean val/test and 18 A–F cells are complete. The staging
-snapshot below is historical, not an active blocker. Final artifacts and the
-Chinese DOCX are indexed in `results/paper_comparison/full_comparison_delivery_cn.md`.
+The source/staging snapshot below is historical, not an active blocker.
+The completed three-seed core has64 native DIOR cells; current artifacts and
+the Chinese DOCX are indexed in `results/paper_comparison/result_summary_cn.md`.
 
 ## Staging (.67) 2026-09-06T06:16+08 live tar, not terminal
 - Source: gpu-183 `/mnt/HDD_6TB/zechuan_files/IRAOD/dataset/DIOR` (21G)
@@ -22,5 +22,9 @@ C–F copy RSAR strict env (CLIP / SARCLIP / VLST) with DIOR 20 classes and imag
 Same freeze: seed42, final EMA, weight_l=0, use_bbox_reg=False, no target LoRA.
 
 ## Ports
-IRG/LPLD remain N/A without faithful OBB implementations. Simple-SFOD/SF-UT is
-covered by equivalent method B, already executed on RSAR and DIOR; no duplicate run.
+IRG/LPLD have independent OBB implementations awaiting scientific smoke and
+formal results; see `extensions/protocol.md`. SF-UT is NOT equivalent to B:
+it retains RPN and ROI pseudo regression, which B disables. A distinct
+paper-defined SF-UT arm is required; no B result may fill that row.
+Simple-SFOD's AdaBN+Fixed SF-FixMatch is a separate strategy, not another
+name for B. Frozen historical reports are preserved, not rewritten.

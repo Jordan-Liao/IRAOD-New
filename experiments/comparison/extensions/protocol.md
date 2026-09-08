@@ -241,3 +241,27 @@ ported: their default empty-image filtering/class histograms can consult
 target GT before the mapper drops annotations. Only the existing image-only
 VAL loader and pseudo labels are used here. No target GT is used for LPLD
 online weighting; the paper's GT-IoU plots are motivation/analysis only.
+
+## Simple-SFOD equivalence correction: B is not SF-UT
+
+The bounded official check found a core objective difference, not just a
+different backbone or threshold. Paper2407.07586 Sec3.2 Eq3 retains both
+RPN and ROI pseudo-box regression as a distinguishing SF-UT contribution.
+Pinned source `ee24594869bde0069947540275a28eebb3d4a540`,
+`daod/engine/trainers/source_free_adaptive_teacher.py:541-552`, actively
+weights both regression losses. Actual B sets `use_bbox_reg=False` and zeros
+both branches in `sfod/rotated_unbiased_teacher.py`.
+
+Therefore B's existing numbers remain classification-only ST evidence, never
+an SF-UT result. Earlier equivalence wording is superseded in current docs and
+the legacy renderer; frozen historical files are intentionally not rewritten.
+A distinct SF-UT arm is required, with its exact paper-defined update/augmentation
+semantics frozen before release.
+
+The README-selected source configuration is not automatically that paper
+method: it disables weak/strong augmentation and the canonical trainer's
+teacher-update call is commented out, whereas the paper describes weak/strong
+views and per-iteration EMA0.9996. The source variant must be labeled separately.
+The umbrella's AdaBN+Fixed SF-FixMatch strategy is also distinct: target-only
+BN statistics, then fixed pseudo labels rather than an updating EMA teacher.
+It is not collapsed into B or silently added as another experiment matrix.

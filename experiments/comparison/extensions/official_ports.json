@@ -1,6 +1,6 @@
 {
   "implementation": "Independent algorithm reimplementation; no novel upstream source vendored",
-  "license_evidence": "Both upstream trees lack a tracked LICENSE/COPYING; GitHub license is null and PKG-INFO reports UNKNOWN. No source-copy grant established.",
+  "license_evidence": "IRG and LPLD lack a tracked LICENSE/COPYING; GitHub license is null and PKG-INFO reports UNKNOWN. No source-copy grant established for those trees; other repositories are reviewed separately.",
   "common_protocol": {
     "data": "Existing image-only target VAL loader; never annotation-dependent empty-image filtering or target GT histograms",
     "sources": "Unchanged dataset-specific OrthoNet-50/FPN Oriented R-CNN sources",
@@ -11,7 +11,7 @@
     "auxiliary_proposals": "first/top-objectness 300 raw teacher RPN proposals per image; unchanged full HPL/final NMS pipeline",
     "features": "actual 1024-D pre-fc_cls vectors, original indexed teacher proposals in matched shared geometry",
     "batch_reduction": "mean of per-image normalized losses, including zero-loss images; no cross-image graph",
-    "selection": "epoch-final EMA, after all optimizer steps and before checkpoint saving",
+    "selection": "final teacher; method-specific update cadence declared below",
     "not_claimed": "Published ten-epoch, batch1, LR0.001 benchmark reproduction"
   },
   "IRG": {
@@ -60,5 +60,18 @@
       "Shared one-epoch/batch32/LR0.02 budget and per-image mining/averaging"
     ],
     "status": "implemented_pending_remote_scientific_smoke_and_formal_runs"
+  },
+  "SF-UT": {
+    "upstream": "https://github.com/EPFL-IMOS/simple-SFOD",
+    "commit": "ee24594869bde0069947540275a28eebb3d4a540",
+    "paper": "https://arxiv.org/abs/2407.07586",
+    "active_regression": "https://github.com/EPFL-IMOS/simple-SFOD/blob/ee24594869bde0069947540275a28eebb3d4a540/daod/engine/trainers/source_free_adaptive_teacher.py#L541-L552",
+    "teacher_update_code_mismatch": "https://github.com/EPFL-IMOS/simple-SFOD/blob/ee24594869bde0069947540275a28eebb3d4a540/daod/engine/trainers/source_free_adaptive_teacher.py#L581",
+    "B_equivalence_verdict": "distinct: SF-UT actively weights RPN and ROI pseudo regression, while actual B sets both to zero",
+    "canonical_choice_pending_details": "Explicit paper-defined SF-UT, not the README-selected source variant with weak-strong augmentation disabled and teacher update commented",
+    "paper_mechanisms": "Weak/strong teacher-student self-training, full pseudo detection classification/regression, per-iteration EMA retention0.9996",
+    "separate_umbrella_strategy": "AdaBN plus Fixed SF-FixMatch: target-only BN statistics pass, fixed pseudo labels, no EMA teacher updates; not B or SF-UT",
+    "B_results": "preserved as classification-only ST; never reused as an SF-UT result",
+    "status": "distinct_arm_required_not_implemented_or_run"
   }
 }

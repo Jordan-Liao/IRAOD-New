@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results/paper_comparison"
 METHODS = [
     ("A", "Source Only", "无", "无目标域适配；同一 source checkpoint"),
-    ("B", "ST / Mean Teacher", "无", "CGA off；VLST off；Simple-SFOD / SF-UT 等价 B 已跑"),
+    ("B", "ST / Mean Teacher", "无", "CGA off；VLST off；伪框回归关闭，不等同于 SF-UT"),
     ("C", "Original CLIP-CGA", "CLIP RN50x64", "vanilla CLIP；legacy CGA；无 SARCLIP / LoRA"),
     ("D", "SARCLIP-CGA", "base SARCLIP", "冻结 ViT-B-32；veto_soft；VLST off；无 LoRA"),
     ("E", "ST + VLST", "base SARCLIP", "CGA off；冻结 VLST 编码器；教师伪标签在线原型"),
@@ -136,8 +136,8 @@ def main():
     doc.add_heading("2. A–F 定义与公平性分组", 1)
     table(doc, ["ID", "方法", "VLM", "唯一模块差异 / 状态"], METHODS)
     paragraph(doc, "上述主表均为 Source-Free / OBB / 不使用目标域标签；"
-              "A 没有适配阶段，B–F 使用最后 EMA。Simple-SFOD / SF-UT 以等价 B ST 已跑，"
-              "不重复计作独立复现结果，也不宣称完成其官方逐行移植。"
+              "A 没有适配阶段，B–F 使用最后 EMA。B 关闭 RPN/ROI 伪框回归，"
+              "不等同于保留这两项回归损失的 SF-UT，不能用 B 数值填充 SF-UT。"
               "Target-supervised oracle 未纳入本次交付，数值 N/A。")
 
     doc.add_heading("3. 完整逐腐蚀主结果", 1)
@@ -248,8 +248,8 @@ def main():
          "无可执行 OBB port；模块、assignment/IoU/NMS 的旋转语义及无目标 GT 配方未验证，现有材料不足以宣称忠实重现。"],
         ["SF-YOLO\nvs-cv/sf-yolo", "N/A",
          "原 YOLO detector 不同于共享 Oriented R-CNN；直接使用 YOLO 或另训 source 会破坏主表公平性，独立核心机制 OBB 移植尚未完成。"],
-        ["Simple-SFOD / SF-UT\nEPFL-IMOS/simple-SFOD", "等价 B 已跑",
-         "Mean Teacher / Unbiased Teacher ST 对应本次 B；RSAR 7 格、DIOR 3 格，避免重复计数；非额外官方移植结果。"],
+        ["SF-UT / Simple-SFOD\nEPFL-IMOS/simple-SFOD", "需独立实验",
+         "SF-UT 保留 RPN/ROI 伪框回归；B 将两者置零。AdaBN+Fixed SF-FixMatch 又是不同策略，不能统一并入 B。"],
     ])
 
     doc.add_heading("9. Recovery commands 与复现材料", 1)
