@@ -4,8 +4,9 @@ import argparse
 from pathlib import Path
 import shutil
 
-from experiments.comparison.final_report import SCHEMA, write_csv
-from experiments.comparison.report_inputs import FINAL_ITERATION, key
+from experiments.comparison.final_report import ROOT, SCHEMA, render_report, write_csv
+from experiments.comparison.report_inputs import FINAL_ITERATION, key, read_rows
+from experiments.comparison.publish_report import result_table, scientific_findings
 from experiments.comparison.result_completion import DOMAINS, read_json, write_json
 
 
@@ -87,11 +88,44 @@ def collect(queue, core_report, out_dir):
     return out / "report-manifest.json"
 
 
+def render(directory, docx_python):
+    """Render collected Student numbers, not a final extension publication."""
+    directory = Path(directory)
+    report = read_json(directory / "report.json")
+    if (report["roles"] != ["student"] or report["quantitative_complete_cells"] != 192
+            or sum(r["role"] == "student" and r["status"] == "complete"
+                   for r in report["raw_results"]) != 180):
+        raise ValueError("Student export requires all180 actual Student cells plus12 source cells")
+    report["quantitative_only"] = True
+    report["status"] = "partial"
+    report["method_matrix"] = [
+        r for r in read_rows(ROOT / "experiments/comparison/method_matrix.csv") if r["id"] in "ABCDEF"]
+    report["findings_cn"] = scientific_findings(report)
+    report["collection"]["export_scope"] = (
+        "180 native Student TEST evaluations plus12 reused source evaluations; "
+        "no new ROI, visualization, embedding or other extension completion is claimed")
+    (directory / "student_table.tex").write_text(result_table(
+        report, "ABCDEF", "Final Student checkpoints (B--F) and the fixed source (A).",
+        "student-native-test"))
+    return render_report(report, directory, docx_python)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("queue", "core-report", "out-dir"):
-        parser.add_argument("--" + name, required=True)
-    print(collect(**vars(parser.parse_args())))
+        parser.add_argument("--" + name)
+    parser.add_argument("--render-dir")
+    parser.add_argument("--docx-python")
+    args = parser.parse_args()
+    if args.render_dir:
+        if not args.docx_python or any((args.queue, args.core_report, args.out_dir)):
+            parser.error("--render-dir requires --docx-python and no collection inputs")
+        render(args.render_dir, args.docx_python)
+        print("Student quantitative exports rendered; extensions incomplete")
+    else:
+        if not all((args.queue, args.core_report, args.out_dir)) or args.docx_python:
+            parser.error("Collection requires --queue, --core-report and --out-dir")
+        print(collect(args.queue, args.core_report, args.out_dir))
 
 
 if __name__ == "__main__":

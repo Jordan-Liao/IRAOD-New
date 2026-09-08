@@ -1,0 +1,94 @@
+{
+  "status": "approved_extensions_incomplete",
+  "preserved_core_commit": "32e325442bba54ea11f2179f6c69c6f76fbe995d",
+  "implementation_commit": "84a1aeb",
+  "remote_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908",
+  "deployed_code": "integration_code_84a1aeb",
+  "producer_policy": "Existing single IRG/LPLD/SFUT producer remains supervisor-owned; integration owner launches no GPU jobs and changes no controller or live code",
+  "approval_gates_remaining": false,
+  "scopes": {
+    "Student180": {
+      "status": "actual_quantitative_collected",
+      "complete": 180,
+      "failed": 0,
+      "committed_report": "results/extensions/student180",
+      "native_test_image_records": 1728840,
+      "post_nms_detections": 23844023
+    },
+    "IRG_LPLD_SFUT": {
+      "train_cells": 108,
+      "status": "live_producer_owned_externally",
+      "next": "Collect terminal results when relayed; do not launch a second producer"
+    },
+    "B_REG": {
+      "train_cells": 36,
+      "queue": "b_reg_manifests_0e5f8f7",
+      "status": "prepared_not_execution_evidence"
+    },
+    "F_deletions": {
+      "train_cells": 72,
+      "methods": {"F_text_only": 36, "F_veto_only": 36},
+      "queue": "f_deletion_manifests_daa3992",
+      "training_code": "0f98a48b539f9260055fc305784ffbc924f50451",
+      "world_size": 2,
+      "samples_per_gpu": 16,
+      "status": "finished_deployment_adopted_no_formal_root_created",
+      "changes": {
+        "F_text_only": "vlst_text_visual_alpha0.5->1 only",
+        "F_veto_only": "effective CGA_BLEND_DET_WEIGHT0.7->1 only"
+      }
+    },
+    "TAM": {
+      "fits": 12,
+      "fit_seed": 42,
+      "detector_seed_reuse": [42, 43, 44],
+      "outer_iterations_per_domain": 160000,
+      "outer_iterations_total": 1920000,
+      "optimizer_updates_total": 3840000,
+      "encoder": "/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_conv1_1_to_conv4_1.pt",
+      "encoder_tensors": 16,
+      "encoder_parameters": 2915648,
+      "queue": "tam_manifests_84a1aeb",
+      "status": "actual_encoder_bound_cpu_prepared_no_formal_root_created",
+      "next": "GPU owner real-weight smoke and approved domain fits"
+    },
+    "SFYOLO": {
+      "train_cells": 36,
+      "detector_epochs": 2,
+      "queue": "sfyolo_manifests_84a1aeb",
+      "final_checkpoint_labels": {"RSAR": 531, "DIOR": 369},
+      "optimizer_updates": {"RSAR": 530, "DIOR": 368},
+      "ranking": "separate_extended_budget_not_common_one_epoch",
+      "status": "prepared_pending_completed_domain_TAM_and_GPU_smoke"
+    },
+    "AASFOD": {
+      "train_cells": 36,
+      "status": "technical_implementation_blocker_not_approval_gate",
+      "missing": ["aligned dropout TSD", "paired GRL adversarial training", "four-image geometric FNS", "explicit stage/reset/cadence port"],
+      "proxy_added": false
+    },
+    "oracle": {
+      "adapters": 2,
+      "detector_train_cells": 72,
+      "status": "TRAIN_preparation_and_real_weight_smokes_pending",
+      "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
+      "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
+      "RSAR": "1047844-row patch materialization remains compute-owner controlled; terminal reconciliation not claimed here",
+      "DIOR": "brightness/contrast TRAIN5862 each available; cloudy generator/runtime binding absent; do not substitute fog or reset stateful upstream atmospheric-light algorithm"
+    },
+    "qualitative_and_new_method_consumers": {
+      "status": "not_complete",
+      "existing_BF_seed43_44": {"new_roi_groups": 240, "new_image_role_records": 2305120, "new_embeddings": 48},
+      "five_new_ports": {"models": 180, "EMA_and_Student_eval_cells": 360, "roi_groups": 360},
+      "next": "Complete method-aware report/qualitative consumers beyond A-F assumptions and collect actual extension artifacts; Student quant-only report is not this gate"
+    },
+    "DRU": {"status": "explicitly_excluded_no_proxy"}
+  },
+  "parent_completion_gate": [
+    "all approved compatible extensions actually run",
+    "required TEST and qualitative outputs",
+    "statistics and provenance",
+    "CSV, LaTeX and DOCX",
+    "deliverables committed and pushed"
+  ]
+}

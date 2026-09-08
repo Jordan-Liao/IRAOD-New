@@ -65,18 +65,28 @@ def render(report_path, output):
         table(doc, ["方法", "公平组", "框", "VLM", "目标标签", "状态"], [
             [r["id"], r["fairness_group"], r["box"], r["vlm"], r["target_labels"], r["status"]]
             for r in report["method_matrix"]])
-        doc.add_paragraph("Source-Free A–F 为同一主表组；source-available 未运行，"
-                          "target-supervised oracle 未运行。B/D/E/F 为已有组件组合比较，"
-                          "不冒充额外消融训练。IRG/LPLD 等未移植方法无虚构分数。")
+        doc.add_paragraph("本报告的 Source-Free A–F 为同一比较组。B/D/E/F 为已有组件组合比较，"
+                          "不冒充额外消融训练。未列出分数的扩展方法与 target-supervised oracle"
+                          "不在本报告的结果范围内；这不表示它们未获批准或已完成。")
     doc.add_heading("2. 量化与逐实例覆盖", 1)
     cov = report["qualitative_coverage"]
-    table(doc, ["证据类型", "已完成 / 预期", "范围"], [
+    coverage_rows = [
         ["量化单元", f"{report['quantitative_complete_cells']} / {report['quantitative_expected_cells']}",
          "全 TEST predictions；需实际有序 image-ID 证据"],
+    ]
+    if report.get("quantitative_only"):
+        doc.add_paragraph(report["collection"]["export_scope"])
+        doc.add_paragraph(
+            "本次只收集 Student 全 TEST 量化结果；不把既有 core 的定性覆盖分母"
+            "当作扩展任务范围。新增 RoI、固定可视化与联合嵌入仍由已批准扩展清单跟踪。")
+    else:
+        coverage_rows.extend([
         ["RoI", f"{cov['roi_complete']} / {cov['roi_expected_image_roles']}", "全 TEST 对齐逐实例"],
-        ["可视化", f"{cov['vis_complete']} / 3520", "固定子集，展示阈值 0.3"],
-        ["joint embedding", f"{cov['embeddings_complete']} / 24", "采样分析；不是全量预测实例"],
-    ])
+        ["可视化", f"{cov['vis_complete']} / {cov['vis_expected_image_roles']}", "固定子集，展示阈值 0.3"],
+        ["joint embedding", f"{cov['embeddings_complete']} / {cov['embeddings_expected']}",
+         "采样分析；不是全量预测实例"],
+        ])
+    table(doc, ["证据类型", "已完成 / 预期", "范围"], coverage_rows)
     doc.add_paragraph(
         "全 TEST 图片的 aligned RoI 保存全部 post-NMS 检测，不受展示阈值 0.3 二次截断；"
         "检测器自身的 score threshold、NMS 和 max_per_img 仍生效。"

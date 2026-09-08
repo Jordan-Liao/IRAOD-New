@@ -1,0 +1,37 @@
+{
+  "scope": "180 existing B-F final Student full-native-TEST evaluations; 12 reused fixed source evaluations",
+  "status": "quantitative_complete_extensions_incomplete",
+  "collection_code_commit": "84a1aeb",
+  "preserved_core_commit": "32e325442bba54ea11f2179f6c69c6f76fbe995d",
+  "evaluation_code_commit": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "remote_host": "192.168.0.167",
+  "remote_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908",
+  "student_runtime": "repo_manifests_37c65b6/student_queue/runtime.json",
+  "compatibility": "repo_manifests_37c65b6/student_compatibility.json",
+  "terminal_state": "finite_runs/student-eval-20260908T033500Z/state.json",
+  "collection_manifest": "student_collection_84a1aeb/report-manifest.json",
+  "remote_numeric_report": "student_report_84a1aeb/report.json",
+  "new_inference_launched": false,
+  "student_cells": 180,
+  "student_failed_cells": 0,
+  "source_cells_reused": 12,
+  "student_test_image_records": 1728840,
+  "student_post_nms_detections": 23844023,
+  "large_artifacts_retained_remote": [
+    {
+      "path": "student_report_84a1aeb/prediction_image_coverage.csv",
+      "bytes": 720242605,
+      "sha256": "c9bb570753dee5bee0874e268a0ee61b5c61e3f5d5325e210e01117890b645b4",
+      "scope": "192 source plus Student cells; each ordered native TEST image and detection count",
+      "in_git": false
+    }
+  ],
+  "not_completion_evidence_for": [
+    "new method training and EMA/Student evaluations",
+    "new full ROI exports",
+    "fixed visualization extensions",
+    "joint t-SNE extensions",
+    "oracle and deletion-ablation training"
+  ],
+  "interpretation": "All five Student methods have lower mean corrupted-domain mPC than fixed A on both datasets. Preserve these negative results. n=3 adaptation seeds; exact two-sided sign-flip raw p cannot be below0.25, and Holm-adjusted sign-flip p is1 for all comparisons."
+}

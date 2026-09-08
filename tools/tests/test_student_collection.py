@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from experiments.comparison.collect_student_report import collect
+from experiments.comparison.collect_student_report import collect, render
 from experiments.comparison.result_completion import DOMAINS, read_json, write_json
 
 
@@ -75,6 +75,14 @@ class StudentCollectionTest(unittest.TestCase):
         self.assertEqual(read_json(manifest["cells"])[0]["eval_dir"], str(directory))
         self.assertEqual((self.root / "out/student_runtime.json").read_bytes(),
                          (self.queue / "runtime.json").read_bytes())
+
+    def test_student_render_rejects_incomplete_collection(self):
+        write_json(self.root / "report.json", {
+            "roles": ["student"], "quantitative_complete_cells": 191,
+            "raw_results": [],
+        })
+        with self.assertRaisesRegex(ValueError, "all180 actual Student"):
+            render(self.root, "/not-invoked")
 
 
 if __name__ == "__main__":

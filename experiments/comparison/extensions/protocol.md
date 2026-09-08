@@ -4,6 +4,53 @@ Core delivery `32e325442bba54ea11f2179f6c69c6f76fbe995d` is complete and remains
 unchanged. Extension results use a new artifact root and separate report tables.
 No extension improves or replaces a negative core score by selection or tuning.
 
+## Current integration delivery
+
+`delivery_state.json` tracks the approved parent gate, ready interfaces and
+technical blockers. Approval is not pending; DRU remains explicitly excluded.
+The existing IRG/LPLD/SFUT producer remains exclusively supervisor-owned.
+
+Student180 is now actually collected: **180/180**, failed0, plus12 reused fixed
+source evaluations. Native ordered predictions cover1,728,840 Student TEST
+image records and23,844,023 post-NMS detections. Numeric/seed-block statistics,
+CSV, LaTeX, plots and DOCX are under `results/extensions/student180/`; large
+remote coverage CSV provenance is in its `artifact_manifest.json`.
+All five Student methods have lower corrupted-domain mean mPC than A on both
+datasets. These negative results are retained, not selected away.
+
+F-deletion deployment was adopted complete at `f_deletion_manifests_daa3992`:
+72 bindings,36 per method, frozen0f98,2x16; no formal artifact root had been
+created. Committed code84a1aeb is deployed as `integration_code_84a1aeb` under
+the same extension root. `tam_manifests_84a1aeb` binds the actual Oxford16-tensor
+encoder to12 domain seed42 fits; `sfyolo_manifests_84a1aeb` binds36 two-epoch
+detectors to those fits. Neither formal root was created by preparation.
+Native CPU SFYOLO/TAM/preparation checks passed; real-weight GPU smokes and
+training remain the GPU owner's work.
+
+The bounded LoRA smoke CLI is documented in `tools/ORACLE_PREPARATION.md`.
+AASFOD's TSD/GRL/FNS stage/cadence implementation and DIOR cloudy's actual
+algorithm/runtime binding remain technical code dependencies, not new approval
+requests. Generalized new-method report/qualitative consumers also remain
+unfinished. Student quantitative collection is not completion of any of these
+scopes or of the approved full qualitative extensions.
+
+CPU collection from the existing compatibility queue (new output directories):
+
+```bash
+"$PY" -m experiments.comparison.collect_student_report \
+  --queue "$EXT/repo_manifests_37c65b6/student_queue" \
+  --core-report "$ART/final_delivery_20260908_4a6bc50/report/report.json" \
+  --out-dir "$EXT/student_collection_NEW"
+"$PY" -m experiments.comparison.final_report \
+  --manifest "$EXT/student_collection_NEW/report-manifest.json" \
+  --out-dir "$EXT/student_report_NEW" --metadata-only
+```
+
+After copying the compact report, render without reopening remote predictions:
+`python -m experiments.comparison.collect_student_report --render-dir REPORT
+--docx-python PYTHON`. This adds the Student table and explicitly labels the
+DOCX quantitative-only; it does not rewrite the completed core report.
+
 ## Released nontraining interfaces
 
 - Final Student quantitative: 180 B-F cells, seeds42/43/44, all 12 clean/corrupted
@@ -51,7 +98,8 @@ It creates `student_queue/{runtime.json,paths.py,student.list,run_eval_full.sh}`
 two seeded qualitative plans, `roi_jobs.json`, `embedding_jobs.json`, and
 `extension_scope.json`. Nothing is written to the core queue or source trees.
 
-The sole live Student producer is owned by the compute supervisor:
+The original Student producer was owned by the compute supervisor and is now
+terminal180/180; do not relaunch any Student inference:
 `xaf-student-producer`, with `xafS-DS-domain-seed-method` jobs running the
 existing `run_eval_student.sh GPU DS DOMAIN SEED METHOD`. Do not replace or
 duplicate it. The command below is ONLY a future coordinated cutover/recovery
