@@ -154,3 +154,43 @@ not been established. Reusing the six-class RSAR adapter cannot be labeled
 DIOR-target-supervised. Training a DIOR adapter requires an explicit20-class,
 non-TEST labeled-patch recipe and recorded prompt/split/budget; neither labels
 nor adapters may enter strict methods.
+
+## LPLD implementation: available for owner scientific smoke, not a completed run
+
+The independent implementation is in `sfod/extensions/lpld_losses.py`,
+`lpld.py`, and `proposal_teacher.py`; no unlicensed upstream source is vendored.
+Algorithm reference: official commit
+`ebdc813805870ec20de91ecfb03705c24e4d51cf`, `student_sfda_rcnn.py:145-221`.
+
+`configs/unbiased_teacher/sfod/extensions/lpld_{rsar,dior}.py` binds the
+existing OrthoNet/Oriented R-CNN source architecture, six/twenty classes,
+global32 on one GPU, LR0.02 and one target-image-only VAL epoch. The launcher
+must supply the actual fixed `load_from`, `model.ema_ckpt`, domain image root,
+seed and a NEW work directory. No new source training is required.
+
+Both RPN/ROI classification AND regression pseudo losses are enabled. The
+teacher remains frozen throughout the epoch and updates with retention0.75
+at epoch end, through a HIGH-priority hook before the NORMAL checkpoint hook.
+This preserves the method cadence, not the core B-F iteration-start EMA.
+The one-epoch common budget is shorter than the official ten-epoch recipe;
+do not claim a published-budget reproduction.
+
+Full common HPL/NMS is retained. Only the auxiliary branch takes the first300
+objectness-ordered raw teacher RPN proposals, maps the same indices between
+shared-flip weak/strong views, and extracts actual1024-D pre-classifier vectors.
+Teacher boxes support class-agnostic Nx5 and class-specific Nx5C decode;
+background uses the original proposal. Empty-HPL images have zero LPLD loss.
+Other candidates require IoU-to-HPL<=0.4, full-distribution background
+probability<=0.99 and foreground-only softmax maximum>=0.9. Detached
+`1-cos(teacher,student)` weights multiply foreground-target KL (background
+mass1e-10); reduction is weighted sum / kept count /10. `lpld_kept` is a
+diagnostic, not a new acceptance threshold.
+
+The owner may use a32-image, one-iteration smoke in a clearly NON_RESULT
+directory to exercise the actual production batch and epoch/checkpoint hook:
+override `data.train.unlabeled_epoch_size=32`, while retaining global32,
+LR0.02 and both fixed source paths. The resulting iter2 checkpoint is NOT a
+formal266/185 completion. Check finite losses, real proposal alignment,
+kept-count/empty-HPL behavior, frozen teacher during the iteration and correct
+final teacher mixing. No Student producer cutover or new formal training is
+implied by this smoke interface.
