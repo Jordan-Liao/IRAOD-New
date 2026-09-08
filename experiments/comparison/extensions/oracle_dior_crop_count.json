@@ -1,0 +1,54 @@
+{
+  "dataset": "DIOR",
+  "split": "train",
+  "status": "count_only_no_patch_artifacts",
+  "code_commit": "36c2053",
+  "crop_mode": "aabb",
+  "crop_expand": 0.4,
+  "force_rgb": true,
+  "train_image_ids": 5862,
+  "valid_crop_count": 97902,
+  "per_class": {
+    "airplane": 3714,
+    "airport": 984,
+    "baseballfield": 3735,
+    "basketballcourt": 1683,
+    "bridge": 1518,
+    "chimney": 1026,
+    "expressway-service-area": 1611,
+    "expressway-toll-station": 876,
+    "dam": 756,
+    "golffield": 711,
+    "groundtrackfield": 1695,
+    "harbor": 3441,
+    "overpass": 1731,
+    "ship": 39084,
+    "stadium": 879,
+    "storagetank": 4011,
+    "tenniscourt": 6699,
+    "trainstation": 738,
+    "vehicle": 20127,
+    "windmill": 2883
+  },
+  "per_corruption": {
+    "brightness": 32634,
+    "cloudy": 32634,
+    "contrast": 32634
+  },
+  "rejections": {
+    "reason": "empty_expanded_aabb_after_clipping",
+    "total": 0
+  },
+  "canonical_budget": {
+    "epochs": 10,
+    "batch_size": 64,
+    "updates": 15300,
+    "sampler": "WeightedRandomSampler",
+    "draws_per_epoch": 97902,
+    "replacement": true,
+    "drop_last": false
+  },
+  "full_source_summary": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_count_36c2053/summary.json",
+  "expected_optimizer_updates": 15300,
+  "expected_patch_draws": 979020
+}

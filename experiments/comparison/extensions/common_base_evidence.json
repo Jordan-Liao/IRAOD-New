@@ -1,0 +1,59 @@
+{
+  "scope": "Read-only observations of actual saved core B training configs; no model execution",
+  "observed_on_utc": "2026-09-08",
+  "common_freeze": {
+    "pseudo_confidence": 0.7,
+    "samples_per_gpu": 32,
+    "optimizer_lr": 0.02,
+    "max_epochs": 1,
+    "weight_l": 0,
+    "weight_u": 1,
+    "core_B_use_bbox_reg": false
+  },
+  "records": [
+    {
+      "dataset": "RSAR",
+      "domain": "clean",
+      "seed": 42,
+      "method": "B",
+      "actual_saved_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/clean/seed_42/0f98a48/methods/B/work/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+      "model.cfg.score_thr": 0.7,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "model.cfg.use_bbox_reg": false,
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "runner.max_epochs": 1,
+      "data.train.unlabeled_epoch_size": 8467,
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "clean",
+      "seed": 42,
+      "method": "B",
+      "actual_saved_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/clean/seed_42/0f98a48/methods/B/work/dior_B_strict.py",
+      "model.cfg.score_thr": 0.7,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "model.cfg.use_bbox_reg": false,
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "runner.max_epochs": 1,
+      "data.train.unlabeled_epoch_size": 5863,
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth"
+    }
+  ],
+  "extraction": "AST literal reads of the named saved files; configs were not executed and no target annotations were read",
+  "limits": "Two explicitly identified dataset/base records, not an invented all-cell re-audit. Augmentations remain inherited from the unchanged strict B pipeline.",
+  "coordinator_decisions": [
+    "Training-only IRG graph/MLPs are allowed; fixed detector/source forbids replacing the source, not these method-inherent auxiliaries",
+    "IRG/LPLD/SF-UT retain both pseudo regression branches; completed core A-F remains unchanged",
+    "IRG/LPLD use actual epoch-end retention0.9/0.75 after final optimizer and before final checkpoint",
+    "Distinct paper-defined SF-UT is included: 12 domains x 3 seeds, not reused B results",
+    "Correction: B-versus-SF-UT is not a single-factor regression contrast because EMA differs; add distinct B_REG with every other B setting and frozen training code unchanged",
+    "AdaBN plus Fixed SF-FixMatch is a separate method and is not automatically requested"
+  ]
+}

@@ -1,0 +1,30 @@
+% Requires booktabs and multirow. No project-specific delta macros are needed.
+\providecommand{\best}[1]{\textbf{#1}}
+\providecommand{\up}[1]{\ensuremath{_{+#1}}}
+\providecommand{\dn}[1]{\ensuremath{_{-#1}}}
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.12}
+\caption{DIOR-R OrthoNet-50 source-free OBB comparison (seed\,42, AP50).
+$\Delta$ vs Source-Only on the same corruption; mPC over brightness/cloudy/contrast.
+Source clean val/test: 0.410/0.295; rPC uses clean TEST.
+All rows use no target labels; B--F use final EMA.
+Single seed, so mean$\pm$std is N/A. Cloudy and contrast recovery are unstable.
+VLM: A/B none, C CLIP RN50x64, D/E/F frozen base SARCLIP (no LoRA).}
+\label{tab:dior-sfod}
+\begin{tabular}{@{}l cccc c ccc@{}}
+\toprule
+\multirow{2}{*}{\textbf{Method}} & \multicolumn{4}{c}{\textbf{AP50}\,$\uparrow$} && \multicolumn{3}{c}{\textbf{Aggregate}} \\
+\cmidrule(lr){2-5}\cmidrule(lr){7-9}
+ & Clean & Bright & Cloudy & Contrast && mPC\,$\uparrow$ & rPC (\%) & mean $\Delta$ada \\
+\midrule
+A Source Only & 0.295 & 0.242 & 0.290 & 0.282 && 0.271 & 91.96 & 0.0000 \\
+B ST & N/A & 0.245\up{0.0030} & 0.297\up{0.0069} & 0.285\up{0.0030} && 0.275 & 93.41 & 0.0043 \\
+C CLIP-CGA & N/A & \best{0.247}\up{0.0057} & 0.294\up{0.0040} & \best{0.285}\up{0.0031} && 0.275 & 93.40 & 0.0043 \\
+D SARCLIP-CGA & N/A & 0.240\dn{0.0018} & 0.287\dn{0.0036} & 0.278\dn{0.0039} && 0.268 & 90.91 & -0.0031 \\
+E VLST & N/A & 0.245\up{0.0031} & \best{0.298}\up{0.0073} & 0.285\up{0.0031} && \best{0.276} & \best{93.48} & \best{0.0045} \\
+F CGA+VLST & N/A & 0.242\up{0.0002} & 0.288\dn{0.0024} & 0.282\up{0.0008} && 0.271 & 91.80 & -0.0005 \\
+\bottomrule
+\end{tabular}
+\end{table*}

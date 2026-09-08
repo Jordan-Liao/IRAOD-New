@@ -1,0 +1,149 @@
+{
+  "qualitative_plan": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/completion-plan.json",
+  "embeddings": [
+    {
+      "dataset": "RSAR",
+      "domain": "clean",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/clean/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "clean",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/clean/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "chaff",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/chaff/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "chaff",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/chaff/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "gaussian_white_noise",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/gaussian_white_noise/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "gaussian_white_noise",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/gaussian_white_noise/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "point_target",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/point_target/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "point_target",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/point_target/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "noise_suppression",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/noise_suppression/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "noise_suppression",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/noise_suppression/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "am_noise_horizontal",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/am_noise_horizontal/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "am_noise_horizontal",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/am_noise_horizontal/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "smart_suppression",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/smart_suppression/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "smart_suppression",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/smart_suppression/student"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "am_noise_vertical",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/am_noise_vertical/ema"
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "am_noise_vertical",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/RSAR/am_noise_vertical/student"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "clean",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/clean/ema"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "clean",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/clean/student"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "brightness",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/brightness/ema"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "brightness",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/brightness/student"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "cloudy",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/cloudy/ema"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "cloudy",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/cloudy/student"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "contrast",
+      "comparison": "ema",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/contrast/ema"
+    },
+    {
+      "dataset": "DIOR",
+      "domain": "contrast",
+      "comparison": "student",
+      "directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/full_test_roi_v3_331d213/tsne/DIOR/contrast/student"
+    }
+  ]
+}

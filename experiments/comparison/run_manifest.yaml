@@ -1,0 +1,31 @@
+{
+  "status": "complete_declared_A_F_matrix",
+  "consumer_commit": "4a6bc50dee983d44b1598ab2aef93968ca622b50",
+  "parent_terminal": "results/paper_comparison/terminal_state.json",
+  "adaptation_seeds": [
+    42,
+    43,
+    44
+  ],
+  "fixed_source_seed": 42,
+  "source_ids": {
+    "RSAR": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+    "DIOR": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a"
+  },
+  "new_training_cells": 130,
+  "native_eval_cells": 192,
+  "checkpoints": "results/paper_comparison/checkpoints.json",
+  "raw_results": "results/paper_comparison/raw_results.csv",
+  "artifacts": {
+    "report_directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/report",
+    "quantitative_input_manifest": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/report-manifest.json",
+    "prediction_image_coverage": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/report/prediction_image_coverage.csv",
+    "roi_image_coverage": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/roi_vis_coverage.csv",
+    "qualitative_evidence": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/qualitative_summary.json"
+  },
+  "unrun": [
+    "G_oracle",
+    "IRG",
+    "LPLD"
+  ]
+}

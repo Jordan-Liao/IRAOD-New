@@ -1,0 +1,43 @@
+{
+  "dataset": "DIOR-R",
+  "code": "0f98a48b539f9260055fc305784ffbc924f50451",
+  "source_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+  "source_sha256": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a",
+  "source_retention": [
+    "epoch_80.pth",
+    "epoch_90.pth",
+    "epoch_100.pth"
+  ],
+  "classes": [
+    "airplane",
+    "airport",
+    "baseballfield",
+    "basketballcourt",
+    "bridge",
+    "chimney",
+    "expressway-service-area",
+    "expressway-toll-station",
+    "dam",
+    "golffield",
+    "groundtrackfield",
+    "harbor",
+    "overpass",
+    "ship",
+    "stadium",
+    "storagetank",
+    "tenniscourt",
+    "trainstation",
+    "vehicle",
+    "windmill"
+  ],
+  "corruptions": [
+    "brightness",
+    "cloudy",
+    "contrast"
+  ],
+  "unlabeled": "val image-only 5863",
+  "eval": "test OBB GT 11738",
+  "final_ema": "iter_185_ema.pth",
+  "cells_ok": 20,
+  "vis16": "/mnt/shared/zechuan/iraod_data/DIOR/ImageSets/vis16.txt"
+}

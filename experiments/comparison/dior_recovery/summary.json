@@ -1,0 +1,84 @@
+{
+  "A_clean_test": 0.2948998510837555,
+  "agg": [
+    {
+      "dataset": "DIOR",
+      "method": "A",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.2711851994196574,
+      "rPC_percent": 91.9584050053105,
+      "mean_delta_ada": 0.0,
+      "mean_recovery": 0.0,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    },
+    {
+      "dataset": "DIOR",
+      "method": "B",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.2754657218853633,
+      "rPC_percent": 93.40992234245901,
+      "mean_delta_ada": 0.004280522465705872,
+      "mean_recovery": 0.5899412372026883,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    },
+    {
+      "dataset": "DIOR",
+      "method": "C",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.2754480441411336,
+      "rPC_percent": 93.40392785173115,
+      "mean_delta_ada": 0.004262844721476237,
+      "mean_recovery": 0.4001289255122305,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    },
+    {
+      "dataset": "DIOR",
+      "method": "D",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.268091544508934,
+      "rPC_percent": 90.90935228474986,
+      "mean_delta_ada": -0.003093654910723368,
+      "mean_recovery": -0.36628475137885586,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    },
+    {
+      "dataset": "DIOR",
+      "method": "E",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.27567968765894574,
+      "rPC_percent": 93.48247774484261,
+      "mean_delta_ada": 0.00449448823928833,
+      "mean_recovery": 0.6221856313170379,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    },
+    {
+      "dataset": "DIOR",
+      "method": "F",
+      "seed": 42,
+      "n_corruptions": 3,
+      "A_clean_test": 0.2948998510837555,
+      "mPC": 0.2707248081763585,
+      "rPC_percent": 91.80228717696744,
+      "mean_delta_ada": -0.00046039124329884845,
+      "mean_recovery": -0.15150622202564454,
+      "recovery_stability": "cloudy:unstable;contrast:unstable",
+      "std": "N/A_single_seed"
+    }
+  ],
+  "cells_ok": 20
+}
