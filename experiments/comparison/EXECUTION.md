@@ -153,6 +153,21 @@ These commands **execute GPUs**; none were run in this code delivery. The
 parent can run them using the prepared union after deployment. Each command
 acquires the actual shared GPU and formal-cell locks for its entire lifetime.
 
+**Launcher contract:** invoke `smoke_frozen_training` directly from the
+supervisor's orchestrator, without `with_gpu_lock.sh`, `flock`, or a
+`finite_resumer worker` holding an outer GPU/cell lock around it. This entry
+owns both locks itself and sets `IRAOD_GPU_LOCKED=1` only for its native child
+after acquisition. An inherited flag never bypasses acquisition. If another
+holder exists, the smoke must fail; do not unlink lock files or bypass locks.
+Native detector/Student evaluation, TSD and TAM entries retain their existing
+outer-lock contract; do not apply the smoke contract to those entries.
+
+Legacy `b_reg_manifests_0e5f8f7` cells do not contain `world_size`. Their
+topology comes from the existing finite runner's B_REG single-GPU dispatch
+(`Cell.width`), not from the four-GPU source-training checkpoint pathname and
+not from an arbitrary safety default. The cell/config are not rewritten;
+the smoke still uses1x32 and records the topology's resolution basis.
+
 ```bash
 "$PY" -m experiments.comparison.smoke_frozen_training \
   --queue "$Q" --dataset DIOR --domain clean --seed 42 --method B_REG \

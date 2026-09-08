@@ -79,6 +79,68 @@ class FrozenCommandTest(unittest.TestCase):
         write_json(self.queue / "runtime.json", {
             "cells": cells, "python": "/venv/bin/python", "training_code": "/orchestration"})
 
+    def test_real_legacy_b_reg_binding_without_new_topology_fields(self):
+        # Exact cell from b_reg_manifests_0e5f8f7 and release_manifests_752a139.
+        binding = json.loads((Path(__file__).parent / "fixtures"
+                              / "b_reg_0e5f8f7_dior_clean_42.json").read_text())
+        self.assertNotIn("world_size", binding)
+        self.assertNotIn("samples_per_gpu", binding)
+        self.assertNotIn("use_bbox_reg", binding)
+        key = "DIOR/clean/42/B_REG"
+        write_json(self.queue / "runtime.json", {
+            "cells": {key: binding}, "python": "/venv/bin/python",
+            "training_code": "/original/orchestration",
+        })
+        release = self.root / "release"
+        release.mkdir()
+        (release / "with_gpu_lock.sh").symlink_to(self.queue / "with_gpu_lock.sh")
+        write_json(release / "runtime.json", {
+            "cells": {key: binding}, "source_queues": {key: str(self.queue)},
+        })
+        out = self.root / "legacy_smoke"
+
+        def launch(command, **kwargs):
+            self.assertEqual(kwargs["cwd"], Path(binding["training_code"]))
+            self.assertIn("data.samples_per_gpu=32", command)
+            self.assertIn("model.cfg.use_bbox_reg=True", command)
+            self.assertIn("optimizer.lr=0.02", command)
+            self.assertIn("load_from=" + binding["source_checkpoint"], command)
+            self.assertIn(binding["config"], command)
+            self.assertIn("model.ema_ckpt=" + binding["source_checkpoint"], command)
+            self.assertEqual(kwargs["env"]["CUDA_VISIBLE_DEVICES"], "6")
+            self.assertNotIn("--nproc_per_node=2", command)
+            self.assertIsNone(finite.take_lock(self.root / "locks/gpu/gpu6.lock"))
+            write_json(out / "rank_0.json", {
+                "status": "NON_RESULT", "bounded_pass": True, "optimizer_updates": 2,
+            })
+
+        with patch.object(training, "code_sha", return_value=TRAINING_CODE_SHA), \
+                patch.object(training, "require_file", side_effect=Path), \
+                patch.object(finite, "idle_devices", return_value={6}), \
+                patch.object(smoke.subprocess, "run", side_effect=launch) as native:
+            self.assertEqual(smoke.run(release, "DIOR", "clean", 42, "B_REG", "6", out), out)
+        native.assert_called_once()
+        self.assertEqual(json.loads((release / "runtime.json").read_text())["cells"][key], binding)
+        evidence = json.loads((out / "invocation.json").read_text())
+        self.assertEqual(evidence["world_size"], 1)
+        self.assertIn("finite_resumer.Cell.width", evidence["topology_basis"])
+
+    def test_outer_gpu_lock_blocks_smoke_even_with_owned_environment_flag(self):
+        outer = finite.take_lock(self.root / "locks/gpu/gpu4.lock")
+        self.assertIsNotNone(outer)
+        try:
+            with patch.object(training, "code_sha", return_value=TRAINING_CODE_SHA), \
+                    patch.object(finite, "idle_devices", return_value={4, 5}), \
+                    patch.object(smoke.subprocess, "run") as native, \
+                    patch.dict(smoke.os.environ, {"IRAOD_GPU_LOCKED": "1"}):
+                with self.assertRaisesRegex(RuntimeError, "Actual shared lock busy"):
+                    smoke.run(self.queue, "DIOR", "clean", 42, "F_text_only", "4,5",
+                              self.root / "nested")
+            native.assert_not_called()
+            self.assertFalse((self.root / "nested").exists())
+        finally:
+            outer.close()
+
     def test_b_reg_and_one_f_control_use_real_frozen_training_with_fresh_nonresult_outputs(self):
         for method, gpus in (("B_REG", "6"), ("B_REG", "7"),
                              ("F_text_only", "4,5"), ("F_text_only", "6,7")):

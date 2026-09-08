@@ -120,7 +120,11 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
         raise ValueError("B_REG requires one GPU4-7; F requires pair4,5/29804 or6,7/29806")
     port = PAIR_PORTS.get(devices)
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
-    if cell["training_code_sha"] != TRAINING_CODE_SHA or cell["world_size"] != len(devices):
+    model_cell = Cell(dataset, domain, seed, method)
+    # Legacy B_REG predates world_size; the original finite runner dispatches
+    # that method through its single-GPU API. Do not infer from source-training topology.
+    world_size = cell["world_size"] if "world_size" in cell else model_cell.width
+    if cell["training_code_sha"] != TRAINING_CODE_SHA or world_size != len(devices):
         raise ValueError("Smoke requires the original0f98 binding and unchanged topology")
     out = Path(out_dir).resolve()
     formal = Path(cell["method_dir"]).resolve()
@@ -143,11 +147,13 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     root = lock_root(queue)
     locks = []
     try:
-        cell_lock = root.parent / "cell_locks" / (Cell(dataset, domain, seed, method).session("train") + ".lock")
+        cell_lock = root.parent / "cell_locks" / (model_cell.session("train") + ".lock")
         for path in (cell_lock, *(root / f"gpu{g}.lock" for g in devices)):
             lock = take_lock(path)
             if lock is None:
-                raise RuntimeError(f"Actual shared lock busy: {path}")
+                raise RuntimeError(
+                    f"Actual shared lock busy: {path}. This smoke entry acquires its own locks; "
+                    "invoke without an outer lock wrapper and never bypass another holder.")
             locks.append(lock)
         if not set(devices).issubset(idle_devices(devices)):
             raise RuntimeError("Assigned GPU occupied; no smoke runner invoked")
@@ -156,6 +162,10 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
         write_json(out / "invocation.json", {
             "status": "NON_RESULT", "cell": cell, "training_code_sha": sha,
             "gpus": devices, "port": port,
+            "world_size": world_size,
+            "topology_basis": "prepared cell.world_size" if "world_size" in cell
+                              else "existing finite_resumer.Cell.width / native runner API",
+            "lock_owner": "smoke_frozen_training; launcher must not hold an outer GPU/cell lock",
             "effective_global_batch": 32, "optimizer_updates": updates,
             "command": command, "formal_outputs_written": False,
         })
@@ -175,7 +185,9 @@ def main():
     if "--native" in sys.argv:
         native(sys.argv[1:])
         return
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="This entry owns GPU/cell locks. Invoke directly, not inside an outer GPU/cell lock wrapper.")
     for name in ("queue", "dataset", "domain", "method", "gpus", "out-dir"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--seed", type=int, choices=(42, 43, 44), required=True)
