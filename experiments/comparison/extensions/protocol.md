@@ -232,28 +232,29 @@ test-selected reruns are part of this matrix.
 
 ## Oracle recipe evidence and outstanding provenance
 
-`tools/train_sarclip_lora_rsar.py` currently fixes six RSAR classes and the
-template `A SAR image of a {}`. It learns visual LoRA plus logit scale against
+`tools/train_sarclip_lora_rsar.py` supports the frozen six-class RSAR recipe
+with template `A SAR image of a {}` and the20-class DIOR recipe with template
+`an aerial image of a {}`. It learns visual LoRA plus logit scale against
 frozen text classifiers using class-balanced sampling and AdamW. The concrete
 `scripts/run_sarclip_rsar_train_corrupt_exp.sh` trains on labeled RSAR TRAIN
 patches from all seven corruptions: AABB expansion0.4,10 epochs,batch64,
 LR1e-4,weight decay1e-4,rank8,alpha16,dropout0. Its VAL/TEST calls are separate
 evaluation, not adapter training.
 
-The other convenience wrapper specifies3 epochs and incorrectly passes a
-`.pth` filename to a directory-valued `--output`; it is not interchangeable
-evidence of the executed recipe. The trainer also permits an explicit
-visual-projection mode and a legacy LoRA-error fallback. An artifact's actual
+The other convenience wrapper's legacy3-epoch route is not interchangeable
+evidence of the frozen10-epoch recipe; its output-directory argument was
+repaired. Explicit visual-projection mode is not a LoRA oracle, and the
+silent LoRA-error fallback has been removed. An artifact's actual
 `adapter_type`, `classes`, `metadata`, base-model identity, config and log must
 be inspected before calling it a LoRA oracle.
 
 No adapter was found in the specifically checked standard work-directory/model
 candidates on67. This is not a claim that no adapter exists anywhere; actual
-paths/provenance are requested from the compute owner. A valid DIOR adapter has
-not been established. Reusing the six-class RSAR adapter cannot be labeled
-DIOR-target-supervised. Training a DIOR adapter requires an explicit20-class,
-non-TEST labeled-patch recipe and recorded prompt/split/budget; neither labels
-nor adapters may enter strict methods.
+adapter artifacts have not been produced by this delivery. Both dataset TRAIN
+inputs are now reconciled and ready under their explicit recipes; real GPU
+smokes/adapters await capacity. Reusing the six-class RSAR adapter cannot be
+labeled DIOR-target-supervised; neither labeled patches nor adapters may enter
+strict methods.
 
 ## LPLD implementation: available for owner scientific smoke, not a completed run
 
@@ -714,9 +715,13 @@ The frozen10-epoch/batch64 budget is therefore **163,730 optimizer updates**
 and10,478,440 patch draws. This count used the single expansion0.4; it must
 not be replaced by an old estimate based on multiple crop expansions.
 `oracle_rsar_crop_count.json` preserves the compact class/domain counts and
-links the full remote TRAIN-ID/source summary. Count-only mode created no
-patch images or training metadataCSV: materialize the crops and reconcile
-the final row count before training.
+links the full remote TRAIN-ID/source summary. The parent has now accepted the
+compute owner's terminal materialization/reconciliation:1,047,844 actual CSV
+rows,324,418,544 bytes, all class/domain counts matching, zero rejects and no
+clean domain. `oracle_rsar_materialization.json` records that owner evidence
+and the consumed `ORACLE_RECONCILE_OK` event; this code delivery does not repeat
+the reconciliation or rerun the builder. Both RSAR and DIOR oracle inputs are
+ready, while ports108 still owns the GPUs and no oracle GPU work has launched.
 
 The explicit oracle consumers are in `sfod/extensions/oracle.py`, imported
 only by `oracle_cga_*` / `oracle_cga_vlst_*` configs. They preserve the original

@@ -75,10 +75,11 @@
     "oracle": {
       "adapters": 2,
       "detector_train_cells": 72,
-      "status": "DIOR_TRAIN_ready_RSAR_supervisor_reconciliation_and_real_weight_smokes_pending",
+      "status": "both_dataset_TRAIN_inputs_ready_real_weight_smokes_and_adapters_pending_capacity",
       "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
       "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
-      "RSAR": "1047844-row patch materialization remains compute-owner controlled; terminal reconciliation not claimed here",
+      "RSAR": "Parent-accepted compute-owner terminal reconciliation:1047844 metadata rows,324418544bytes,149692 per perturbation domain,no clean,all6class counts match,zero rejects; builder157722 exited; no GPU launch",
+      "RSAR_evidence": "experiments/comparison/extensions/oracle_rsar_materialization.json",
       "DIOR": "5862 cloudy TRAIN images generated;97902 three-corruption patches complete and reconciled,32634/domain,20classes,zero rejects;15300 adapter optimizer updates at10epochs/batch64; no GPU launch",
       "DIOR_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json"
     },
