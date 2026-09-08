@@ -4,7 +4,7 @@
   "implementation_commit": "752a139",
   "remote_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908",
   "deployed_code": "integration_code_752a139",
-  "producer_policy": "Existing single IRG/LPLD/SFUT producer remains supervisor-owned; integration owner launches no GPU jobs and changes no controller or live code",
+  "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
   "scopes": {
     "Student180": {
@@ -17,8 +17,21 @@
     },
     "IRG_LPLD_SFUT": {
       "train_cells": 108,
-      "status": "live_producer_owned_externally",
-      "next": "Collect terminal results when relayed; do not launch a second producer"
+      "EMA_eval_cells": 108,
+      "status": "owner_terminal_accepted_actual_EMA_quantitative_collected",
+      "owner_terminal_at": "2026-09-08T15:55:49Z",
+      "owner_failed": 0,
+      "owner_active": 0,
+      "owner_result_receipts": 213,
+      "owner_adopted_train_cells": 3,
+      "committed_report": "results/extensions/ports108_ema",
+      "remote_report": "ports108_report_752a139",
+      "consumer_complete_cells_including12_sources": 120,
+      "new_EMA_TEST_image_records": 1037304,
+      "new_EMA_post_nms_detections": 18229448,
+      "zero_detection_cells": 5,
+      "zero_detection_cause": "not diagnosed by collection; all zero results retained",
+      "next": "Await native Student/ROI outputs from the GPU owner; explain five zero-output seed44 cells before interpreting affected equal-sample joint embeddings. No automatic rerun."
     },
     "B_REG": {
       "train_cells": 36,
@@ -102,7 +115,7 @@
       "next": "Execute required native EMA/Student evaluations and360 ROI/9600 fixed-view/72 joint-embedding jobs when their real checkpoints/predictions/features are ready; collect actual outputs. No results are fabricated by preparation."
     },
     "next_release_executor": {
-      "status": "actual_metadata_prepared_not_launched",
+      "status": "execution_transferred_to_GPU_owner_results_pending",
       "interface": "experiments/comparison/EXECUTION.md",
       "producer": "one existing finite_resumer with source-queue routing, shared model locks and pidfd events",
       "combined_queue": "release_manifests_752a139",

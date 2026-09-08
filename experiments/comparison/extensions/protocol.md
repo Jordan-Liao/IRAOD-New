@@ -8,7 +8,21 @@ No extension improves or replaces a negative core score by selection or tuning.
 
 `delivery_state.json` tracks the approved parent gate, ready interfaces and
 technical blockers. Approval is not pending; DRU remains explicitly excluded.
-The existing IRG/LPLD/SFUT producer remains exclusively supervisor-owned.
+The IRG/LPLD/SFUT producer is now terminal per the accepted owner event
+at2026-09-08T15:55:49Z:108 train +108 EMA evaluations,0 failed,0 active,
+213 receipts;3 training cells were adopted. The same GPU owner operates
+the approved next release; the code/report owner launches no GPU jobs.
+
+`results/extensions/ports108_ema/` contains actual CPU-collected native results:
+108 new EMA cells plus12 fixed source references,120/120 quantitative artifacts,
+1,037,304 new EMA TEST image records and18,229,448 detections. CSV/statistics,
+LaTeX, figures and DOCX are delivered; the large image-coverage CSV remains
+remote at `ports108_report_752a139` with provenance recorded.
+Five RSAR seed44 cells have zero detections and mAP0 (IRG/LPLD point_target;
+IRG/LPLD/SFUT noise_suppression). They remain in all means/statistics; cause is
+not diagnosed here. Their two corresponding EMA joint-tSNE groups have no
+eligible points for the affected methods. No points, scores or reruns are
+fabricated. Student/qualitative and other method scopes remain open.
 
 Student180 is now actually collected: **180/180**, failed0, plus12 reused fixed
 source evaluations. Native ordered predictions cover1,728,840 Student TEST

@@ -1,0 +1,6 @@
+dataset,domain,method,seed,role,mAP50,n_predictions,n_post_nms_detections,artifact_status,interpretation
+RSAR,point_target,IRG,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
+RSAR,point_target,LPLD,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
+RSAR,noise_suppression,IRG,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
+RSAR,noise_suppression,LPLD,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
+RSAR,noise_suppression,SFUT,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
