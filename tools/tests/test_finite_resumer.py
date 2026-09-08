@@ -387,11 +387,70 @@ else: raise SystemExit(2)
             (origin / "runtime.json").write_text(json.dumps({"python": sys.executable}))
             origins[cell.key] = str(origin)
         runtime = {"schema": "iraod-mixed-detector-queue-v1", "cells": bindings,
-                   "source_queues": origins}
+                   "source_queues": origins,
+                   "student_cells": {key: {**binding, "role": "student",
+                                           "checkpoint": binding["student_checkpoint"]}
+                                     for key, binding in bindings.items()}}
         (self.q / "runtime.json").write_text(json.dumps(runtime))
         with (self.q / "paths.py").open("a") as stream:
             stream.write("\nimport json\nDATA = json.loads((Path(__file__).parent / 'runtime.json').read_text())\n")
         return runtime
+
+    def test_missing_shared_source_blocks_b_reg_and_both_f_deletions_and_f(self):
+        cells = [Cell("RSAR", "clean", 43, method)
+                 for method in ("B_REG", "F_text_only", "F_veto_only", "F")]
+        runtime = self.prepared_inputs(cells)
+        sources = {binding["source_checkpoint"] for binding in runtime["cells"].values()}
+        self.assertEqual(len(sources), 1)
+        source = Path(sources.pop())
+        source.unlink()
+        process, directory = self.start(cells)
+        self.assertEqual(process.wait(timeout=8), 2)
+        rows = json.loads((directory / "state.json").read_text())["cells"]
+        self.assertEqual(len(rows), 4)
+        for row in rows:
+            with self.subTest(method=row["cell"]["method"]):
+                self.assertEqual(row["train"], "waiting")
+                self.assertIn(str(source), row["train_input_reason"])
+                self.assertEqual(row["attempts"], [])
+        self.assertFalse((directory / "jobs").exists())
+        self.assertFalse((self.q / "artifacts").exists())
+
+    def test_both_eval_roles_require_test_list_and_their_own_source_runtime(self):
+        ema = Cell("DIOR", "clean", 43, "C")
+        student = Cell("DIOR", "clean", 43, "C", "student")
+        runtime = self.prepared_inputs([ema])
+        student_origin = self.q / "student-source-queue"
+        student_origin.mkdir()
+        student_metadata = student_origin / "runtime.json"
+        student_metadata.write_text(json.dumps({"python": sys.executable}))
+        runtime["source_queues"][student.key] = str(student_origin)
+        finite.write_json(self.q / "runtime.json", runtime)
+        self.successful_train_files(ema)
+        annotations = Path(runtime["cells"][ema.key]["ann_file"])
+        ema_metadata = Path(runtime["source_queues"][ema.key]) / "runtime.json"
+        cases = [
+            ("test-list", annotations, (ema, student), ()),
+            ("ema-runtime", ema_metadata, (ema,), ("--hold-cell", student.key)),
+            ("student-runtime", student_metadata, (student,), ("--hold-cell", ema.key)),
+        ]
+        for name, missing, waiting, controls in cases:
+            with self.subTest(missing=name):
+                original = missing.read_bytes()
+                missing.unlink()
+                process, directory = self.start([], name, eval_cells=(ema, student), controls=controls)
+                self.assertEqual(process.wait(timeout=8), 2)
+                rows = {Cell(**r["cell"]): r
+                        for r in json.loads((directory / "state.json").read_text())["cells"]}
+                for cell in waiting:
+                    self.assertEqual(rows[cell]["train"], "complete")
+                    self.assertEqual(rows[cell]["eval"], "waiting")
+                    self.assertIn(str(missing), rows[cell]["eval_input_reason"])
+                    self.assertEqual(rows[cell]["attempts"], [])
+                for cell in {ema, student} - set(waiting):
+                    self.assertEqual(rows[cell]["eval"], "ready")
+                self.assertFalse((directory / "jobs").exists())
+                missing.write_bytes(original)
 
     def test_missing_rsar_source_waits_without_attempt_then_exit_event_admits_it(self):
         rsar = Cell("RSAR", "clean", 43, "B_REG")

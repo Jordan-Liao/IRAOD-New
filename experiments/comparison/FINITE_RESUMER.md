@@ -4,7 +4,7 @@ This is a code-only replacement entry point. It does not replace live queue
 scripts, change the training/evaluation checkouts, or launch a GPU until the
 coordinator explicitly invokes it.
 
-## Input admission and selected recovery (2026-09-09)
+## Input admission and selected recovery
 
 Prepared target/mixed queues now resolve each cell through the existing
 `extension_training.load_cell` route, including the original source queue's
@@ -19,6 +19,17 @@ It does not decode images, restore data, change sample IDs, reduce epoch size,
 or certify complete image/annotation contents; frozen-data restoration remains
 the experiment owner's responsibility. Historical non-runtime shell queues
 retain their existing prerequisite interface.
+
+The head's **2026-09-08 23:43 UTC** report attributes all72 RSAR training
+failures to the same missing source checkpoint:24 each for `B_REG`,
+`F_text_only` and `F_veto_only`. It separately reports30 EMA failures missing
+DIOR TEST input and36 Student failures missing source-queue metadata.
+Admission applies to ordinary F training as well as B_REG and its F deletions,
+and resolves the correct queue route and checkpoint for **both** eval roles.
+These are owner-reported observations, not a new remote inspection. All three
+dependencies remain absent and no transfer is reported active; code delivery
+does not restore them. The original five DIOR image faults remain a separate
+data-owner issue.
 
 Missing inputs produce `waiting` and `train_input_reason` / `eval_input_reason`,
 not a failed attempt. Admission is reconsidered at startup and tracked job/owner
