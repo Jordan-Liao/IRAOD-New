@@ -249,6 +249,7 @@ def locked_command(gpus, command):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--local-rank", "--local_rank", type=int)
     commands = parser.add_subparsers(dest="action", required=True)
     native = commands.add_parser("native")
     native.add_argument("entry")
@@ -265,6 +266,8 @@ def main():
             parser.error("lock requires a command")
         raise SystemExit(locked_command(tuple(map(int, args.gpus.split(","))), command))
     entry, arguments = args.entry, args.arguments
+    if args.local_rank is not None:
+        arguments = [f"--local-rank={args.local_rank}", *arguments]
     sys.path.insert(0, str(Path(entry).parent))
     sys.argv = [entry, *arguments]
     if is_target_host():
