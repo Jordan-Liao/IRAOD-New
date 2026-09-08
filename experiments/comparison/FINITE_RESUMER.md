@@ -12,7 +12,7 @@ Prepared target/mixed queues now resolve each cell through the existing
 checkpoint, target image directory and at least the frozen `unlabeled_epoch_size`
 supported images, plus existing AASFOD/SFYOLO/oracle prerequisites. Evaluation
 requires its bound final checkpoint, DIOR TEST list (or RSAR annotation
-directory), and TEST image directory. This detects the reported RSAR
+directory), and TEST image directory. This detects missing inputs such as RSAR
 `train/epoch_100.pth`, DIOR `ImageSets/test.txt`, and
 `formal_ports_manifests_a39c832/runtime.json` omissions before an attempt.
 It does not decode images, restore data, change sample IDs, reduce epoch size,
@@ -20,16 +20,8 @@ or certify complete image/annotation contents; frozen-data restoration remains
 the experiment owner's responsibility. Historical non-runtime shell queues
 retain their existing prerequisite interface.
 
-The head's **2026-09-08 23:43 UTC** report attributes all72 RSAR training
-failures to the same missing source checkpoint:24 each for `B_REG`,
-`F_text_only` and `F_veto_only`. It separately reports30 EMA failures missing
-DIOR TEST input and36 Student failures missing source-queue metadata.
 Admission applies to ordinary F training as well as B_REG and its F deletions,
 and resolves the correct queue route and checkpoint for **both** eval roles.
-These are owner-reported observations, not a new remote inspection. All three
-dependencies remain absent and no transfer is reported active; code delivery
-does not restore them. The original five DIOR image faults remain a separate
-data-owner issue.
 
 Missing inputs produce `waiting` and `train_input_reason` / `eval_input_reason`,
 not a failed attempt. Admission is reconsidered at startup and tracked job/owner
@@ -92,7 +84,7 @@ finite lists and add `--previous-state "$LAST_RUN/state.json"
 --release-cell DIOR/brightness/43/F`. Add a `--retry-cell` only if that phase is
 failed/blocked and explicitly authorized; waiting inputs need no retry flag.
 
-### Exact deployment boundary for the old live abdca producer
+### Producer deployment boundary
 
 **Do not replace or inject code into the running old producer. It cannot consume
 these options, and creating/editing a request or ledger does not make it do so.**
@@ -104,41 +96,23 @@ the new runner from a separate checkout with the same frozen queue/lists and a
 new run directory. Retry-selected models must have no live canonical job; other
 live canonical jobs are adopted unchanged.
 
-This code delivery does not perform that cutover. The existing
-experiment-supervisor retains deployment/execution authority on221 GPUs0-3 and
-the separate RSAR work onGPU4. No second producer, deployment, GPU operation, transfer,
-data restoration, polling service or observer is part of this change. The dated
-cutover examples below are historical, not current authorization.
-
-### Owner-reported natural boundary at 2026-09-08 23:47:13 UTC
-
-The head reports that old producer3525468 naturally exited `failed` with
-`one or more finite tasks failed; no automatic retries`, leaving GPUs0-3 idle.
-This provides the original experiment owner a natural deployment boundary;
-there is no need to signal that exited producer. Independent RSAR onGPU4 must
-remain untouched. This is relayed evidence, not an inspection by this delivery.
-
-The360 entries are **mixed records, not360 training jobs**:
-
-| Reported category | State |
-| --- | --- |
-| Required B_REG/F training | 108 models:31 complete,77 failed |
-| AASFOD/SFYOLO waiting | 144 records, including their roles |
-| IRG/LPLD/SFUT reference Student models | 72 blocked records (24 per method); no retraining |
-| EMA evaluation | 31 failed,77 blocked,72 waiting |
-| Student evaluation | 36 failed,72 blocked,72 waiting |
+This code delivery does not perform that cutover; deployment, GPU operations
+and data restoration remain with the experiment owner. The dated cutover
+examples below are historical, not current authorization.
 
 For owner deployment, retain the exact original train/eval lists and their role
-columns; do not turn the360 records or the eval list into a training list.
+columns. Entries are **mixed records, not a count of training jobs**; never turn
+the eval list into a training list.
 `--previous-state` enforces the same finite keys and training ownership.
 Student `:train` retries and eval-only training are rejected, as are retries of
-completed training. A hold/release never grants training ownership. Keep the31
+completed training. A hold/release never grants training ownership. Keep all
 valid trained models, original attempts/failure artifacts and existing valid
 F2-update smokes; do not enqueue or repeat those smokes.
 
 After the owner restores the required **frozen** dependencies, the clean-boundary
 invocation uses the new checkout, original terminal ledger and a new run
-directory. For example (owner-only; not executed by this code delivery):
+directory. This native-host example restricts new submissions to GPUs0-3,
+excluding independent GPU4 work (owner-only; not executed by this delivery):
 
 ```bash
 PYTHONPATH="$RUNNER_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
@@ -151,18 +125,18 @@ PYTHONPATH="$RUNNER_CODE" "$PY" -m experiments.comparison.finite_resumer launch 
 
 Retain any additional original list/external-ownership arguments unchanged.
 Select only actual failed, owned phases from the terminal ledger; repeat
-`--retry-cell` for each explicitly authorized selection. Do not retry the72
-reference Student models as training. An eval selection needs completed training.
+`--retry-cell` for each explicitly authorized selection. IRG/LPLD/SFUT reference
+Student records remain evaluation-only. An eval selection needs completed training.
 With no retry flags, failed states remain failed; with inputs still absent,
 selected retries wait without a runner attempt. No option restores data, consumes
 a request in the old executable, changes budgets or touches independent GPU4 work.
 
-## Observed defects
+## Legacy-wrapper defects
 
 The actual `resume_empty_gpu.sh` waits after every train and every eval, then
 finishes the entire B-C-D list before considering E/F. CPU replay of that
 actual shell script with four free cards produced peak concurrency **one**.
-The current double-GPU API is also different from its caller:
+The legacy double-GPU wrapper API is also different from its caller:
 
 ```text
 run_train_1gpu.sh GPU DS DOMAIN SEED METHOD
@@ -171,8 +145,8 @@ run_eval_full.sh GPU DS DOMAIN SEED METHOD
 ```
 
 The old caller omits `PORT` and tries `4,6`, while the actual double-GPU script
-accepts only **4,5 / port 29804** and **6,7 / port 29806**. The replacement uses
-these exact APIs/pairs and never changes their commands or hyperparameters.
+accepts only **4,5 / port 29804** and **6,7 / port 29806**. In legacy-wrapper mode,
+the replacement uses these exact APIs/pairs without changing their hyperparameters.
 Global batch32, LR0.02, seeds42/43/44, single1x32/double2x16, final checkpoints,
 training tree0f98 and evaluation tree331d remain unchanged.
 
@@ -190,7 +164,13 @@ automatic model retry or new scheduling service.
   Native evaluation uses a free single card only when no ready training fits.
   Already running evaluations are not preempted.
 - Availability requires no compute PID, memory below500MiB and the actual
-  shared GPU flock being available. Only physical GPUs4-7 are accepted.
+  shared GPU flock being available. Legacy-wrapper mode accepts physical GPUs4-7,
+  with pairs4,5 / port29804 and6,7 / port29806.
+- On native host `73F3-5xA6000-221`, `host_binding` exposes GPUs0-4 and
+  pairs0,1 / port29804 and2,3 / port29806. `--gpus` restricts submissions to the
+  owner-authorized subset; host support does not authorize use of every card.
+  Native mode invokes `extension_training.py` with the bound runtime and paths,
+  not the copied legacy shell wrappers. Frozen cell settings remain unchanged.
 - Each independent worker holds the existing GPU lock files and an additional
   cell-wide lock (shared by train/eval and independent of GPU assignment).
   It sets `IRAOD_GPU_LOCKED=1` only while holding those actual locks, preventing
