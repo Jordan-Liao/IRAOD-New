@@ -1,10 +1,11 @@
-"""TAM+MT+SSM OBB; one-epoch common budget leaves SSM inactive in final Teacher."""
+"""TAM+MT+SSM OBB; separate two-epoch budget, domain TAM fit seed42."""
 
 _base_ = './sfut_rsar.py'
 
 model = dict(
     type='SFYOLOOBB',
-    cfg=dict(tam_checkpoint=None, tam_dataset='RSAR', tam_domain=None, tam_seed=None))
+    cfg=dict(tam_checkpoint=None, tam_dataset='RSAR', tam_domain=None, tam_seed=42))
+runner = dict(max_epochs=2)
 custom_hooks = [
     dict(type='SetEpochInfoHook'),
     dict(type='StudentStabilizationHook', priority='HIGH'),

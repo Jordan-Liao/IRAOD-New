@@ -1,4 +1,4 @@
-"""Independent TAM+MT+SSM OBB mechanism; one detector epoch leaves SSM inactive."""
+"""Independent TAM+MT+SSM OBB mechanism under the separate two-epoch budget."""
 
 from pathlib import Path
 
@@ -8,7 +8,7 @@ from mmcv.parallel import is_module_wrapper
 from mmcv.runner import HOOKS, Hook
 from mmdet.models.builder import DETECTORS
 
-from experiments.comparison.tam_artifacts import BGR_MEAN, load_completed_tam
+from experiments.comparison.tam_artifacts import BGR_MEAN, FIT_SEED, load_completed_tam
 from .sfut import SFUTOBB
 
 
@@ -33,7 +33,7 @@ def augment_detector_batch(tam, images, metas, style_index):
         height, width = content.shape[-2:]
         generated = F.interpolate(generated, size=(height, width),
                                   mode="bilinear", align_corners=False)[0]
-        pixels = generated + generated.new_tensor(BGR_MEAN)[:, None, None]
+        pixels = (generated + generated.new_tensor(BGR_MEAN)[:, None, None]).clamp(0, 255)
         norm = meta["img_norm_cfg"]
         if norm.get("to_rgb", True):
             pixels = pixels.flip(0)
@@ -57,6 +57,8 @@ class SFYOLOOBB(SFUTOBB):
             raise FileNotFoundError(f"Missing trained TAM checkpoint: {self.tam_checkpoint}")
         self.tam_identity = {
             "dataset": cfg["tam_dataset"], "domain": cfg["tam_domain"], "seed": int(cfg["tam_seed"])}
+        if self.tam_identity["seed"] != FIT_SEED:
+            raise ValueError("SF-YOLO reuses the domain TAM fit seed42 for every detector seed")
         object.__setattr__(self, "_tam", None)
 
     def forward_train_semi(

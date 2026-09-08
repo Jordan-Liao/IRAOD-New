@@ -3,9 +3,12 @@
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from mmcv import Config
 from mmcv.runner import EpochBasedRunner, Hook
+from mmdet.datasets.samplers import GroupSampler
+import numpy as np
 import torch
 from torch import nn
 
@@ -13,6 +16,7 @@ from experiments.comparison.tam_artifacts import (
     BGR_MEAN, FORMAL_STEPS, SCHEMA, checkpoint_payload, load_completed_tam)
 from sfod.extensions.proposal_teacher import AfterOptimizerTeacherHook
 from sfod.extensions.sfyolo import SFYOLOOBB, StudentStabilizationHook, augment_detector_batch
+from mmdet_extension.core.runner.semi_runner import SemiEpochBasedRunner
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +37,24 @@ class TinySFYOLO(SFYOLOOBB):
 
 
 class SFYOLOTest(unittest.TestCase):
+    def test_actual_sampler_and_epoch_end_checkpoint_filename(self):
+        for count, expected in ((8467, 531), (5863, 369)):
+            class Dataset:
+                flag = np.zeros(count, dtype=np.uint8)
+
+                def __len__(self):
+                    return count
+
+            sampler = GroupSampler(Dataset(), samples_per_gpu=32)
+            runner = object.__new__(SemiEpochBasedRunner)
+            runner._iter = 2 * (len(sampler) // 32)
+            runner._epoch, runner.meta = 1, None
+            runner.model, runner.optimizer = TinySFYOLO(), None
+            with patch('mmdet_extension.core.runner.semi_runner.save_checkpoint') as save:
+                runner.save_checkpoint('/not-written', create_symlink=False)
+            self.assertEqual(save.call_args_list[0].args[1], f'/not-written/iter_{expected}.pth')
+            self.assertEqual(save.call_args_list[1].args[1], f'/not-written/iter_{expected}_ema.pth')
+
     def test_centered_bgr_roundtrip_preserves_shapes_padding_and_metadata(self):
         class IdentityTAM:
             def encoder(self, x):
@@ -47,7 +69,7 @@ class SFYOLOTest(unittest.TestCase):
                 return x
 
         tam = IdentityTAM()
-        images = torch.randn(2, 3, 8, 10)
+        images = torch.rand(2, 3, 8, 10)
         metas = [dict(img_shape=(5, 7, 3), img_norm_cfg=dict(
             mean=[123., 117., 104.], std=[58., 57., 56.], to_rgb=True)) for _ in range(2)]
         before = images.clone()
@@ -59,6 +81,26 @@ class SFYOLOTest(unittest.TestCase):
         expected_style = raw_rgb.flip(0) - torch.tensor(BGR_MEAN)[:, None, None]
         torch.testing.assert_close(tam.style[0], expected_style)
         self.assertEqual(tam.alpha, .4)
+
+    def test_generated_pixels_clamped_before_detector_normalization(self):
+        class TAM:
+            def encoder(self, x):
+                return (x,)
+
+            def transform(self, content, style, alpha):
+                return content
+
+            def decoder(self, x):
+                return torch.full_like(x, 1000)
+
+        images = torch.zeros(1, 3, 8, 8)
+        metas = [dict(img_shape=(5, 7, 3), img_norm_cfg=dict(
+            mean=[123., 117., 104.], std=[58., 57., 56.], to_rgb=True))]
+        result = augment_detector_batch(TAM(), images, metas, 0)
+        expected = (torch.tensor([255., 255., 255.]) - torch.tensor([123., 117., 104.]))
+        expected /= torch.tensor([58., 57., 56.])
+        torch.testing.assert_close(result[0, :, :5, :7], expected[:, None, None].expand(3, 5, 7))
+        torch.testing.assert_close(result[:, :, 5:], images[:, :, 5:])
 
     def test_parameter_ema_and_ssm_never_blend_fixed_or_integer_buffers(self):
         model = TinySFYOLO()
@@ -123,14 +165,38 @@ class SFYOLOTest(unittest.TestCase):
         with self.assertRaisesRegex(FloatingPointError, 'nonfinite'):
             checkpoint_payload(model, {}, '/external/vgg.pth', FORMAL_STEPS, 'code', '/images.json')
 
-    def test_configs_require_tam_and_keep_one_epoch_without_extra_teacher_update(self):
+    def test_completed_seed42_fit_is_reused_and_old_encoder_contract_rejected(self):
+        identity = dict(dataset='RSAR', domain='chaff', seed=42)
+        class Parts(nn.Module):
+            def __init__(self, **kwargs):
+                super().__init__()
+                self.decoder, self.F1, self.F2 = (nn.Linear(2, 2) for _ in range(3))
+
+            def freeze_for_inference(self):
+                return self.requires_grad_(False).eval()
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'tam.pth'
+            payload = checkpoint_payload(
+                Parts(), identity, '/external/oxford.pt', FORMAL_STEPS, 'code', '/images.json')
+            torch.save(payload, path)
+            with patch('sfod.extensions.tam.TargetAugmentationModule', Parts):
+                loaded = load_completed_tam(path, identity, 'cpu')
+            self.assertTrue(all(not p.requires_grad for p in loaded.parameters()))
+            payload['normalization'] = dict(order='BGR', mean=list(BGR_MEAN), input_range='0..255')
+            torch.save(payload, path)
+            with self.assertRaisesRegex(ValueError, 'preprocessing'):
+                load_completed_tam(path, identity, 'cpu')
+
+    def test_configs_require_tam_and_two_epochs_without_extra_teacher_update(self):
         for dataset in ('rsar', 'dior'):
             cfg = Config.fromfile(
                 ROOT / f'configs/unbiased_teacher/sfod/extensions/sfyolo_{dataset}.py',
                 import_custom_modules=False)
             self.assertEqual(cfg.model.type, 'SFYOLOOBB')
             self.assertIsNone(cfg.model.cfg.tam_checkpoint)
-            self.assertEqual(cfg.runner.max_epochs, 1)
+            self.assertEqual(cfg.runner.max_epochs, 2)
+            self.assertEqual(cfg.model.cfg.tam_seed, 42)
             self.assertEqual(cfg.data.samples_per_gpu, 32)
             self.assertEqual(cfg.optimizer.lr, .02)
             names = [h['type'] for h in cfg.custom_hooks]

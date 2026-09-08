@@ -51,15 +51,16 @@ class TinyEncoder(nn.Module):
         return tuple(taps)
 
 
-def synthetic_full_vgg_state():
+def synthetic_oxford_vgg_state():
     """Synthetic test state only; constructed independently of the loader."""
     layers = []
     source = 3
-    for width, count in ((64, 2), (128, 2), (256, 3), (512, 3), (512, 3)):
+    for width, count in ((64, 2), (128, 2), (256, 3), (512, 1)):
         for _ in range(count):
             layers.extend([nn.Conv2d(source, width, 3, padding=1), nn.ReLU()])
             source = width
-        layers.append(nn.MaxPool2d(2, 2, ceil_mode=True))
+        if width != 512:
+            layers.append(nn.MaxPool2d(2, 2, ceil_mode=True))
     return nn.Sequential(*layers).state_dict()
 
 
@@ -160,11 +161,12 @@ class TAMTest(unittest.TestCase):
             convs[-1].bias.fill_(-17)
         torch.testing.assert_close(decoder(z), torch.full_like(stages[-1], -17))
 
-    def test_full_vgg_strict_loading_taps_freezing_and_input_gradient(self):
-        state = synthetic_full_vgg_state()
-        self.assertEqual(len(state), 26)
+    def test_oxford_vgg_strict_loading_taps_freezing_and_input_gradient(self):
+        state = synthetic_oxford_vgg_state()
+        self.assertEqual(len(state), 16)
+        self.assertEqual(sum(v.numel() for v in state.values()), 2915648)
         path = Path("explicit-external-test-vgg.pth")
-        with mock.patch.object(tam.torch, "load", return_value={"model": state}) as load:
+        with mock.patch.object(tam.torch, "load", return_value=state) as load:
             encoder = tam.FrozenVGGEncoder(path)
         load.assert_called_once_with(path, weights_only=True, map_location="cpu")
         self.assertEqual(len(encoder.features), 19)
@@ -185,7 +187,7 @@ class TAMTest(unittest.TestCase):
         self.assertEqual([tuple(x.shape) for x in taps],
                          [(1, 64, 17, 25), (1, 128, 9, 13),
                           (1, 256, 5, 7), (1, 512, 3, 4)])
-        expected = images
+        expected = images + images.new_tensor([-.9589, -.8325, -.9083]).view(1, 3, 1, 1)
         for tap, (start, end) in zip(taps, ((0, 2), (2, 7), (7, 12), (12, 19))):
             expected = encoder.features[start:end](expected)
             torch.testing.assert_close(tap, expected)
@@ -194,7 +196,7 @@ class TAMTest(unittest.TestCase):
         self.assertTrue(torch.isfinite(images.grad).all())
         self.assertTrue(all(p.grad is None for p in encoder.parameters()))
 
-    def test_missing_weights_and_full_state_mismatch_fail_visibly(self):
+    def test_missing_weights_and_truncated_state_mismatch_fail_visibly(self):
         with self.assertRaisesRegex(ValueError, "explicit pretrained"):
             tam.FrozenVGGEncoder()
         with self.assertRaisesRegex(ValueError, "explicit pretrained"):
@@ -202,18 +204,17 @@ class TAMTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(FileNotFoundError):
                 tam.FrozenVGGEncoder(Path(directory) / "absent.pth")
-        state = synthetic_full_vgg_state()
-        # A bad layer beyond the retained taps must still fail full-state loading.
-        state["28.bias"] = torch.zeros(511)
-        with mock.patch.object(tam.torch, "load", return_value={"model": state}):
-            with self.assertRaisesRegex(RuntimeError, "size mismatch for 28.bias"):
+        state = synthetic_oxford_vgg_state()
+        state["17.bias"] = torch.zeros(511)
+        with mock.patch.object(tam.torch, "load", return_value=state):
+            with self.assertRaisesRegex(RuntimeError, "size mismatch for 17.bias"):
                 tam.FrozenVGGEncoder("explicit-external-test-vgg.pth")
-        del state["28.bias"]
-        with mock.patch.object(tam.torch, "load", return_value={"model": state}):
+        del state["17.bias"]
+        with mock.patch.object(tam.torch, "load", return_value=state):
             with self.assertRaisesRegex(RuntimeError, "Missing key"):
                 tam.FrozenVGGEncoder("explicit-external-test-vgg.pth")
         with mock.patch.object(tam.torch, "load", return_value={}):
-            with self.assertRaises(KeyError):
+            with self.assertRaisesRegex(RuntimeError, "Missing key"):
                 tam.FrozenVGGEncoder("explicit-external-test-vgg.pth")
 
     def test_decoder_objective_exact_five_terms_and_stopgrad_z(self):

@@ -3,7 +3,7 @@
 Launch with PYTHONNOUSERSITE=1 at interpreter startup and IRAOD_GPU_LOCKED=1:
     python -m experiments.comparison.train_tam --help
 
-Each dataset/domain/pipeline seed gets a separate fit. Deterministic shuffled
+Each dataset/domain gets one seed42 fit shared by detector seeds42/43/44. Deterministic shuffled
 streams fix author sampling nondeterminism; they are not bitwise author replay.
 Smoke outputs are NON_RESULT and cannot certify a formal TAM.
 """
@@ -26,14 +26,14 @@ from experiments.comparison.extension_training import TARGET_VAL_SIZE, target_va
 from experiments.comparison.report_qualitative import validate_plan
 from experiments.comparison.result_completion import DOMAINS, read_json
 from experiments.comparison.tam_artifacts import (
-    BGR_MEAN, FORMAL_STEPS, SCHEMA, checkpoint_payload,
+    BGR_MEAN, FIT_SEED, FORMAL_STEPS, NORMALIZATION, SCHEMA, checkpoint_payload,
 )
 
 
 ROOT = Path(__file__).resolve().parents[2]
 OFFICIAL_SFYOLO_SHA = "c84dfad79a889b5f172d7192ee0379edfd738835"
 BATCH_SIZE = 8
-SEEDS = (42, 43, 44)
+SEEDS = (FIT_SEED,)
 GPUS = (4, 5, 6, 7)
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
@@ -61,7 +61,7 @@ def discover_target_images(base_plan, dataset, domain, seed, workers=16):
     if dataset not in DOMAINS or domain not in DOMAINS[dataset]:
         raise ValueError("Unsupported dataset/domain")
     if seed not in SEEDS:
-        raise ValueError("Pipeline seed must be 42, 43 or 44")
+        raise ValueError("TAM fit seed must be 42; detector seeds reuse this fit")
     plan = read_json(base_plan)
     validate_plan(plan)
     if plan.get("adaptation_seed", 42) != 42:
@@ -144,7 +144,7 @@ def make_loaders(manifest, workers):
 
 
 def train_loop(module, content_loader, style_loader, steps, device, log_file):
-    """Run exactly steps alternating updates; injectable module/loaders allow CPU tests."""
+    """Run exactly steps outer loops, each with decoder then joint F1/F2 updates."""
     if not 0 < steps <= FORMAL_STEPS:
         raise ValueError("Steps must be positive and at most 160000")
     optimizer_d, optimizer_f = module.make_optimizers()
@@ -199,12 +199,12 @@ def run_training(*, base_plan, dataset, domain, seed, vgg_weights, out_dir,
             "official_sfyolo_commit": OFFICIAL_SFYOLO_SHA,
             "encoder_weights": str(encoder), "encoder_bytes": encoder.stat().st_size,
             "steps": steps, "formal_steps": FORMAL_STEPS, "batch_size": BATCH_SIZE,
+            "optimizer_updates": 2 * steps, "detector_seeds": [42, 43, 44],
             "result_scope": "formal" if steps == FORMAL_STEPS else "NON_RESULT",
             "optimizers": "decoder Adam and F1/F2 Adam; module defaults",
             "lr_schedule": "1e-4 / (1 + 5e-5 * iteration_zero_based)",
             "objective": "generic_aerial_code_formula; decoder_then_F1_F2; alpha_train1",
-            "normalization": {"order": "BGR", "mean": list(BGR_MEAN),
-                              "input_range": "0..255"},
+            "normalization": NORMALIZATION,
             "device": str(device), "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "reproducibility": manifest["reproducibility"],
         }

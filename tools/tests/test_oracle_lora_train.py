@@ -353,9 +353,101 @@ class OracleLoraTrainTests(unittest.TestCase):
                         trainer.main(self.argv(dataset, output))
                     build.assert_not_called()
 
+    def test_smoke_cli_rejects_projection_and_nonpositive_steps(self):
+        for extra in (["--smoke-steps", "0"], ["--smoke-steps", "-1"],
+                      ["--smoke-steps", "1", "--train-visual-proj-only"]):
+            with self.subTest(extra=extra), self.assertRaises(SystemExit):
+                trainer.parse_args(self.argv() + extra)
+
+    def test_smoke_is_bounded_real_lora_non_result_for_both_datasets(self):
+        for dataset in CLASSES:
+            with self.subTest(dataset=dataset):
+                output = self.root / dataset
+                self.write_rows([self.row(dataset, i % len(CLASSES[dataset]))
+                                 for i in range(65)])
+                fake = FakeSarclip()
+                with mock.patch.object(trainer, "import_sarclip", return_value=fake), \
+                     mock.patch.object(torch.cuda, "is_available", return_value=False), \
+                     mock.patch.object(trainer, "save_final_adapter") as save, \
+                     mock.patch.object(trainer.PatchDataset, "__getitem__",
+                                       autospec=True, wraps=None,
+                                       side_effect=trainer.PatchDataset.__getitem__) as decode:
+                    report = trainer.main(self.argv(dataset, output) + [
+                        "--smoke-steps", "2", "--batch-size", "2",
+                    ])
+                save.assert_not_called()
+                self.assertEqual(decode.call_count, 4)
+                self.assertEqual(report["result_status"], "NON_RESULT")
+                self.assertEqual(report["status"], "complete")
+                self.assertEqual(report["adapter_type"], "lora")
+                self.assertEqual(report["optimizer_steps_completed"], 2)
+                self.assertEqual(report["optimizer_steps_requested"], 2)
+                self.assertEqual(report["sampler"]["num_samples"], 4)
+                self.assertEqual(report["metadata_row_count"], 65)
+                self.assertEqual(report["epochs_completed"], 0)
+                self.assertEqual(report["epochs_requested"], 0)
+                self.assertEqual(report["selection"], "none")
+                self.assertIsNone(report["selected_epoch"])
+                evidence = report["evidence"]
+                self.assertEqual(evidence["module_types"],
+                                 {"visual.proj": "sarclip_adapter.LoRALinear"})
+                self.assertEqual(evidence["factor_counts"], {"lora_down": 1, "lora_up": 1})
+                self.assertEqual(evidence["factor_tensor_count"], 2)
+                self.assertEqual(evidence["factor_numel"], 64)
+                self.assertTrue(evidence["base_unchanged"])
+                self.assertFalse(evidence["base_requires_grad"])
+                self.assertGreater(evidence["factor_max_abs_delta"][
+                    "visual.proj.lora_up.weight"], 0)
+                self.assertEqual(json.loads((output / "smoke.json").read_text()), report)
+                self.assertFalse(list(output.glob("*.pth*")))
+                self.assertFalse((output / "train_log.csv").exists())
+                with self.assertRaisesRegex(RuntimeError, "NON_RESULT"):
+                    trainer.save_final_adapter(output, fake.model, report, 10)
+
+    def test_smoke_sampler_bounds_draws_even_when_dataset_exceeds_budget(self):
+        args = trainer.parse_args(self.argv() + ["--smoke-steps", "2", "--batch-size", "3"])
+        rows = [self.row(class_id=0)] * 1000 + [self.row(class_id=1)]
+        loader = trainer.build_loader(rows, preprocess, args)
+        self.assertEqual(len(loader), 2)
+        self.assertEqual(loader.sampler.num_samples, 6)
+        self.assertEqual(len(list(loader.sampler)), 6)
+        self.assertAlmostEqual(loader.sampler.weights[0].item(), 1 / 1000)
+        self.assertEqual(loader.sampler.weights[-1].item(), 1)
+
+    def test_smoke_rejects_no_factor_delta_and_changed_base(self):
+        self.write_rows([self.row()])
+        for failure in ("no_delta", "changed_base", "no_steps", "nonfinite"):
+            with self.subTest(failure=failure):
+                output = self.root / failure
+                original_epoch = trainer.train_one_epoch
+
+                def faulty_epoch(model, classifier, loader, optimizer, device, **kwargs):
+                    if failure == "no_steps":
+                        return {}
+                    if failure == "no_delta":
+                        for group in optimizer.param_groups:
+                            group["lr"] = 0
+                    metrics = original_epoch(model, classifier, loader, optimizer, device, **kwargs)
+                    with torch.no_grad():
+                        if failure == "changed_base":
+                            model.visual.proj.base.weight.add_(1)
+                        if failure == "nonfinite":
+                            model.visual.proj.lora_up.weight.fill_(float("nan"))
+                    return metrics
+
+                with mock.patch.object(trainer, "import_sarclip", return_value=FakeSarclip()), \
+                     mock.patch.object(torch.cuda, "is_available", return_value=False), \
+                     mock.patch.object(trainer, "train_one_epoch", side_effect=faulty_epoch), \
+                     self.assertRaisesRegex(RuntimeError, "Smoke failed"):
+                    trainer.main(self.argv(output=output) + ["--smoke-steps", "1"])
+                self.assertFalse((output / "smoke.json").exists())
+                self.assertFalse(list(output.glob("*.pth*")))
+                self.assertEqual(json.loads((output / "config.json").read_text())["status"], "running")
+
     def test_output_refuses_each_existing_artifact(self):
         for name in ("config.json", "train_log.csv", "lora_rsar.pth",
-                     "lora_dior.pth", "lora_dior.pth.partial", "visual_proj_rsar.pth"):
+                     "lora_dior.pth", "lora_dior.pth.partial", "visual_proj_rsar.pth",
+                     "smoke.json", "smoke.json.partial"):
             with self.subTest(name=name):
                 output = self.root / name.replace(".", "_")
                 output.mkdir()

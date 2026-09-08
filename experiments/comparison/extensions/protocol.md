@@ -437,42 +437,74 @@ is `experiments/comparison/train_tam.py`. The detector wrapper
 `sfod/extensions/sfyolo.py` and `sfyolo_{rsar,dior}.py` configs keep the same
 detector/source, hard pseudo OBB losses and common base transforms, adding the
 real fitted/frozen TAM to the strong view. No identity/jitter substitute or
-YOLO-specific head is used. Pinned formulas/corrections and remaining method
-decisions are in `remaining_ports.json`.
+YOLO-specific head is used. Pinned formulas/corrections and remaining executable
+dependencies are in `remaining_ports.json`. Current approved policy supersedes
+the older36-fit/one-detector-epoch proposal.
 
 TAM uses the released code formula (style moments first), unconstrained F2
 scale, a frozen VGG encoder, learned decoder/F1/F2, the general aerial objective,
 and decoder-first then recomputed F1/F2 Adam updates. Both objectives are
 checked for finite values. Preprocessing is consistently centered BGR for
-content/style; output is restored to detector normalization and original spatial
-dimensions without changing OBB coordinates or padding. No extra pixel clamp
-or detector consistency loss is introduced.
+content/style/generated images. Working BGR mean is
+`[102.9801,115.9465,122.7717]`. Every frozen Oxford encoder forward adds
+`[-.9589,-.8325,-.9083]`; decoder output remains in working space. Inverse
+conversion adds the working mean, clips pixels to0..255, reverses channels for
+RGB detector input and restores detector normalization/spatial dimensions,
+without changing OBB coordinates or padding.
 
-The external57MiB VGG binary was actually loaded on CPU and its four feature
-tap shapes checked. It remains outside Git. TAM payloads store trained
-decoder/F1/F2 components and an external VGG reference, not the pretrained
-binary. Root/TAM-specific redistribution permission was not established;
-independent code and per-file licensing evidence must not be conflated.
+Use Oxford's author-released VGG16 configurationD, conv1_1..conv4_1 only:
+16 plain numeric Sequential-key tensors,2,915,648 parameters, three ceil-mode
+pools. The remote compute owner supplied
+`/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_conv1_1_to_conv4_1.pt`,
+SHA256 `158e3923122cc9cccbb26b36d1fa852b91eecd7019a9386c51d415547889d18c`.
+This worker has not loaded that remote artifact. Synthetic CPU tests do not
+certify its bytes or a real-data smoke. Oxford models are CC BY4.0:
+retain Simonyan/Zisserman attribution, author URL, license and tensor-conversion
+notice beside the external artifact. No pretrained tensors enter Git or TAM
+trained-component payloads.
 
-The straightforward whole-pipeline seed protocol needs36 separate fits:
-12 domains x seeds42/43/44, each160,000 iterations with two optimizer steps,
-batch8 and the stated Adam schedule. That is5,760,000 iterations and11,520,000
-optimizer steps, separate from the one-epoch detector budget. Do not launch this
-auxiliary matrix without explicitly accounting for/accepting that budget.
-A pooled target-domain TAM or one shared across detector seeds is not silently
-substituted. Sorted image IDs, independently seeded shuffled content/style
-streams and no entropy reseeding are declared reproducibility corrections.
+Exactly12 domain-isolated fits, all seed42, are approved. Each is reused by
+detector seeds42/43/44. Each fit has160,000 **outer** iterations: decoder Adam,
+then recomputed joint F1/F2 Adam on the same8 content+8 style slots. Totals:
+1,920,000 outer loops and3,840,000 optimizer updates. No cross-domain pooling,
+seed multiplier, halving or extra iterations. Sorted image IDs, independent
+seeded shuffled content/style streams and no entropy reseeding are disclosed
+reproducibility corrections, not bitwise author replay.
 
-After resource/budget acceptance, the compute owner can first run a bounded
-NON_RESULT TAM smoke (replace placeholders with real paths and a free approved
-GPU under the shared lock):
+CPU preparation commands (run from the parent's deployed integration checkout;
+`BASE_PLAN`, `CORE_REPORT`, `CORE_PATHS`, `EVAL_CODE`, `PY` are the existing
+accepted bindings; `TAM_META`, `TAM_ROOT`, `SF_META`, `SF_ROOT` must be new,
+disjoint paths):
+
+```bash
+export PYTHONNOUSERSITE=1
+VGG=/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_conv1_1_to_conv4_1.pt
+"$PY" -m experiments.comparison.prepare_tam \
+  --base-plan "$BASE_PLAN" --vgg-weights "$VGG" \
+  --out-dir "$TAM_META" --artifact-root "$TAM_ROOT" --python "$PY"
+"$PY" -m experiments.comparison.extension_training prepare \
+  --base-plan "$BASE_PLAN" --core-report "$CORE_REPORT" --core-paths "$CORE_PATHS" \
+  --out-dir "$SF_META" --artifact-root "$SF_ROOT" \
+  --eval-code "$EVAL_CODE" --python "$PY" \
+  --method SFYOLO --tam-plan "$TAM_META/runtime.json"
+```
+
+Preparation writes metadata only, no formal directories, CUDA calls or model
+loads. TAM `runtime.json`/`fit_commands.txt` contain12 fixed commands without
+`--gpu`; the existing GPU owner appends that argument under its shared lock.
+SFYOLO preparation may precede fitting; actual detector loading requires a
+completed domain fit with the selected Oxford normalization contract.
+
+Only the parent GPU owner executes the following NON_RESULT smoke, then the
+formal commands after validating real weights, finite losses/input gradients,
+and frozen-encoder behavior. This worker launches none:
 
 ```bash
 export PYTHONNOUSERSITE=1
 "$PY" -m experiments.comparison.train_tam \
-  --base-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
+  --base-plan "$BASE_PLAN" \
   --dataset RSAR --domain chaff --seed 42 \
-  --vgg-weights /absolute/external/vgg16_ori.pth \
+  --vgg-weights "$VGG" \
   --out-dir /absolute/new/tam-smoke --gpu 4 --smoke-steps 1
 ```
 
@@ -480,22 +512,59 @@ Formal fitting omits `--smoke-steps` and has fixed160k iterations. It reads only
 the exact domain's VAL image directory, with no annotations, source images or
 GT filtering. New output contains image/training manifests, flushed loss CSV,
 terminal state and atomic `tam.pth`. Failed/nonfinite or smoke-only runs cannot
-pass the detector's exact dataset/domain/seed/160k completion admission.
+pass the detector's exact dataset/domain/fit-seed42/160k admission. Formal
+artifacts from the previous encoder/normalization contract are not reusable.
 
 Detector EMA is parameter-only retention0.999 after optimizer; fixed source
 normalization buffers are retained. SSM moves Student halfway toward Teacher
 at the next epoch start, skipping epoch0 and retaining optimizer momentum.
-With one detector epoch it cannot influence final Teacher: label the result
-`SF-YOLO (our OBB reimplementation; one-epoch budget, SSM inactive)`. No artificial
-subepochs or extra final teacher update is added. Effective full SSM would need
-an explicitly approved detector-budget relaxation.
+The approved two detector epochs activate SSM before epoch2. The image-only
+single-group sampler yields `ceil(N/32)` updates/epoch: RSAR265, DIOR184.
+Thus there are530/368 optimizer updates; `SemiEpochBasedRunner` saves at
+epoch end with `iter+1`, giving **RSAR531, DIOR369** filename labels. Do not
+double the old266/185 labels. Both final Student and EMA paths are prepared.
+Report as `SF-YOLO (our OBB reimplementation; extended two-epoch + TAM budget)`,
+separate from the common one-epoch ranking. Before formal detector execution,
+the GPU owner still needs the actual TAM-load/forward/backward smoke and the
+two-epoch SSM/EMA/checkpoint interaction confirmed in the installed stack.
+No controller or frozen live producer is modified by this preparation.
 
-AASFOD still needs explicit dropout-posterior and cadence/budget decisions:
-post-hoc stateless dropout is an approximation, and its2500 one-based teacher
-cadence cannot transmit final-stage FNS learning within185/266 steps. DRU still
-lacks its source-trained aligned decoder-depth observation axis; a new
-estimator must be named DRU-inspired or the source/architecture invariant
-relaxed. Those are real scientific boundaries, not unavailable-code excuses.
+Targeted CPU checks use the existing unittest runner:
+
+```bash
+CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONNOUSERSITE=1 \
+  "$PY" -m unittest tools.tests.test_tam tools.tests.test_tam_training \
+  tools.tests.test_extension_training tools.tests.test_sfyolo
+```
+
+The local temporary environment passed28 TAM/loop tests and18 preparation/F
+consumer tests (`test_extension_training` + `test_f_deletion_execution`), plus
+resolved SFYOLO config assertions. The native `test_sfyolo` suite is still
+unrun: import stops at missing `mmdet`. Run it in the existing complete IRAOD
+environment; it covers pixel inversion/clipping, fitted-TAM admission,
+SSM/EMA ordering and the actual sampler/runner checkpoint naming. No replacement
+native-op stubs or GPU execution are used to claim those tests passed.
+
+### AASFOD executable boundary
+
+Post-hoc Dropout and a disclosed budget-rescaled EMA are **already approved**.
+There is no pending approval gate and no source-retraining requirement.
+However, this checkout has no AASFOD implementation/config. A real port still
+needs the coupled target-only path:20 distinct dropout draws on aligned
+proposals, top20% TSD partition with full ID coverage, paired similar/dissimilar
+sampling, shallow/deep local/global GRL losses, then teacher-before-composition
+four-image FNS with polygon clipping/le90 projection. Stage4 must initialize
+Student/Teacher from stage3 Student, reset optimizer, and use a frozen,
+explicit stage split and one-based rescaled EMA cadence before any results.
+
+These are missing executable dependencies, **not a proof of scientific
+impossibility**. Adding a generic auxiliary loss, confidence ranking or mosaic
+after pseudo-labeling would not implement them. AASFOD is therefore not admitted
+by `extension_training`; no deployable AASFOD queue or stage/cadence freeze is
+claimed here. Next owner action is a bounded actual OBB port of those coupled
+dependencies, followed by its CPU geometry/gradient/schedule tests and real
+smoke. No controller changes, source forward, target labels, proxy or new
+scientific authorization are needed.
 
 ## Oracle prerequisite recipe and budgets (before GPU launch)
 

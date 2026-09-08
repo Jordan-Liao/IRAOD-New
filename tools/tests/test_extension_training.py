@@ -12,6 +12,7 @@ from unittest.mock import patch
 from experiments.comparison import extension_training as training
 from experiments.comparison import extension_manifest
 from experiments.comparison import b_regression
+from experiments.comparison import prepare_tam
 from experiments.comparison.collect_report_manifest import load_resolver
 from experiments.comparison.finite_resumer import Cell, load_cells, train_state
 from experiments.comparison.result_completion import DOMAINS, ROLES, SCHEMA, write_json
@@ -111,6 +112,80 @@ class ExtensionTrainingTest(unittest.TestCase):
         for field in ("student_checkpoint", "checkpoint"):
             Path(cell[field]).write_bytes(b"exact final fixture")
         return subprocess.CompletedProcess([], 0)
+
+    def tam_plan(self):
+        encoder = self.root / "oxford-16-tensors.pt"
+        encoder.write_bytes(b"explicit fixture; CPU preparation does not execute weights")
+        metadata = self.root / "tam metadata"
+        tam_root = self.root / "formal TAM"
+        with patch.object(training.subprocess, "run") as run:
+            prepare_tam.prepare(
+                self.base, encoder, metadata, tam_root, self.python, workers=0)
+        run.assert_not_called()
+        self.assertFalse(tam_root.exists())
+        return metadata / "runtime.json"
+
+    def test_tam_prepare_twelve_seed42_fits_and_exact_two_update_budget(self):
+        runtime = json.loads(self.tam_plan().read_text())
+        self.assertEqual(runtime["fit_count"], 12)
+        self.assertEqual(runtime["outer_iterations_total"], 1920000)
+        self.assertEqual(runtime["optimizer_updates_total"], 3840000)
+        self.assertEqual(runtime["normalization"]["encoder_offset"], [-.9589, -.8325, -.9083])
+        for key, fit in runtime["fits"].items():
+            ds, domain = key.split("/")
+            self.assertEqual(fit["identity"], dict(dataset=ds, domain=domain, seed=42))
+            self.assertEqual(fit["outer_iterations"], 160000)
+            self.assertEqual(fit["optimizer_updates"], 320000)
+            self.assertEqual((fit["content_slots"], fit["style_slots"]), (8, 8))
+            self.assertEqual(fit["detector_seeds"], [42, 43, 44])
+            self.assertNotIn("--gpu", fit["command"])
+            self.assertNotIn("--smoke-steps", fit["command"])
+            self.assertEqual(fit["command"][fit["command"].index("--seed") + 1], "42")
+
+    def test_sfyolo_two_epoch_checkpoints_and_tam_shared_across_detector_seeds(self):
+        plan = self.tam_plan()
+        self.prepare(("SFYOLO",), tam_plan=plan)
+        runtime = self.runtime()
+        self.assertEqual(runtime["train_cells"], 36)
+        self.assertFalse(self.artifacts.exists())
+        for ds, domains in DOMAINS.items():
+            for domain in domains:
+                cells = [self.cell(ds, domain, seed, "SFYOLO") for seed in (42, 43, 44)]
+                self.assertEqual(len({c["tam_checkpoint"] for c in cells}), 1)
+                for cell in cells:
+                    self.assertEqual(cell["tam_identity"], dict(dataset=ds, domain=domain, seed=42))
+                    self.assertEqual(cell["detector_epochs"], 2)
+                    updates = 530 if ds == "RSAR" else 368
+                    self.assertEqual(cell["detector_optimizer_updates"], updates)
+                    self.assertEqual(cell["final_checkpoint_iteration"], updates + 1)
+                    self.assertTrue(cell["checkpoint"].endswith(f"iter_{updates + 1}_ema.pth"))
+                    self.assertEqual(cell["budget_group"], "extended_two_epoch_TAM")
+                    self.assertFalse(cell["rank_with_common_one_epoch"])
+        cell = self.cell(method="SFYOLO")
+        Path(cell["tam_checkpoint"]).parent.mkdir(parents=True)
+        Path(cell["tam_checkpoint"]).write_bytes(b"fixture; real model validates completed payload")
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch.object(training.subprocess, "run",
+                             side_effect=lambda *a, **kw: self.complete(cell)) as run:
+            self.train(method="SFYOLO")
+        command = run.call_args.args[0]
+        for binding in ("runner.max_epochs=2", "model.cfg.tam_seed=42",
+                        "model.cfg.tam_dataset=DIOR", "model.cfg.tam_domain=cloudy",
+                        "model.cfg.tam_checkpoint=" + cell["tam_checkpoint"]):
+            self.assertIn(binding, command)
+        self.assertIn("--seed", command)
+        self.assertEqual(command[command.index("--seed") + 1], "44")
+
+    def test_sfyolo_requires_approved_tam_plan(self):
+        with self.assertRaisesRegex(ValueError, "--tam-plan"):
+            self.prepare(("SFYOLO",))
+        path = self.tam_plan()
+        plan = json.loads(path.read_text())
+        plan["fits"]["RSAR/clean"]["identity"]["seed"] = 43
+        write_json(path, plan)
+        with self.assertRaisesRegex(ValueError, "seed42"):
+            self.prepare(("SFYOLO",), tam_plan=path)
+        self.assertFalse(self.queue.exists())
 
     def test_shared_native_evaluator_preserves_actual_ema_and_student_roles(self):
         runtime = dict(python=sys.executable, evaluation_code=str(self.eval_code),

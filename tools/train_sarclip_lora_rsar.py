@@ -7,6 +7,7 @@ import random
 import subprocess
 import sys
 from collections import Counter
+from itertools import islice
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,7 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from experiments.comparison.labels import CLASSES as DATASET_CLASSES, ORACLE_TRAINING_TEMPLATES
 from sarclip_adapter import (
     ADAPTER_FORMAT,
+    LoRALinear,
     inject_lora,
     mark_lora_trainable,
     mark_visual_proj_trainable,
@@ -89,11 +91,18 @@ def parse_args(argv=None):
     parser.add_argument("--max-patches", type=int, default=None,
                         help="Legacy stratified cap; formal oracle recipe leaves this unset")
     parser.add_argument("--train-visual-proj-only", action="store_true")
+    parser.add_argument("--smoke-steps", type=int, default=None,
+                        help="Bounded real-LoRA optimizer steps; writes NON_RESULT evidence, never an adapter")
     args = parser.parse_args(argv)
     if args.epochs < 1:
         parser.error("--epochs must be positive for final-epoch selection")
     if args.max_patches is not None and args.max_patches < 1:
         parser.error("--max-patches must be positive")
+    if args.smoke_steps is not None:
+        if args.smoke_steps < 1:
+            parser.error("--smoke-steps must be positive")
+        if args.train_visual_proj_only:
+            parser.error("--smoke-steps requires real LoRA, not visual projection")
     if args.templates is None:
         args.templates = DEFAULT_TEMPLATES[args.dataset]
     return args
@@ -167,11 +176,11 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
 
 
-def build_balanced_sampler(rows, seed=42):
+def build_balanced_sampler(rows, seed=42, num_samples=None):
     counts = Counter(row["class_id"] for row in rows)
     weights = [1.0 / counts[row["class_id"]] for row in rows]
     return WeightedRandomSampler(
-        weights, num_samples=len(weights), replacement=True,
+        weights, num_samples=len(weights) if num_samples is None else num_samples, replacement=True,
         generator=torch.Generator().manual_seed(seed),
     )
 
@@ -180,7 +189,10 @@ def build_loader(rows, preprocess, args):
     return DataLoader(
         PatchDataset(rows, preprocess),
         batch_size=args.batch_size,
-        sampler=build_balanced_sampler(rows, args.seed),
+        sampler=build_balanced_sampler(
+            rows, args.seed,
+            None if args.smoke_steps is None else args.smoke_steps * args.batch_size,
+        ),
         num_workers=args.num_workers,
         pin_memory=True,
         persistent_workers=args.num_workers > 0,
@@ -273,7 +285,7 @@ def batch_entropy(probs):
     return float(-(probs * probs.clamp_min(1e-12).log()).sum(dim=1).mean().item())
 
 
-def train_one_epoch(model, classifier, loader, optimizer, device):
+def train_one_epoch(model, classifier, loader, optimizer, device, *, max_steps=None):
     model.train()
     total_loss = 0.0
     total_correct = 0
@@ -281,7 +293,8 @@ def train_one_epoch(model, classifier, loader, optimizer, device):
     total_prob_gt = 0.0
     total_entropy = 0.0
 
-    for images, labels in loader:
+    batches = loader if max_steps is None else islice(loader, max_steps)
+    for images, labels in batches:
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad(set_to_none=True)
@@ -317,7 +330,8 @@ def train_one_epoch(model, classifier, loader, optimizer, device):
 def prepare_output(output):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    existing = [path for path in (output / "config.json", output / "train_log.csv")
+    existing = [path for path in (output / "config.json", output / "train_log.csv",
+                                 output / "smoke.json", output / "smoke.json.partial")
                 if path.exists()]
     existing.extend(output.glob("*.pth"))
     existing.extend(output.glob("*.pth.partial"))
@@ -387,6 +401,8 @@ def build_config(args, rows, model, adapter_type, trainable_names):
 
 
 def save_final_adapter(output, model, config, epochs_completed):
+    if config.get("result_status") == "NON_RESULT":
+        raise RuntimeError("A NON_RESULT smoke cannot publish an adapter")
     if epochs_completed != config["epochs_requested"] or epochs_completed < 1:
         raise RuntimeError("Only the fully completed requested final epoch can be saved")
     final_config = {
@@ -407,6 +423,71 @@ def save_final_adapter(output, model, config, epochs_completed):
     return destination
 
 
+def run_smoke(output, model, classifier, loader, optimizer, device, config, steps):
+    """Exercise the real training path, proving factor updates and exact base freeze."""
+    modules = {name: module for name, module in model.named_modules()
+               if isinstance(module, LoRALinear)}
+    factors = {
+        f"{name}.{factor}.weight": getattr(module, factor).weight
+        for name, module in modules.items() for factor in ("lora_down", "lora_up")
+    }
+    base = {name: param for name, param in model.named_parameters()
+            if name not in factors and name != "logit_scale"}
+    if (config["adapter_type"] != "lora" or not factors
+            or not all(param.requires_grad for param in factors.values())
+            or any(param.requires_grad for param in base.values())):
+        raise RuntimeError("Smoke requires actual trainable LoRALinear factors and frozen base")
+    before = {name: param.detach().cpu().clone()
+              for name, param in {**base, **factors}.items()}
+    updates = 0
+
+    def count_update(optimizer, args, kwargs):
+        nonlocal updates
+        updates += 1
+
+    # Count actual optimizer calls, not a requested budget or epoch label.
+    handle = optimizer.register_step_post_hook(count_update)
+    try:
+        metrics = train_one_epoch(model, classifier, loader, optimizer, device, max_steps=steps)
+    finally:
+        handle.remove()
+    base_unchanged = all(torch.equal(param.detach().cpu(), before[name])
+                         and param.grad is None and not param.requires_grad
+                         for name, param in base.items())
+    deltas = {
+        name: float((param.detach().cpu() - before[name]).abs().max().item())
+        for name, param in factors.items()
+    }
+    if (updates != steps or not base_unchanged
+            or not all(np.isfinite(value) for value in deltas.values())
+            or not any(value > 0 for value in deltas.values())):
+        raise RuntimeError("Smoke failed: optimizer budget, base freeze, or finite nonzero LoRA delta")
+    report = {
+        **config, "status": "complete", "optimizer_steps_completed": updates,
+        "evidence": {
+            "adapter_type": "lora",
+            "module_types": {name: f"{type(module).__module__}.{type(module).__name__}"
+                             for name, module in modules.items()},
+            "factor_tensor_count": len(factors),
+            "factor_numel": sum(param.numel() for param in factors.values()),
+            "factor_counts": {factor: len(modules) for factor in ("lora_down", "lora_up")},
+            "base_tensor_count": len(base),
+            "base_numel": sum(param.numel() for param in base.values()),
+            "base_requires_grad": False, "base_unchanged": base_unchanged,
+            "factor_max_abs_delta": deltas,
+            "logit_scale_trainable": bool(
+                hasattr(model, "logit_scale") and model.logit_scale.requires_grad),
+        },
+        "train_metrics_non_result": metrics,
+    }
+    partial = output / "smoke.json.partial"
+    partial.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    os.replace(partial, output / "smoke.json")
+    (output / "config.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return report
+
+
 def main(argv=None):
     args = parse_args(argv)
     output = prepare_output(args.output)
@@ -420,12 +501,21 @@ def main(argv=None):
     print(f"[train_sarclip_lora] adapter_type={adapter_type}")
     print(f"[train_sarclip_lora] trainable_params={len(trainable_names)}")
     config = build_config(args, rows, model, adapter_type, trainable_names)
+    if args.smoke_steps is not None:
+        config.update(
+            result_status="NON_RESULT", selection="none", selected_epoch=None,
+            epochs=0, epochs_requested=0, optimizer_steps_requested=args.smoke_steps,
+        )
+        config["sampler"]["num_samples"] = args.smoke_steps * args.batch_size
     with (output / "config.json").open("x", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
     loader = build_loader(rows, preprocess, args)
     params = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
+    if args.smoke_steps is not None:
+        return run_smoke(output, model, classifier, loader, optimizer, device,
+                         config, args.smoke_steps)
 
     epochs_completed = 0
     with (output / "train_log.csv").open("x", newline="", encoding="utf-8") as f:

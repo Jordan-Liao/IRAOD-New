@@ -18,6 +18,8 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from experiments.comparison.tam_artifacts import ENCODER_OFFSET
+
 
 def channel_moments(features: Tensor) -> tuple[Tensor, Tensor]:
     """Per-image/channel HW mean and sqrt(sample variance + 1e-5)."""
@@ -34,10 +36,11 @@ def moment_mse(first: Tensor, second: Tensor) -> Tensor:
 
 
 class FrozenVGGEncoder(nn.Module):
-    """Strictly load full VGG16 features, then retain relu1_1 through relu4_1.
+    """Strictly load Oxford VGG16 conv1_1..conv4_1 (16 flat-key tensors).
 
     ``weights_path`` must point to the externally supplied feature checkpoint
-    with top-level ``model`` and numeric Sequential keys (0.weight, etc.).
+    with numeric Sequential keys (0.weight, etc.), without a model wrapper.
+    Inputs stay in TAM working BGR space; the offset honors Oxford's mean.
     Frozen parameters do NOT disable differentiation with respect to images.
     """
 
@@ -49,7 +52,7 @@ class FrozenVGGEncoder(nn.Module):
         in_channels = 3
         for channels in (
             64, 64, "pool", 128, 128, "pool", 256, 256, 256, "pool",
-            512, 512, 512, "pool", 512, 512, 512, "pool",
+            512,
         ):
             if channels == "pool":
                 layers.append(nn.MaxPool2d(2, 2, ceil_mode=True))
@@ -61,8 +64,11 @@ class FrozenVGGEncoder(nn.Module):
                 in_channels = channels
         features = nn.Sequential(*layers)
         checkpoint = torch.load(weights_path, weights_only=True, map_location="cpu")
-        features.load_state_dict(checkpoint["model"], strict=True)
-        self.features = features[:19]
+        features.load_state_dict(checkpoint, strict=True)
+        self.features = features
+        self.register_buffer(
+            "input_offset", torch.tensor(ENCODER_OFFSET).view(1, 3, 1, 1),
+            persistent=False)
         self.requires_grad_(False)
         self.eval()
 
@@ -71,6 +77,7 @@ class FrozenVGGEncoder(nn.Module):
         return self
 
     def forward(self, images: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        images = images + self.input_offset
         taps = []
         for index, layer in enumerate(self.features):
             images = layer(images)

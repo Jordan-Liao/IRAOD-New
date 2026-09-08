@@ -183,7 +183,7 @@ class TargetTrainingTest(unittest.TestCase):
         self.base.write_text(json.dumps(self.plan))
 
     def run_fit(self, **overrides):
-        kwargs = dict(base_plan=self.base, dataset="RSAR", domain="clean", seed=43,
+        kwargs = dict(base_plan=self.base, dataset="RSAR", domain="clean", seed=42,
                       vgg_weights=self.encoder, out_dir=self.out, steps=3,
                       workers=0, device="cpu", module_factory=FakeTAM)
         kwargs.update(overrides)
@@ -191,18 +191,19 @@ class TargetTrainingTest(unittest.TestCase):
 
     def test_target_only_all_images_no_gt_filtering_for_both_layouts(self):
         for dataset, domain in (("RSAR", "chaff"), ("DIOR", "cloudy")):
-            manifest = training.discover_target_images(self.base, dataset, domain, 44)
+            manifest = training.discover_target_images(self.base, dataset, domain, 42)
             self.assertEqual(manifest["image_ids"], ["a", "b"])
             self.assertEqual(manifest["root"], str(self.vals[dataset, domain]))
             self.assertEqual(manifest["split"], "val")
-            self.assertEqual(manifest["seed"], 44)
+            self.assertEqual(manifest["seed"], 42)
             self.assertTrue(all(str(self.vals[dataset, domain]) in path
                                 for path in manifest["image_paths"]))
             self.assertIn("not bitwise", manifest["reproducibility"]["replay"])
 
     def test_reject_wrong_identity_count_and_duplicate_stems(self):
         for dataset, domain, seed in (("other", "clean", 42), ("RSAR", "cloudy", 42),
-                                      ("DIOR", "chaff", 42), ("DIOR", "clean", 45)):
+                                      ("DIOR", "chaff", 42), ("DIOR", "clean", 45),
+                                      ("RSAR", "clean", 43), ("RSAR", "clean", 44)):
             with self.assertRaises(ValueError):
                 training.discover_target_images(self.base, dataset, domain, seed)
         val = self.vals["RSAR", "clean"]
@@ -227,12 +228,12 @@ class TargetTrainingTest(unittest.TestCase):
             training.discover_target_images(self.base, "RSAR", "clean", 42)
 
     def test_loader_batch_and_independent_rngs(self):
-        manifest = training.discover_target_images(self.base, "RSAR", "clean", 43)
+        manifest = training.discover_target_images(self.base, "RSAR", "clean", 42)
         content, style = training.make_loaders(manifest, workers=0)
-        self.assertEqual((content.sampler.seed, style.sampler.seed), (43, 44))
+        self.assertEqual((content.sampler.seed, style.sampler.seed), (42, 43))
         self.assertIsNot(content.generator, style.generator)
         self.assertEqual((content.generator.initial_seed(), style.generator.initial_seed()),
-                         (43, 44))
+                         (42, 43))
         for loader in (content, style):
             self.assertTrue(loader.drop_last)
             self.assertEqual(next(iter(loader)).shape, (8, 3, 128, 128))
@@ -254,7 +255,10 @@ class TargetTrainingTest(unittest.TestCase):
         payload = torch.load(self.out / "tam.pth", weights_only=True)
         self.assertEqual(set(payload["components"]), {"decoder", "F1", "F2"})
         self.assertEqual(payload["encoder_weights"], str(self.encoder))
-        self.assertEqual(payload["identity"], {"dataset": "RSAR", "domain": "clean", "seed": 43})
+        self.assertEqual(payload["identity"], {"dataset": "RSAR", "domain": "clean", "seed": 42})
+        self.assertEqual(config["optimizer_updates"], 6)
+        self.assertEqual(config["detector_seeds"], [42, 43, 44])
+        self.assertEqual(config["normalization"]["encoder_offset"], [-.9589, -.8325, -.9083])
         with self.assertRaisesRegex(ValueError, "completed TAM"):
             load_completed_tam(self.out / "tam.pth", payload["identity"], "cpu")
         with (self.out / "train_log.csv").open() as log:
@@ -309,7 +313,8 @@ class CLIAdmissionTest(unittest.TestCase):
         self.assertEqual(training.parse_args(self.args("--smoke-steps", "2")).smoke_steps, 2)
         for extra in (("--smoke-steps", "0"), ("--smoke-steps", "160000"),
                       ("--workers", "-1"), ("--domain", "cloudy"), ("--gpu", "3"),
-                      ("--epochs", "1"), ("--lr", "0.1"), ("--image-root", "/arbitrary")):
+                      ("--epochs", "1"), ("--lr", "0.1"), ("--image-root", "/arbitrary"),
+                      ("--seed", "43"), ("--seed", "44")):
             with self.subTest(extra=extra), patch("sys.stderr", new_callable=io.StringIO):
                 with self.assertRaises(SystemExit):
                     training.parse_args(self.args(*extra))

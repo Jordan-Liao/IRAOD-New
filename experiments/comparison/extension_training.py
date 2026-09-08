@@ -16,7 +16,7 @@ from experiments.comparison.result_completion import DOMAINS, read_json, write_j
 ROOT = Path(__file__).resolve().parents[2]
 PORT_METHODS = ("IRG", "LPLD", "SFUT")
 F_DELETIONS = ("F_text_only", "F_veto_only")
-METHODS = (*PORT_METHODS, "B_REG", *F_DELETIONS)
+METHODS = (*PORT_METHODS, "SFYOLO", "B_REG", *F_DELETIONS)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
@@ -51,12 +51,25 @@ def target_val(dataset, domain, test_prefix):
 
 
 def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
-            eval_code, python, methods, sarclip_base=None):
+            eval_code, python, methods, sarclip_base=None, tam_plan=None):
     """Write only a NEW metadata queue; never create the formal output root."""
     if not methods or any(method not in METHODS for method in methods):
         raise ValueError("Explicitly select a supported port or approved ablation")
     if any(method in F_DELETIONS for method in methods) and not sarclip_base:
         raise ValueError("F deletions require the explicit frozen SARCLIP base")
+    tam_fits = {}
+    if "SFYOLO" in methods:
+        if not tam_plan:
+            raise ValueError("SFYOLO requires --tam-plan from prepare_tam")
+        tam_fits = read_json(tam_plan)["fits"]
+        expected_fits = {f"{ds}/{domain}" for ds, domains in DOMAINS.items() for domain in domains}
+        if set(tam_fits) != expected_fits:
+            raise ValueError("SFYOLO requires exactly12 domain TAM fits")
+        for key, fit in tam_fits.items():
+            ds, domain = key.split("/")
+            if (fit["identity"] != {"dataset": ds, "domain": domain, "seed": 42}
+                    or fit["outer_iterations"] != 160000):
+                raise ValueError("TAM requires a160k outer-iteration domain fit at seed42")
     methods = tuple(dict.fromkeys(methods))
     base, report = read_json(base_plan), read_json(core_report)
     validate_plan(base)
@@ -109,7 +122,12 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                     method_dir = root / "methods" / method
                     world_size = 2 if method in F_DELETIONS else 1
                     work = method_dir / "ddp2/work" if world_size == 2 else method_dir / "work"
-                    iteration = FINAL_ITERATION[dataset]
+                    epochs = 2 if method == "SFYOLO" else 1
+                    # Single-group sampler pads to32. Epoch-end save is runner.iter+1,
+                    # after all updates, not double the old one-epoch filename label.
+                    iterations_per_epoch = (TARGET_VAL_SIZE[dataset] + 31) // 32
+                    iteration = (epochs * iterations_per_epoch + 1 if method == "SFYOLO"
+                                 else FINAL_ITERATION[dataset])
                     key = cell_key(dataset, domain, seed, method)
                     cell_code, cell_sha = str(ROOT), training_sha
                     model_environment, wrapper_environment = {}, {}
@@ -180,6 +198,16 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                         "terminal_status": str(work.parent / "terminal_status"),
                         "status": "prepared_not_execution_evidence",
                     }
+                    if method == "SFYOLO":
+                        fit = tam_fits[f"{dataset}/{domain}"]
+                        if fit["target_val"] != val:
+                            raise ValueError("TAM and detector must use the same target VAL domain")
+                        cells[key].update(
+                            tam_checkpoint=fit["checkpoint"], tam_identity=fit["identity"],
+                            detector_epochs=epochs, detector_optimizer_updates=epochs * iterations_per_epoch,
+                            final_checkpoint_iteration=iteration,
+                            budget_group="extended_two_epoch_TAM",
+                            rank_with_common_one_epoch=False)
     runtime = {
         "schema": "iraod-extension-training-v1", "status": "prepared_not_execution_evidence",
         "python": python, "training_code": str(ROOT), "training_code_sha": training_sha,
@@ -293,6 +321,13 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
     ]
     if len(gpus) == 2:
         command.append("find_unused_parameters=True")
+    if method == "SFYOLO":
+        require_file(cell["tam_checkpoint"])
+        command += [
+            "runner.max_epochs=2", "model.cfg.tam_checkpoint=" + cell["tam_checkpoint"],
+            "model.cfg.tam_dataset=" + dataset, "model.cfg.tam_domain=" + domain,
+            "model.cfg.tam_seed=42",
+        ]
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("CGA_", "SARCLIP_", "VLST_"))}
     prefix = str(Path(python).parent.parent)
@@ -351,6 +386,7 @@ def main():
         prep.add_argument("--" + name, required=True)
     prep.add_argument("--method", dest="methods", action="append", choices=METHODS, required=True)
     prep.add_argument("--sarclip-base", help="Required frozen base SARCLIP for F deletions")
+    prep.add_argument("--tam-plan", help="SFYOLO: prepare_tam runtime.json with12 seed42 fits")
     for action in ("train", "train-ddp", "evaluate"):
         entry = commands.add_parser(action)
         for name in ("queue", "dataset", "domain"):
