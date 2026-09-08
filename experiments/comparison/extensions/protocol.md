@@ -465,3 +465,57 @@ cadence cannot transmit final-stage FNS learning within185/266 steps. DRU still
 lacks its source-trained aligned decoder-depth observation axis; a new
 estimator must be named DRU-inspired or the source/architecture invariant
 relaxed. Those are real scientific boundaries, not unavailable-code excuses.
+
+## Oracle prerequisite recipe and budgets (before GPU launch)
+
+Absent proven adapters does not stop the oracle objective: the user authorized
+constructing the necessary dataset-specific Target-supervised TRAIN adapters.
+The concrete valid existing recipe is
+`scripts/run_sarclip_rsar_train_corrupt_exp.sh`: pooled seven-corruption RSAR
+TRAIN labels, RGB AABB crops with expansion0.4 per side, base SARCLIP ViT-B-32,
+10 epochs, batch64, AdamW LR1e-4/weight decay1e-4, rank8/alpha16/dropout0,
+FP32, class-balanced replacement sampling and final epoch only. The separate
+3-epoch convenience wrapper is not silently substituted; its output-directory
+argument has been corrected.
+
+`oracle_recipe.json` freezes the two adapters: RSAR6 classes with
+`A SAR image of a {}`, and DIOR20 classes with the existing optical-domain
+wording `an aerial image of a {}`. Each uses adapter seed42 and is shared by
+both original oracle variants and detector seeds42/43/44. Result uncertainty
+is therefore conditional on a fixed adapter, as well as a fixed source.
+No adapter-seed sweep or alternate LoRA algorithm is added.
+
+For each dataset, let N be the actual completed crop-manifest row count:
+the exact optimizer budget is `10*ceil(N/64)` updates and `10*N` sampled
+patch draws. There is no patch cap or dropped tail batch. Counts are obtained
+with `tools/build_oracle_patches.py --count-only` before launch; no historical
+hand estimate is presented as an observed N. Full construction streams actual
+RGB patches and metadata, and training rejects non-TRAIN rows or class/dataset
+mismatches.
+
+The existing trainer is parameterized, not replaced:
+`tools/train_sarclip_lora_rsar.py --dataset RSAR|DIOR --seed 42`.
+LoRA injection must produce actual factor pairs; errors no longer fall back
+silently to visual-projection training. The frozen text classifier is detached,
+sampling is seeded, nonfinite losses/weights fail, and only the final complete
+epoch is atomically saved with full dataset/split/class/prompt/base/optimizer/
+count/code provenance. Explicit legacy visual-projection mode remains labeled
+as such and is not a LoRA oracle.
+
+Actual DIOR data inspection found5862 TRAIN IDs and zero of them in each known
+brightness/cloudy/contrast corruption folder on67; the dedicated TRAIN split
+directories are also absent. Existing corruption examples are VAL/TEST IDs.
+The known upstream183 TRAIN sample was absent too. This is a concrete input
+recipe gap, not a missing-weight excuse. It must be resolved using the true
+TRAIN corruption source/generator; neither VAL/TEST labels nor clean-source
+TRAIN data is silently relabeled as a target-supervised substitute, and
+`cloudy` is not guessed to mean an arbitrary ImageNet-C fog implementation.
+The known image-generation utility does not implement the existing cloudy
+domain. The compute owner has been asked for its actual source/provenance;
+other ready work remains independent.
+
+Both adapters are appendix-only Target-supervised resources. The detector
+source stays unchanged, and no strict A-F/baseline config or environment is
+permitted to inherit them. The two oracle variants remain LoRA-CGA and
+LoRA-CGA+VLST; adapter construction is their prerequisite, not a source-model
+replacement.

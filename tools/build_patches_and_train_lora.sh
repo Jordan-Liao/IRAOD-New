@@ -38,7 +38,7 @@ python tools/train_sarclip_lora_rsar.py \
   --sarclip-pretrained "$SARCLIP_PRETRAINED" \
   --sarclip-cache-dir "$SARCLIP_CACHE" \
   --sarclip-model ViT-B-32 \
-  --output "$LORA_OUT/lora_rsar.pth" \
+  --output "$LORA_OUT" \
   --epochs 3 \
   --batch-size 64 \
   --lr 1e-4 \

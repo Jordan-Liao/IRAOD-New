@@ -13,17 +13,11 @@ from experiments.comparison.result_completion import DOMAINS, read_json
 from experiments.comparison.report_statistics import SEEDS
 from tools.prediction_export import IMAGE_ORDER_ORIGIN, IMAGE_ORDER_SCHEMA
 from experiments.comparison.source_provenance import annotate_producer
+from experiments.comparison.labels import CLASSES
 
 
 EXPECTED_IMAGES = {"RSAR": 8538, "DIOR": 11738}
 FINAL_ITERATION = {"RSAR": 266, "DIOR": 185}
-CLASSES = {
-    "RSAR": ("ship", "aircraft", "car", "tank", "bridge", "harbor"),
-    "DIOR": ("airplane", "airport", "baseballfield", "basketballcourt", "bridge",
-             "chimney", "expressway-service-area", "expressway-toll-station", "dam",
-             "golffield", "groundtrackfield", "harbor", "overpass", "ship", "stadium",
-             "storagetank", "tenniscourt", "trainstation", "vehicle", "windmill"),
-}
 HISTORICAL_ROOT = Path(__file__).resolve().parents[2] / "results/paper_comparison"
 
 
