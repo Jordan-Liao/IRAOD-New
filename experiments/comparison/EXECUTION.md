@@ -1,5 +1,10 @@
 # Next isolated finite detector revision
 
+Current future code: `ROOT/integration_code_752a139`.
+Current future queue: `ROOT/release_manifests_752a139`,180 train/360 eval
+(180 EMA +180 five-port Student), with GPUs4,5,6,7 and both original F pairs.
+Its scientific cell bindings and train/eval lists match the prior queue exactly.
+
 Preserved prior code: `ROOT/integration_code_b87f34e`.
 Preserved prior queue: `ROOT/release_manifests_b87f34e`,180 train/360 eval
 (180 EMA +180 five-port Student), zero Student training. Detector-only and
