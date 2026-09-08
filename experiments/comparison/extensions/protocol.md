@@ -28,11 +28,13 @@ Native CPU SFYOLO/TAM/preparation checks passed; real-weight GPU smokes and
 training remain the GPU owner's work.
 
 The bounded LoRA smoke CLI is documented in `tools/ORACLE_PREPARATION.md`.
-AASFOD's TSD/GRL/FNS stage/cadence implementation and DIOR cloudy's actual
-algorithm/runtime binding remain technical code dependencies, not new approval
-requests. Generalized new-method report/qualitative consumers also remain
-unfinished. Student quantitative collection is not completion of any of these
-scopes or of the approved full qualitative extensions.
+AASFOD's actual aligned TSD, local/global GRL, four-image geometric FNS and
+stage/reset/cadence implementation are now available in `AASFOD.md`; the34-test
+native CPU mechanism/queue/cloudy gate passed. TSD and full-detector GPU smokes
+remain unrun. DIOR cloudy's author-bound stateful CPU implementation is in
+`tools/dataset/DIOR_CLOUDY.md`, with materialization pending. Generalized
+new-method report/qualitative consumers remain unfinished. Student quantitative
+collection is not completion of these scopes or full qualitative extensions.
 
 CPU collection from the existing compatibility queue (new output directories):
 
@@ -597,22 +599,15 @@ native-op stubs or GPU execution are used to claim those tests passed.
 
 Post-hoc Dropout and a disclosed budget-rescaled EMA are **already approved**.
 There is no pending approval gate and no source-retraining requirement.
-However, this checkout has no AASFOD implementation/config. A real port still
-needs the coupled target-only path:20 distinct dropout draws on aligned
-proposals, top20% TSD partition with full ID coverage, paired similar/dissimilar
-sampling, shallow/deep local/global GRL losses, then teacher-before-composition
-four-image FNS with polygon clipping/le90 projection. Stage4 must initialize
-Student/Teacher from stage3 Student, reset optimizer, and use a frozen,
-explicit stage split and one-based rescaled EMA cadence before any results.
-
-These are missing executable dependencies, **not a proof of scientific
-impossibility**. Adding a generic auxiliary loss, confidence ranking or mosaic
-after pseudo-labeling would not implement them. AASFOD is therefore not admitted
-by `extension_training`; no deployable AASFOD queue or stage/cadence freeze is
-claimed here. Next owner action is a bounded actual OBB port of those coupled
-dependencies, followed by its CPU geometry/gradient/schedule tests and real
-smoke. No controller changes, source forward, target labels, proxy or new
-scientific authorization are needed.
+The executable implementation and pre-result freeze are in `AASFOD.md`.
+It uses20 distinct aligned dropout draws, top20% TSD, paired target subsets,
+local/global GRL and teacher-before-composition four-image FNS. Stage4 resets
+the optimizer and initializes both detectors from stage3 Student. The frozen
+alignment/FNS budgets are RSAR159/106 and DIOR110/74 updates, preserving one
+common padded epoch. Momentum.99 EMA runs post-optimizer at the disclosed
+rescaled interval1. `extension_training prepare --method AASFOD` now emits36
+bindings and explicit TSD prerequisite commands. Native CPU geometry, gradient,
+dataset, registry and schedule tests passed; no TSD or GPU smoke has run.
 
 ## Oracle prerequisite recipe and budgets (before GPU launch)
 
@@ -650,17 +645,14 @@ epoch is atomically saved with full dataset/split/class/prompt/base/optimizer/
 count/code provenance. Explicit legacy visual-projection mode remains labeled
 as such and is not a LoRA oracle.
 
-Actual DIOR data inspection found5862 TRAIN IDs and zero of them in each known
-brightness/cloudy/contrast corruption folder on67; the dedicated TRAIN split
-directories are also absent. Existing corruption examples are VAL/TEST IDs.
-The known upstream183 TRAIN sample was absent too. This is a concrete input
-recipe gap, not a missing-weight excuse. It must be resolved using the true
-TRAIN corruption source/generator; neither VAL/TEST labels nor clean-source
-TRAIN data is silently relabeled as a target-supervised substitute, and
-`cloudy` is not guessed to mean an arbitrary ImageNet-C fog implementation.
-The known image-generation utility does not implement the existing cloudy
-domain. The compute owner has been asked for its actual source/provenance;
-other ready work remains independent.
+The original VAL/TEST corruption folders contained no TRAIN IDs. Dedicated
+brightness and contrast TRAIN directories now contain5862 each. The separate
+author-bound cloudy generator and CPU command are documented in
+`tools/dataset/DIOR_CLOUDY.md`; it preserves DOTA-C equations, lexicographic
+texture/image order, MATLAB-compatible resize conventions and cross-image A
+state. Materialization remains pending until its terminal summary proves5862
+TRAIN outputs. Neither VAL/TEST data nor clean images are relabeled as
+corrupted oracle inputs, and cloudy is never substituted with fog.
 
 Both adapters are appendix-only Target-supervised resources. The detector
 source stays unchanged, and no strict A-F/baseline config or environment is

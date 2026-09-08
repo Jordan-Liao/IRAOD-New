@@ -53,7 +53,7 @@
       "external_path": "/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_conv1_1_to_conv4_1.pt",
       "format": "plain tensor dictionary,16 numeric Sequential tensors,2915648 parameters",
       "sha256_supplied_by_compute_owner": "158e3923122cc9cccbb26b36d1fa852b91eecd7019a9386c51d415547889d18c",
-      "observed_validation": "Synthetic16-tensor CPU contract; selected remote artifact and real-data smokes remain compute-owner validation",
+      "observed_validation": "Actual remote16-tensor/2915648-parameter encoder loaded frozen with expected ceil-pool taps on CPU; real-data GPU smokes remain",
       "redistribution": "Oxford publisher models CC BY4.0; retain attribution/conversion notice with external artifact; no weights in Git"
     },
     "status": "CPU_preparation_available; real-weight smoke,12 formal TAM fits and36 detector jobs remain"
@@ -68,15 +68,16 @@
     "canonical_code_defaults": "20 MC passes; sigma0.8/top20%; class+box variance; local/global GRL; detection-only FNS; teacher retention0.99 every2500 one-based steps",
     "required_bug_repairs": "Exactly20 distinct stochastic draws, not duplicated first draw; integer floor top20% with reproducible ties",
     "source_assumption": "Post-hoc dropout port is approved; never claim source-trained dropout or retrain the fixed source.",
-    "budget_boundary": "Budget-rescaled EMA is approved. Stage split and one-based stage-local cadence must be frozen in executable code before results; original2500 cadence is not valid in the short budget.",
-    "implementation_blocker": [
-      "No20-draw aligned proposal/FC-dropout TSD producer or complete target-ID partition consumer exists in this checkout",
-      "No paired similar/dissimilar target loader and shallow/deep GRL discriminator training path exists",
-      "No teacher-before-composition four-image FNS path with polygon clipping and le90 projection exists",
-      "No stage3 Student->stage4 Student/Teacher reset, fresh optimizer, or stage-local rescaled EMA schedule exists"
+    "budget_boundary": "Frozen pre-result alignment/FNS updates: RSAR159/106, DIOR110/74. Author30:20 stage ratio, SGD optimizer reset, momentum0.99 EMA post-optimizer interval1 rescaled from2500 over500000 author updates.",
+    "implemented": [
+      "20-draw aligned proposal/FC-dropout TSD producer and complete target-ID partition consumer",
+      "Paired similar/dissimilar target loader and shallow/deep GRL discriminator training",
+      "Teacher-before-composition four-image FNS with polygon clipping and le90 projection",
+      "Stage3 Student->stage4 Student/Teacher initialization, fresh optimizer and stage-local rescaled EMA",
+      "extension_training prepare --method AASFOD with36 bindings and explicit TSD prerequisite commands"
     ],
-    "next_action": "Implement and CPU-test the actual coupled OBB dataflow and freeze its stage/cadence; no new approval request and no proxy queue entry.",
-    "status": "approved_but_executable_port_not_delivered; not scientifically impossible"
+    "next_action": "GPU owner executes TSD and real-detector smoke when capacity permits; no new approval required.",
+    "status": "implemented_native_CPU_accepted; GPU_TSD_smoke_and_formal_results_pending"
   },
   "DRU": {
     "upstream": "https://github.com/lbktrinh/DRU",
@@ -85,7 +86,7 @@
     "source_architecture": "https://github.com/lbktrinh/DRU/blob/14acc2a90a333fd8211cf35d522953baec024ede/configs/def-detr-base/city2foggy/source_only.sh#L10-L25",
     "source_supervision": "https://github.com/lbktrinh/DRU/blob/14acc2a90a333fd8211cf35d522953baec024ede/models/criterion.py#L313-L330",
     "missing_axis": "Variance of aligned logits across six source-supervised decoder depths. A single RoI prediction head/two hidden FCs does not supply this axis.",
-    "decision_required": "Relax detector/source invariant or explicitly rename a new estimator DRU-inspired. Rotated geometry, MIC/history or untrained extra heads cannot establish faithful DRU.",
-    "status": "blocked_on_explicit_architecture_or_estimator_decision; not absent-source-code"
+    "decision": "Explicitly excluded by the approved ledger; no proxy, source retraining or renewed architecture decision.",
+    "status": "explicitly_excluded"
   }
 }

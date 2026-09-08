@@ -63,8 +63,11 @@
     },
     "AASFOD": {
       "train_cells": 36,
-      "status": "technical_implementation_blocker_not_approval_gate",
-      "missing": ["aligned dropout TSD", "paired GRL adversarial training", "four-image geometric FNS", "explicit stage/reset/cadence port"],
+      "status": "implemented_native_CPU_accepted_TSD_and_GPU_smoke_pending",
+      "mechanisms": ["20-pass aligned posthoc-dropout TSD", "local and global target-to-target GRL", "four-image geometric FNS", "fresh optimizer and full teacher initialization at stage transition"],
+      "stage_optimizer_updates": {"RSAR": [159, 106], "DIOR": [110, 74]},
+      "ema": {"momentum": 0.99, "cadence": "post-optimizer every update; disclosed rescaling from author2500"},
+      "specification": "experiments/comparison/extensions/AASFOD.md",
       "proxy_added": false
     },
     "oracle": {
@@ -74,7 +77,7 @@
       "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
       "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
       "RSAR": "1047844-row patch materialization remains compute-owner controlled; terminal reconciliation not claimed here",
-      "DIOR": "brightness/contrast TRAIN5862 each available; cloudy generator/runtime binding absent; do not substitute fog or reset stateful upstream atmospheric-light algorithm"
+      "DIOR": "brightness/contrast TRAIN5862 each available; author-bound cloudy CPU generator implemented, materialization pending; no fog substitution or per-image atmospheric-light reset"
     },
     "qualitative_and_new_method_consumers": {
       "status": "not_complete",

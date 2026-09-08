@@ -54,27 +54,27 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 Tests use tiny CPU models with the real LoRA injection and optimizer, not the
 real SARCLIP checkpoint. GPU smoke and real-model readiness remain unverified.
 
-## Cloudy TRAIN generator: blocked on the existing algorithm binding
+## Author-bound cloudy TRAIN generator
 
 The delegated input inventory reports 5,862 brightness TRAIN images and 5,862
 contrast TRAIN images, plus author cloud textures at
 `/mnt/shared/zechuan/iraod_artifacts/third_party/dior_cloudy_clouds_v1/{png,NOTICE.md}`.
 Those remote assets are not mounted in this development worktree.
 
-The existing `tools/dataset/generate_dior_corruptions.py` supports ImageNet-C
-corruptions but **does not implement cloudy**. The staged texture provenance
+The separate `tools/dataset/generate_dior_cloudy.py` now implements cloudy.
+`tools/dataset/DIOR_CLOUDY.md` gives the exact CPU invocation and source binding.
+The staged texture provenance
 names DOTA-C commit `c9ce98fad9b2fbd7218346d8b4bdba6974323ac1`,
 [`clouds/Cloudy_Image_Arithmetic.m`](https://github.com/hehaodong530/DOTA-C/blob/c9ce98fad9b2fbd7218346d8b4bdba6974323ac1/clouds/Cloudy_Image_Arithmetic.m).
-That MATLAB script uses `imresize`, cyclic texture selection and atmospheric
-light `A` carried across channels and images. Independently processing resumed
-images with a reset `A`, or substituting Pillow resizing without an established
-binding, would not simply reuse that algorithm.
+That MATLAB script uses antialiased bicubic `imresize`, lexicographic cyclic
+texture selection and atmospheric light `A` carried across channels and images.
+The independent implementation preserves these equations, uint8 axis rounding,
+column-major maximum ties and stateful replay. It does not substitute Pillow
+resizing, independently reset A, or map cloudy to fog. MATLAB/Octave runtime
+bitwise comparison is not claimed because that runtime is unavailable.
 
-No cloudy generator or stub is presented as implemented. The next required
-input is the existing cloudy generation source/runtime binding used for DIOR
-(or an explicit decision to run the author MATLAB implementation). Then bind
-only `DIOR/ImageSets/train.txt` IDs, preserve the algorithm's image order/state,
-and adopt only outputs with matching lineage and successful pixel/size checks.
-Use the existing `train_annotations`/`required_images` helpers in
-`tools/build_oracle_patches.py`; never infer TRAIN from a directory-wide scan,
-use VAL/TEST labels, or map cloudy to fog.
+Generation binds only5862 `DIOR/ImageSets/train.txt` IDs using the existing
+`train_annotations`/`required_images` helpers. Resume requires matching lineage
+and exact replayed pixels; VAL/TEST data and completed brightness/contrast
+images remain untouched. Materialization is CPU preparation, not adapter
+training or oracle-result completion.

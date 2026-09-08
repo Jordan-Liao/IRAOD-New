@@ -187,6 +187,45 @@ class ExtensionTrainingTest(unittest.TestCase):
             self.prepare(("SFYOLO",), tam_plan=path)
         self.assertFalse(self.queue.exists())
 
+    def test_aasfod_prepare_budget_prerequisite_and_actual_stage_runner_dispatch(self):
+        from experiments.comparison.aasfod_protocol import TSD_CHOICE
+        self.prepare(("AASFOD",))
+        self.assertFalse(self.artifacts.exists())
+        self.assertEqual(self.runtime()["train_cells"], 36)
+        self.assertEqual(len((self.queue / "aasfod_tsd_commands.txt").read_text().splitlines()), 36)
+        for ds, total, alignment, fns in (("DIOR", 184, 110, 74), ("RSAR", 265, 159, 106)):
+            domain = DOMAINS[ds][0]
+            cell = self.cell(ds, domain, 42, "AASFOD")
+            self.assertEqual(cell["detector_optimizer_updates"], total)
+            self.assertEqual(cell["aasfod_budget"]["alignment_updates"], alignment)
+            self.assertEqual(cell["aasfod_budget"]["fns_updates"], fns)
+            self.assertIn("experiments.comparison.aasfod_tsd", cell["tsd_command"])
+            self.assertEqual(cell["tsd_choice"], TSD_CHOICE)
+        cell = self.cell(method="AASFOD")
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch.object(training.subprocess, "run") as run:
+            with self.assertRaisesRegex(ValueError, "Missing nonempty"):
+                self.train(method="AASFOD")
+        run.assert_not_called()
+        names = [f"target{i:05}.png" for i in range(cell["unlabeled_epoch_size"])]
+        count = len(names) // 5
+        split = dict(
+            identity={k: cell[k] for k in
+                      ("dataset", "domain", "seed", "source_checkpoint", "target_val")},
+            choice=TSD_CHOICE, status="complete",
+            similar=names[-count:], dissimilar=names[:-count],
+            scores={name: float(i) for i, name in enumerate(names)})
+        Path(cell["tsd_split"]).parent.mkdir(parents=True)
+        write_json(cell["tsd_split"], split)
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch.object(training.subprocess, "run",
+                             side_effect=lambda *a, **kw: self.complete(cell)) as run:
+            self.train(method="AASFOD")
+        command = run.call_args.args[0]
+        self.assertIn("experiments.comparison.train_aasfod", command)
+        self.assertNotIn("data.train.type=StrictSourceFreeDOTADataset", command)
+        self.assertEqual(command[command.index("--seed") + 1], "44")
+
     def test_shared_native_evaluator_preserves_actual_ema_and_student_roles(self):
         runtime = dict(python=sys.executable, evaluation_code=str(self.eval_code),
                        evaluation_code_sha=training.EVALUATION_SHA)

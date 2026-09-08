@@ -16,7 +16,7 @@ from experiments.comparison.result_completion import DOMAINS, read_json, write_j
 ROOT = Path(__file__).resolve().parents[2]
 PORT_METHODS = ("IRG", "LPLD", "SFUT")
 F_DELETIONS = ("F_text_only", "F_veto_only")
-METHODS = (*PORT_METHODS, "SFYOLO", "B_REG", *F_DELETIONS)
+METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO", "B_REG", *F_DELETIONS)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
@@ -208,6 +208,20 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                             final_checkpoint_iteration=iteration,
                             budget_group="extended_two_epoch_TAM",
                             rank_with_common_one_epoch=False)
+                    if method == "AASFOD":
+                        from experiments.comparison.aasfod_protocol import budget, TSD_CHOICE
+
+                        cells[key].update(
+                            aasfod_budget=budget(TARGET_VAL_SIZE[dataset]),
+                            tsd_choice=TSD_CHOICE, tsd_split=str(method_dir / "tsd.json"),
+                            tsd_command=[
+                                python, "-m", "experiments.comparison.aasfod_tsd",
+                                "--queue", str(out), "--dataset", dataset,
+                                "--domain", domain, "--seed", str(seed)],
+                            detector_optimizer_updates=iterations_per_epoch,
+                            budget_group="common_one_epoch_disclosed_AASFOD",
+                            samples_per_gpu=16,
+                            global_original_images_per_update=32)
     runtime = {
         "schema": "iraod-extension-training-v1", "status": "prepared_not_execution_evidence",
         "python": python, "training_code": str(ROOT), "training_code_sha": training_sha,
@@ -227,6 +241,10 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         write_json(out / "f_deletion_config_diff.json", f_audits)
     write_json(out / "runtime.json", runtime)
     write_json(out / "cells.json", cells)
+    if "AASFOD" in methods:
+        (out / "aasfod_tsd_commands.txt").write_text(
+            "\n".join(shlex.join(c["tsd_command"]) for c in cells.values()
+                      if c["method"] == "AASFOD") + "\n")
     rows = "".join(f"{c['dataset']} {c['domain']} {c['seed']} {c['method']}\n"
                    for c in cells.values())
     for phase in ("train", "eval"):
@@ -328,6 +346,14 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
             "model.cfg.tam_dataset=" + dataset, "model.cfg.tam_domain=" + domain,
             "model.cfg.tam_seed=42",
         ]
+    if method == "AASFOD":
+        from experiments.comparison.aasfod_protocol import validate_split
+
+        validate_split(read_json(require_file(cell["tsd_split"])), cell)
+        command = [
+            python, "-m", "experiments.comparison.train_aasfod",
+            "--queue", str(Path(queue).resolve()), "--dataset", dataset,
+            "--domain", domain, "--seed", str(seed)]
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("CGA_", "SARCLIP_", "VLST_"))}
     prefix = str(Path(python).parent.parent)
