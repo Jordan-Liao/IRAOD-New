@@ -44,8 +44,11 @@
       "image_layout": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/<domain>/train/images",
       "prompt": "A SAR image of a {}",
       "output": "lora_rsar.pth",
-      "actual_patch_count": null,
-      "status": "count/crop preparation required, not blocked merely by absent adapter"
+      "counted_valid_crops": 1047844,
+      "expected_optimizer_updates": 163730,
+      "expected_patch_draws": 10478440,
+      "crop_count_evidence": "experiments/comparison/extensions/oracle_rsar_crop_count.json",
+      "status": "actual count audit complete; patches and final training metadata must still be materialized and reconciled before GPU training"
     },
     "DIOR": {
       "classes": 20,

@@ -519,3 +519,25 @@ source stays unchanged, and no strict A-F/baseline config or environment is
 permitted to inherit them. The two oracle variants remain LoRA-CGA and
 LoRA-CGA+VLST; adapter construction is their prerequisite, not a source-model
 replacement.
+
+The actual remote RSAR count audit is now complete:
+**1,047,844 valid crops**,149,692 per corruption, zero rejected crops.
+The frozen10-epoch/batch64 budget is therefore **163,730 optimizer updates**
+and10,478,440 patch draws. This count used the single expansion0.4; it must
+not be replaced by an old estimate based on multiple crop expansions.
+`oracle_rsar_crop_count.json` preserves the compact class/domain counts and
+links the full remote TRAIN-ID/source summary. Count-only mode created no
+patch images or training metadataCSV: materialize the crops and reconcile
+the final row count before training.
+
+The explicit oracle consumers are in `sfod/extensions/oracle.py`, imported
+only by `oracle_cga_*` / `oracle_cga_vlst_*` configs. They preserve the original
+D/F detector and inference settings, attach admitted visual LoRA explicitly
+after strict base-SARCLIP initialization, and keep separate frozen CGA/VLST
+encoder instances. No `SARCLIP_LORA` environment mutation or strict-guard
+weakening is used, and no RAW-teacher fallback is allowed for oracle failures.
+`oracle_adapters.py` admits only the completed matching dataset/class/TRAIN/
+corruption coverage/final-epoch recipe and complete finite LoRA factors.
+Training prompts are recorded separately from the preserved D/F inference
+prompt ensemble. None of these interfaces claims that an adapter or oracle
+detector run has completed.

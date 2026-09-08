@@ -7,3 +7,8 @@ CLASSES = {
              "golffield", "groundtrackfield", "harbor", "overpass", "ship", "stadium",
              "storagetank", "tenniscourt", "trainstation", "vehicle", "windmill"),
 }
+
+ORACLE_TRAINING_TEMPLATES = {
+    "RSAR": "A SAR image of a {}",
+    "DIOR": "an aerial image of a {}",
+}

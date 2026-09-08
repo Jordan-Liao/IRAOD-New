@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from experiments.comparison.labels import CLASSES as DATASET_CLASSES
+from experiments.comparison.labels import CLASSES as DATASET_CLASSES, ORACLE_TRAINING_TEMPLATES
 from sarclip_adapter import (
     ADAPTER_FORMAT,
     inject_lora,
@@ -35,8 +35,8 @@ from sarclip_adapter import (
 
 
 CLASSES = list(DATASET_CLASSES["RSAR"])
-DEFAULT_TEMPLATE = "A SAR image of a {}"
-DEFAULT_TEMPLATES = {"RSAR": DEFAULT_TEMPLATE, "DIOR": "an aerial image of a {}"}
+DEFAULT_TEMPLATE = ORACLE_TRAINING_TEMPLATES["RSAR"]
+DEFAULT_TEMPLATES = ORACLE_TRAINING_TEMPLATES
 
 
 def force_math_sdpa():
@@ -362,6 +362,7 @@ def build_config(args, rows, model, adapter_type, trainable_names):
         "metadata_row_count": len(rows),
         "max_patches": args.max_patches,
         "class_counts": {name: counts[name] for name in classes},
+        "corruptions": dict(Counter(row.get("corruption", "") for row in rows)),
         "crop_mode": args.crop_mode,
         "crop_modes": dict(Counter(row["crop_mode"] for row in rows)),
         "crop_expansions": dict(Counter(row.get("crop_expand", "") for row in rows)),
