@@ -398,3 +398,70 @@ no package was installed, upgraded or downgraded. Generated launchers now set
 the flag before Python starts; previously prepared0e5 launchers require the
 same flag in the owner/finite-parent environment. Do not modify live workers
 or global packages to resolve this import-path issue.
+
+## SF-YOLO independent implementation and auxiliary budget
+
+The actual TAM implementation is `sfod/extensions/tam.py`; its finite trainer
+is `experiments/comparison/train_tam.py`. The detector wrapper
+`sfod/extensions/sfyolo.py` and `sfyolo_{rsar,dior}.py` configs keep the same
+detector/source, hard pseudo OBB losses and common base transforms, adding the
+real fitted/frozen TAM to the strong view. No identity/jitter substitute or
+YOLO-specific head is used. Pinned formulas/corrections and remaining method
+decisions are in `remaining_ports.json`.
+
+TAM uses the released code formula (style moments first), unconstrained F2
+scale, a frozen VGG encoder, learned decoder/F1/F2, the general aerial objective,
+and decoder-first then recomputed F1/F2 Adam updates. Both objectives are
+checked for finite values. Preprocessing is consistently centered BGR for
+content/style; output is restored to detector normalization and original spatial
+dimensions without changing OBB coordinates or padding. No extra pixel clamp
+or detector consistency loss is introduced.
+
+The external57MiB VGG binary was actually loaded on CPU and its four feature
+tap shapes checked. It remains outside Git. TAM payloads store trained
+decoder/F1/F2 components and an external VGG reference, not the pretrained
+binary. Root/TAM-specific redistribution permission was not established;
+independent code and per-file licensing evidence must not be conflated.
+
+The straightforward whole-pipeline seed protocol needs36 separate fits:
+12 domains x seeds42/43/44, each160,000 iterations with two optimizer steps,
+batch8 and the stated Adam schedule. That is5,760,000 iterations and11,520,000
+optimizer steps, separate from the one-epoch detector budget. Do not launch this
+auxiliary matrix without explicitly accounting for/accepting that budget.
+A pooled target-domain TAM or one shared across detector seeds is not silently
+substituted. Sorted image IDs, independently seeded shuffled content/style
+streams and no entropy reseeding are declared reproducibility corrections.
+
+After resource/budget acceptance, the compute owner can first run a bounded
+NON_RESULT TAM smoke (replace placeholders with real paths and a free approved
+GPU under the shared lock):
+
+```bash
+export PYTHONNOUSERSITE=1
+"$PY" -m experiments.comparison.train_tam \
+  --base-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
+  --dataset RSAR --domain chaff --seed 42 \
+  --vgg-weights /absolute/external/vgg16_ori.pth \
+  --out-dir /absolute/new/tam-smoke --gpu 4 --smoke-steps 1
+```
+
+Formal fitting omits `--smoke-steps` and has fixed160k iterations. It reads only
+the exact domain's VAL image directory, with no annotations, source images or
+GT filtering. New output contains image/training manifests, flushed loss CSV,
+terminal state and atomic `tam.pth`. Failed/nonfinite or smoke-only runs cannot
+pass the detector's exact dataset/domain/seed/160k completion admission.
+
+Detector EMA is parameter-only retention0.999 after optimizer; fixed source
+normalization buffers are retained. SSM moves Student halfway toward Teacher
+at the next epoch start, skipping epoch0 and retaining optimizer momentum.
+With one detector epoch it cannot influence final Teacher: label the result
+`SF-YOLO (our OBB reimplementation; one-epoch budget, SSM inactive)`. No artificial
+subepochs or extra final teacher update is added. Effective full SSM would need
+an explicitly approved detector-budget relaxation.
+
+AASFOD still needs explicit dropout-posterior and cadence/budget decisions:
+post-hoc stateless dropout is an approximation, and its2500 one-based teacher
+cadence cannot transmit final-stage FNS learning within185/266 steps. DRU still
+lacks its source-trained aligned decoder-depth observation axis; a new
+estimator must be named DRU-inspired or the source/architecture invariant
+relaxed. Those are real scientific boundaries, not unavailable-code excuses.

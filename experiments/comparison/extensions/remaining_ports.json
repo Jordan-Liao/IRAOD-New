@@ -1,0 +1,77 @@
+{
+  "scope": "Remaining official-method mechanism boundaries; no completed experiment claims",
+  "implementation_policy": "Independent attributed algorithms, no vendored novel upstream code or pretrained binaries",
+  "SFYOLO": {
+    "upstream": "https://github.com/vs-cv/sf-yolo",
+    "commit": "c84dfad79a889b5f172d7192ee0379edfd738835",
+    "paper": "https://arxiv.org/abs/2409.16538v1",
+    "TAM_formula": "https://github.com/vs-cv/sf-yolo/blob/c84dfad79a889b5f172d7192ee0379edfd738835/TargetAugment_train/function.py#L4-L29",
+    "TAM_objectives": "https://github.com/vs-cv/sf-yolo/blob/c84dfad79a889b5f172d7192ee0379edfd738835/TargetAugment_train/net.py#L80-L140",
+    "TAM_optimizer_order": "https://github.com/vs-cv/sf-yolo/blob/c84dfad79a889b5f172d7192ee0379edfd738835/TargetAugment_train/train.py#L136-L165",
+    "SSM_and_teacher": "https://github.com/vs-cv/sf-yolo/blob/c84dfad79a889b5f172d7192ee0379edfd738835/train_sf-yolo.py#L335-L456",
+    "architecture": "Unchanged Oriented R-CNN/OrthoNet source; no YOLO head or detector-source retraining",
+    "implemented": [
+      "Actual VGG/fitted decoder/F1/F2 TAM with code-defined style-first moment formula",
+      "Generic aerial decoder reconstruction/constraint objectives and 50:1 style/content moment objective",
+      "Decoder-first then recomputed F1/F2 Adam steps, frozen-encoder input gradients",
+      "Teacher weak-view hard OBB pseudos and Student frozen-TAM augmentation composed with common strong view",
+      "After-optimizer parameter EMA0.999; source/norm-eval buffers unchanged",
+      "Next-epoch Student<-0.5Student+0.5Teacher SSM, optimizer state retained",
+      "Completed exact-dataset/domain/seed TAM required; smoke/untrained TAM rejected"
+    ],
+    "auxiliary_budget_proposal": {
+      "fits": 36,
+      "scope": "12 isolated target domains x whole-pipeline seeds42/43/44",
+      "iterations_per_fit": 160000,
+      "total_iterations": 5760000,
+      "optimizer_steps_per_iteration": 2,
+      "total_optimizer_steps": 11520000,
+      "batch_size": 8,
+      "base_lr": 0.0001,
+      "lr_schedule": "base_lr/(1+0.00005*iteration_zero_based)",
+      "data": "Only each cell's target VAL images, independent content/style streams",
+      "status": "must be explicitly accounted for before GPU release; not started by this implementation"
+    },
+    "one_epoch_boundary": "SSM cannot influence the final Teacher after one detector epoch; label SF-YOLO our OBB reimplementation / one-epoch budget / SSM inactive. Do not invent subepochs or a final extra teacher update.",
+    "declared_corrections": [
+      "Code TAM formula rather than inconsistent paper Eq2; general aerial loss branch",
+      "Consistent centered BGR convention for content/style and inverse conversion at detector boundary",
+      "Restore decoder output to original spatial dimensions; preserve detector padding and OBB geometry",
+      "Sorted IDs and deterministic independent shuffled streams, no entropy reseeding; not bitwise author replay",
+      "No fabricated random pseudo boxes on empty detections; no annotation-dependent loader/autoanchors/GT selection",
+      "Frozen norm-eval buffers are retained rather than blending integer/state buffers during SSM"
+    ],
+    "weights": {
+      "external_path": "official-sf-yolo/TargetAugment_train/pre_trained/vgg16_ori.pth",
+      "bytes": 58862201,
+      "format": "model dictionary, 26 numeric Sequential feature tensors",
+      "observed_validation": "Actual external binary loads strictly and produces64/128/256/512 VGG taps; CPU only, no training",
+      "redistribution": "No separate grant established; binary not committed or embedded in trained-component payloads"
+    },
+    "status": "implementation_available; auxiliary budget/resource decision and actual training/smokes pending"
+  },
+  "AASFOD": {
+    "upstream": "https://github.com/ChuQiaosong/AASFOD",
+    "commit": "c383cacdc050b804c95a6127d994cb1eba0596df",
+    "paper": "https://doi.org/10.1609/aaai.v37i1.25119",
+    "source_dropout": "https://github.com/ChuQiaosong/AASFOD/blob/c383cacdc050b804c95a6127d994cb1eba0596df/lib/model/faster_rcnn/vgg16_adv.py#L176-L232",
+    "one_based_EMA": "https://github.com/ChuQiaosong/AASFOD/blob/c383cacdc050b804c95a6127d994cb1eba0596df/trainval_adv_mt.py#L235-L406",
+    "stage4": "https://github.com/ChuQiaosong/AASFOD/blob/c383cacdc050b804c95a6127d994cb1eba0596df/trainval_adv_mosaic_mt.py#L130-L169",
+    "canonical_code_defaults": "20 MC passes; sigma0.8/top20%; class+box variance; local/global GRL; detection-only FNS; teacher retention0.99 every2500 one-based steps",
+    "required_bug_repairs": "Exactly20 distinct stochastic draws, not duplicated first draw; integer floor top20% with reproducible ties",
+    "source_assumption": "Fixed current head has no source-trained dropout. Stateless post-hoc dropout preserves checkpoint weights but is not the trained-dropout posterior; explicit approximation approval is required.",
+    "budget_boundary": "No teacher updates in185/266 steps. Stage3-only Teacher remains source; stage4 reset Teacher contains stage3 Student but cannot incorporate FNS.",
+    "decision_required": "Approve an explicit dropout/cadence/budget approximation or a genuinely budget-limited degenerate result; no silent per-step EMA or entropy surrogate",
+    "status": "blocked_on_explicit_scientific_decision; not absent-source-code"
+  },
+  "DRU": {
+    "upstream": "https://github.com/lbktrinh/DRU",
+    "commit": "14acc2a90a333fd8211cf35d522953baec024ede",
+    "paper": "https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/06893.pdf",
+    "source_architecture": "https://github.com/lbktrinh/DRU/blob/14acc2a90a333fd8211cf35d522953baec024ede/configs/def-detr-base/city2foggy/source_only.sh#L10-L25",
+    "source_supervision": "https://github.com/lbktrinh/DRU/blob/14acc2a90a333fd8211cf35d522953baec024ede/models/criterion.py#L313-L330",
+    "missing_axis": "Variance of aligned logits across six source-supervised decoder depths. A single RoI prediction head/two hidden FCs does not supply this axis.",
+    "decision_required": "Relax detector/source invariant or explicitly rename a new estimator DRU-inspired. Rotated geometry, MIC/history or untrained extra heads cannot establish faithful DRU.",
+    "status": "blocked_on_explicit_architecture_or_estimator_decision; not absent-source-code"
+  }
+}
