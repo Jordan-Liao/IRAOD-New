@@ -6,9 +6,10 @@ import tempfile
 import unittest
 
 from experiments.comparison.complete_qualitative import collect_completion
+from experiments.comparison.report_inputs import historical_paths
 from experiments.comparison.result_completion import write_json
 from tools.complete_rsar_per_class import (
-    CLASSES, CORRUPTIONS, RESULTS, append_ap, canonical_maps)
+    CLASSES, CORRUPTIONS, append_ap, canonical_maps)
 from tools.tests import test_aligned_roi_completion as roi_tests
 
 
@@ -32,11 +33,12 @@ class FinalQualitativeIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)
             table = root / "per_class_summary.csv"
+            frozen = Path(historical_paths({})[0]).parent
             # The original 78 rows stay at the start after the production append.
             table.write_bytes(b"".join(
-                (RESULTS / "per_class_summary.csv").read_bytes().splitlines(keepends=True)[:79]))
+                (frozen / "per_class_summary.csv").read_bytes().splitlines(keepends=True)[:79]))
             original = table.read_bytes()
-            maps = canonical_maps(RESULTS / "raw_results.csv")
+            maps = canonical_maps(frozen / "raw_results.csv")
             records = [{
                 "dataset": "RSAR", "corruption": domain, "method": method,
                 "seed": 42, "ckpt_role": "ema", "observed_mAP50": float(maps[domain, method]),
@@ -45,7 +47,7 @@ class FinalQualitativeIntegrationTest(unittest.TestCase):
             evidence = root / "evidence.json"
             write_json(evidence, {"schema": "iraod-rsar-nonchaff-perclass-evidence-v1",
                                   "records": records})
-            self.assertEqual(append_ap(evidence, table, RESULTS / "raw_results.csv"), 180)
+            self.assertEqual(append_ap(evidence, table, frozen / "raw_results.csv"), 180)
             self.assertTrue(table.read_bytes().startswith(original))
             with table.open(newline="") as stream:
                 rows = list(csv.DictReader(stream))
@@ -53,13 +55,13 @@ class FinalQualitativeIntegrationTest(unittest.TestCase):
             for row in rows[78:]:
                 self.assertEqual(row["mAP50"], maps[row["corruption"], row["method"]])
                 self.assertEqual(row["AP50"], "0.123")
-            self.assertEqual(append_ap(evidence, table, RESULTS / "raw_results.csv"), 0)
+            self.assertEqual(append_ap(evidence, table, frozen / "raw_results.csv"), 0)
             records.pop()
             write_json(evidence, {"schema": "iraod-rsar-nonchaff-perclass-evidence-v1",
                                   "records": records})
             before = table.read_bytes()
             with self.assertRaisesRegex(ValueError, "All 30"):
-                append_ap(evidence, table, RESULTS / "raw_results.csv")
+                append_ap(evidence, table, frozen / "raw_results.csv")
             self.assertEqual(before, table.read_bytes())
 
 

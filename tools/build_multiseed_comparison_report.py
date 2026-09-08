@@ -28,6 +28,10 @@ def render(report_path, output):
                       "报告生成成功不等于实验或全部八项任务完成。")
     doc.add_paragraph("输入清单：" + report["input_manifest"])
     doc.add_paragraph("消费者提交：" + report["code_commit"])
+    if report.get("findings_cn"):
+        doc.add_heading("主要观察与统计限制", 1)
+        for text in report["findings_cn"]:
+            doc.add_paragraph(text)
     corrections = report.get("producer_metadata_corrections", [])
     if corrections:
         doc.add_heading("Source producer 元数据更正审计", 1)

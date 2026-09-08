@@ -14,7 +14,7 @@ import numpy as np
 
 from experiments.comparison.final_report import build_report, figures
 from experiments.comparison.report_inputs import (
-    CLASSES, EXPECTED_IMAGES, HISTORICAL_ROOT, collect_quantitative, keyed)
+    CLASSES, EXPECTED_IMAGES, collect_quantitative, historical_paths, keyed)
 from experiments.comparison.report_qualitative import qualitative_evidence
 from experiments.comparison.report_statistics import summarize
 from experiments.comparison.result_completion import DOMAINS, write_json, visualize
@@ -260,10 +260,9 @@ class ArtifactConsumerTest(unittest.TestCase):
         status = json.loads((self.root / "report/build_status.json").read_text())
         self.assertEqual(status["result_status"], "partial")
         self.assertEqual(status["report_build"], "complete")
-        for name in ("raw_results.csv", "dior_raw_results.csv",
-                     "per_class_summary.csv", "dior_per_class.csv"):
-            self.assertEqual((self.root / "report/historical" / name).read_bytes(),
-                             (HISTORICAL_ROOT / name).read_bytes())
+        for path in historical_paths({}) + historical_paths({}, per_class=True):
+            self.assertEqual((self.root / "report/historical" / Path(path).name).read_bytes(),
+                             Path(path).read_bytes())
 
     def test_metadata_only_does_not_require_renderer_or_claim_final_report(self):
         manifest = self.root / "metadata-input.json"

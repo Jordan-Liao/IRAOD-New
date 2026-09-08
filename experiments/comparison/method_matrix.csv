@@ -1,10 +1,10 @@
 id,name,source_free,box,vlm,target_labels,cga,vlst,train_target_images,notes,fairness_group,status
-A,Source Only,yes,OBB,none,eval_only,off,off,no,frozen source,Source-Free,pending_final_evidence
-B,ST Mean Teacher,yes,OBB,none,eval_only,off,off,yes,use_bbox_reg=False,Source-Free,pending_final_evidence
-C,CLIP-CGA,yes,OBB,CLIP-RN50x64,eval_only,legacy,off,yes,no SARCLIP/LoRA,Source-Free,pending_final_evidence
-D,SARCLIP-CGA,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,off,yes,frozen base; no LoRA,Source-Free,pending_final_evidence
-E,VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,off,on,yes,DDP2 topology-only,Source-Free,pending_final_evidence
-F,CGA+VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,on,yes,accepted preflight workdir full budget,Source-Free,pending_final_evidence
+A,Source Only,yes,OBB,none,eval_only,off,off,no,frozen source,Source-Free,complete
+B,ST Mean Teacher,yes,OBB,none,eval_only,off,off,yes,use_bbox_reg=False,Source-Free,complete
+C,CLIP-CGA,yes,OBB,CLIP-RN50x64,eval_only,legacy,off,yes,no SARCLIP/LoRA,Source-Free,complete
+D,SARCLIP-CGA,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,off,yes,frozen base; no LoRA,Source-Free,complete
+E,VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,off,on,yes,DDP2 topology-only,Source-Free,complete
+F,CGA+VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,on,yes,accepted preflight workdir full budget,Source-Free,complete
 G_oracle,Target-supervised LoRA,no,OBB,SARCLIP-LoRA,train,varies,varies,yes,appendix only; not run,Target-supervised,not_run
 IRG,IRG-OBB,yes,OBB,none,eval_only,off,off,yes,N/A not yet ported,Source-Free,not_run
 LPLD,LPLD-OBB,yes,OBB,none,eval_only,off,off,yes,N/A not yet ported,Source-Free,not_run

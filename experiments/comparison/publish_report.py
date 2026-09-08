@@ -68,6 +68,34 @@ def tex_escape(text):
     return str(text).replace("\\", r"\textbackslash{}").replace("_", r"\_").replace("&", r"\&")
 
 
+def scientific_findings(report):
+    findings = []
+    values = {(r["dataset"], r["method"], r["metric"]): r for r in report["summary"]}
+    for dataset in DOMAINS:
+        best = max("ABCDEF", key=lambda m: values[dataset, m, "mPC"]["mean"])
+        winner = values[dataset, best, "mPC"]
+        delta = values[dataset, "F", "delta_A"]["mean"]
+        findings.append(
+            f"{dataset}：{best} 的观察 mPC 均值最高，为 {100 * winner['mean']:.4f}%。"
+            f"F 相对固定 A 的配对平均增益为 {100 * delta:+.4f} 个百分点。"
+            "最高均值不等于方法间差异显著；不因负结果删除或重调方法。")
+        tests = [r for r in report["paired_statistics"]
+                 if r["dataset"] == dataset and r["metric"] == "delta_A"]
+        findings.append(
+            f"{dataset} 的 ΔA 双侧 t 检验 Holm p（B–F）："
+            + "、".join(f"{r['method']}={r['t_p_holm']:.6g}" if r["t_p_holm"] is not None
+                       else f"{r['method']}=N/A" for r in tests)
+            + "。这些是固定 source 条件下、依赖差值正态假设的 n=3 检验，"
+            "不能与无分布假设的证据强度混同。")
+    tests = [r for r in report["paired_statistics"] if r["metric"] == "delta_A"]
+    findings.append(
+        f"ΔA 精确双侧 sign-flip 最小原始 p={min(r['sign_flip_p'] for r in tests):.6g}；"
+        f"最小 Holm p={min(r['sign_flip_p_holm'] for r in tests):.6g}。"
+        "仅 8 种符号排列，低功效；本次不据此宣称分布无关的显著提升。"
+        "腐蚀域不是独立重复样本，置信区间仅反映适配随机性。")
+    return findings
+
+
 def result_table(report, methods, caption, label):
     # Adapted from the academic-latex-tables grouped-header booktabs template.
     metrics = ("clean_mAP50", "mPC", "rPC_percent", "delta_A")
@@ -164,7 +192,8 @@ def stage_publication(report_dir, terminal_path, out_dir, docx_python):
     for row in methods:
         row["status"] = "complete" if row["id"] in tuple("ABCDEF") else "not_run"
     report["method_matrix"] = methods
-    report["parent_terminal_evidence"] = str(Path(terminal_path).resolve())
+    report["findings_cn"] = scientific_findings(report)
+    report["parent_terminal_evidence"] = "results/paper_comparison/terminal_state.json"
     write_json(results / "terminal_state.json", terminal)
     write_json(results / "report.json", report)
     write_csv(results / "visualization_manifest.csv",
@@ -197,6 +226,8 @@ def stage_publication(report_dir, terminal_path, out_dir, docx_python):
         "raw_results.csv：192 单元；per_class_summary.csv：2048 类别 AP 行（保留打印精度）；"
         "per_corruption_summary.csv：含 clean 的逐域均值与样本标准差；"
         "statistical_tests.csv：配对种子检验；recovery.csv：逐种子逐腐蚀恢复比。",
+        "以下表中 AP、mPC 和 ΔA 使用 0–1 单位，rPC_percent 使用百分比；"
+        "LaTeX 主表将 AP 和 ΔA 转成百分点显示。",
         "", "## 结果", "", "| 数据集 | 方法 | 指标 | mean ± sample std |",
         "| --- | --- | --- | --- |",
     ]
@@ -204,8 +235,10 @@ def stage_publication(report_dir, terminal_path, out_dir, docx_python):
         if r["metric"] in ("clean_mAP50", "mPC", "rPC_percent", "delta_A"):
             sd = "N/A（固定 source）" if r["sample_std"] is None else f"{r['sample_std']:.8g}"
             summary.append(f"| {r['dataset']} | {r['method']} | {r['metric']} | {r['mean']:.8g} ± {sd} |")
+    summary.extend(["", "## 主要观察与统计限制", "",
+                    *[f"{i}. {text}" for i, text in enumerate(report["findings_cn"], 1)]])
     summary.extend([
-        "", "1. 先在种子内平均全部腐蚀，再跨种子统计；std 使用 ddof=1。"
+        "", "## 指标定义", "", "1. 先在种子内平均全部腐蚀，再跨种子统计；std 使用 ddof=1。"
         "n=3、低功效，置信区间仅反映固定 source 条件下的适配随机性。",
         "2. 历史 rPC=100×mPC/固定 A clean TEST；不是 source VAL，也不改成 method clean。"
         "method_clean_normalized_percent 另列。",
@@ -224,6 +257,7 @@ def stage_publication(report_dir, terminal_path, out_dir, docx_python):
     ])
     (results / "result_summary_cn.md").write_text("\n".join(summary), encoding="utf-8")
     artifacts = {"report_directory": report["artifact_directory"],
+                 "quantitative_input_manifest": report["input_manifest"],
                  "prediction_image_coverage": report["artifact_directory"] + "/prediction_image_coverage.csv",
                  "roi_image_coverage": report["qualitative_coverage"]["roi_image_manifest"],
                  "qualitative_evidence": report["qualitative_coverage"]["evidence_reuse"]}

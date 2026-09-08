@@ -1,3 +1,12 @@
-% Target-supervised LoRA oracle not run. N/A.
-\begin{tabular}{lc}
-\toprule Method & mAP50 \\\midrule Target-supervised LoRA & N/A \\\bottomrule\end{tabular}
+\begin{table}[t]
+\centering
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Separate fairness groups; no oracle scores or extra runs are invented. Clean/mPC/rPC/delta and mean/std are N/A.}\label{tab:oracle}
+\begin{tabular}{@{}llll@{}}\toprule
+Group / box & VLM & Target labels & Status \\
+\midrule
+Source-available / OBB & N/A & N/A & Not run \\
+Target-supervised / OBB & SARCLIP-LoRA & training & Not run \\
+\bottomrule\end{tabular}
+\end{table}

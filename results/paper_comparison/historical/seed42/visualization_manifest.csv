@@ -1,0 +1,2 @@
+dataset,corruption,image,method,config,checkpoint,show_dir,status
+RSAR,chaff,N/A,A-F,oriented_rcnn_orthonet_rsar.py,final_ema,results/paper_comparison/visualizations/,not_started

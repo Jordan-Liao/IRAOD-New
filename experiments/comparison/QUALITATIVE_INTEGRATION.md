@@ -4,6 +4,12 @@ Qualitative evidence is collected independently of the unfinished multi-seed
 quantitative campaign. Completing this collector does not mark all eight
 requirements complete and does not generate a final comparison DOCX.
 
+This section describes the earlier qualitative collection boundary. The
+quantitative campaign and final report were subsequently completed on 2026-09-08:
+192 native cells / 1,844,096 prediction-image records / 2,048 per-class rows.
+See `REPORT_CONSUMER.md` and the current combined reports. The accepted
+qualitative summary's dated quantitative progress is historical, not current.
+
 ## Full qualitative collection (CPU)
 
 ```bash
@@ -81,6 +87,11 @@ Then, in the integration checkout, append the collected batch:
 python -m tools.complete_rsar_per_class append \
   --evidence /absolute/downloaded/rsar_nonchaff_ap_evidence.json
 ```
+
+The append above is the historical seed42 operation and must not be repeated
+against the now-published combined schema. Its original inputs and the
+258-row result are frozen in `results/paper_comparison/historical/seed42/`;
+the final `per_class_summary.csv` contains all 2,048 native per-class rows.
 
 Every source `metric.mAP` must match the frozen seed42 raw value. The output
 table copies the exact mAP text from `raw_results.csv`, while class AP retains

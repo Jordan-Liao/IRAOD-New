@@ -204,8 +204,9 @@ class PublicationTest(unittest.TestCase):
                             for name in EXPERIMENT_FILES))
         for name in ("raw_results.csv", "dior_raw_results.csv", "per_class_summary.csv",
                      "dior_per_class.csv", "IRAOD_full_comparison_report_cn.docx"):
+            frozen = Path(historical_paths({})[0]).parent
             self.assertEqual((results / "historical/seed42" / name).read_bytes(),
-                             (HISTORICAL_ROOT / name).read_bytes())
+                             (frozen / name).read_bytes())
         with patch("experiments.comparison.report_inputs.HISTORICAL_ROOT", results):
             self.assertTrue(all("/historical/seed42/" in p for p in historical_paths({})))
         self.assertEqual(len(read_rows(results / "raw_results.csv")), 192)

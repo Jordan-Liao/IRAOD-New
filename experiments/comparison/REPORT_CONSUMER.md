@@ -1,7 +1,9 @@
 # CPU multi-seed result/report consumer
 
-This is a separate consumer delivery, not a completed experiment report. It never
-launches models, changes a queue, or writes into an existing result directory.
+The completed A-F delivery is versioned in `results/paper_comparison/`, with
+130/130 new training and 192/192 native-ID evaluations complete. This CPU consumer
+never launches models or changes a queue. Initial collection uses a new directory;
+portable rendering operates on an owned copy of the collected numeric report.
 Use an already collected/mounted artifact tree or run this CPU command on the
 artifact host. The existing report/binaries and main-checkout user files remain
 untouched.
@@ -362,11 +364,21 @@ and `rendering=deferred_metadata_only`, not a final document. Existing training
 environments need no package changes for this partial inspection. Missing
 native sidecars stay missing even where legacy quantitative mAP is known.
 
-## Final delivery readiness and accepted-evidence reuse
+## Final delivery and accepted-evidence reuse
 
-**Readiness only: final publication is still blocked on coordinator-supplied
-130/130 training and 192/192 native evaluation terminal evidence.** No watcher,
-model execution or partial final report is part of this consumer work.
+**Final terminal evidence was supplied on 2026-09-08.** The actual consumer
+completed 192/192 cells with no metric conflicts: RSAR 128 and DIOR 64;
+1,844,096 native image-prediction records and 2,048 per-class rows. Exact
+counts are persisted in `results/paper_comparison/coverage_counts.json`.
+The staged and installed final reports retain the independent seed42 qualitative
+scope. No watcher or additional model execution was used.
+
+The actual remote numeric snapshot is
+`/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/`.
+Its `input/`, `report/`, `terminal_state.json` and `coverage_counts.json` remain
+available; the committed `artifact_manifest.json` locates large external files.
+The following commands document reproduction into **new** directories, not a
+request to repeat the completed consumer or restart compute.
 
 The accepted collector is at:
 `/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence`.

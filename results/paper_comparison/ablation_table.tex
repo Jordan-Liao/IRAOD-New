@@ -1,12 +1,22 @@
-% CGA/VLST on/off, RSAR/chaff seed42 final-EMA
-\begin{tabular}{lllc}
+% Requires booktabs, graphicx, and xcolor with the table option.
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Existing component combinations: B (neither), D (CGA), E (VLST), F (both). Reuses the main runs; no extra ablation or interaction significance claimed. Other planned ablations are not run. Source-Free, OBB, target labels for offline evaluation only. Source-available and target-supervised groups are not run. Mean $\pm$ sample std over three adaptation seeds; A is one fixed source (SD N/A). AP and $\Delta_A$ in percentage points; historical rPC in percent. Bold: best mean within the displayed Source-Free group, separately per dataset/metric.}
+\label{tab:ablation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lllcccccccc@{}}
 \toprule
-Method & CGA & VLST & chaff mAP50 \\
+Method & VLM & Target labels & \multicolumn{4}{c}{RSAR} & \multicolumn{4}{c}{DIOR-R} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+ & & & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\
 \midrule
-B ST & off & off & 0.463 \\
-C CLIP-CGA & legacy CLIP & off & 0.466 \\
-D SARCLIP-CGA & veto\_soft & off & 0.459 \\
-E VLST & off & on & 0.464 \\
-F CGA+VLST & veto\_soft & on & 0.449 \\
+B ST Mean Teacher & none & eval only & $52.44 \pm 0.43$ & $32.40 \pm 0.13$ & $60.97 \pm 0.25$ & $0.68 \pm 0.13$ & $29.81 \pm 0.10$ & $27.55 \pm 0.08$ & $93.42 \pm 0.29$ & $0.43 \pm 0.08$ \\
+D SARCLIP-CGA & SARCLIP-ViT-B-32 & eval only & $51.04 \pm 0.07$ & $30.55 \pm 0.40$ & $57.49 \pm 0.76$ & $-1.16 \pm 0.40$ & $29.94 \pm 0.08$ & $26.85 \pm 0.06$ & $91.05 \pm 0.20$ & $-0.27 \pm 0.06$ \\
+E VLST & SARCLIP-ViT-B-32 & eval only & $\mathbf{52.71} \pm 0.16$ & $\mathbf{32.97} \pm 0.15$ & $\mathbf{62.05} \pm 0.28$ & $\mathbf{1.26} \pm 0.15$ & $\mathbf{29.95} \pm 0.20$ & $\mathbf{27.58} \pm 0.05$ & $\mathbf{93.51} \pm 0.18$ & $\mathbf{0.46} \pm 0.05$ \\
+\rowcolor{blue!7}
+F CGA+VLST & SARCLIP-ViT-B-32 & eval only & $51.47 \pm 0.37$ & $29.55 \pm 0.38$ & $55.61 \pm 0.71$ & $-2.16 \pm 0.38$ & $29.77 \pm 0.27$ & $26.86 \pm 0.19$ & $91.09 \pm 0.63$ & $-0.26 \pm 0.19$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
+\end{table*}

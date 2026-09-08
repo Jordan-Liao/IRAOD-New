@@ -1,20 +1,24 @@
-% RSAR seed=42 final-EMA. Bold = best in column among A-F. Single seed, no std.
-\begin{tabular}{lcccccccc}
+% Requires booktabs, graphicx, and xcolor with the table option.
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Strict A--F comparison. Source-Free, OBB, target labels for offline evaluation only. Source-available and target-supervised groups are not run. Mean $\pm$ sample std over three adaptation seeds; A is one fixed source (SD N/A). AP and $\Delta_A$ in percentage points; historical rPC in percent. Bold: best mean within the displayed Source-Free group, separately per dataset/metric.}
+\label{tab:main}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lllcccccccc@{}}
 \toprule
-Method & clean & chaff & pt & gauss & noise & smart & am\_h & am\_v \\
+Method & VLM & Target labels & \multicolumn{4}{c}{RSAR} & \multicolumn{4}{c}{DIOR-R} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+ & & & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\
 \midrule
-A Source Only & 0.531 & \textbf{0.472} & \textbf{0.516} & \textbf{0.528} & 0.163 & 0.144 & 0.206 & 0.191 \\
-B ST & -- & 0.463 & 0.496 & 0.520 & 0.181 & 0.143 & 0.227 & 0.237 \\
-C CLIP-CGA & -- & 0.466 & 0.511 & 0.521 & \textbf{0.186} & \textbf{0.181} & 0.229 & 0.240 \\
-D SARCLIP-CGA & -- & 0.459 & 0.500 & 0.511 & 0.165 & 0.146 & 0.189 & 0.176 \\
-E VLST & -- & 0.464 & 0.511 & 0.523 & 0.182 & 0.155 & \textbf{0.235} & \textbf{0.250} \\
-F CGA+VLST & -- & 0.449 & 0.508 & 0.521 & 0.141 & 0.132 & 0.159 & 0.171 \\
-\midrule
-A mPC/rPC & \multicolumn{8}{l}{0.317 / 59.7\% ; mean $\Delta$ada=+0.000} \\
-B mPC/rPC & \multicolumn{8}{l}{0.324 / 61.0\% ; mean $\Delta$ada=+0.007} \\
-C mPC/rPC & \multicolumn{8}{l}{0.334 / 62.8\% ; mean $\Delta$ada=+0.016} \\
-D mPC/rPC & \multicolumn{8}{l}{0.307 / 57.7\% ; mean $\Delta$ada=-0.010} \\
-E mPC/rPC & \multicolumn{8}{l}{0.331 / 62.4\% ; mean $\Delta$ada=+0.014} \\
-F mPC/rPC & \multicolumn{8}{l}{0.297 / 56.0\% ; mean $\Delta$ada=-0.020} \\
+A Source Only & none & eval only & $\mathbf{53.14}\;(\mathrm{N/A})$ & $31.71\;(\mathrm{N/A})$ & $59.68\;(\mathrm{N/A})$ & $0.00\;(\mathrm{N/A})$ & $29.49\;(\mathrm{N/A})$ & $27.12\;(\mathrm{N/A})$ & $91.96\;(\mathrm{N/A})$ & $0.00\;(\mathrm{N/A})$ \\
+B ST Mean Teacher & none & eval only & $52.44 \pm 0.43$ & $32.40 \pm 0.13$ & $60.97 \pm 0.25$ & $0.68 \pm 0.13$ & $29.81 \pm 0.10$ & $27.55 \pm 0.08$ & $93.42 \pm 0.29$ & $0.43 \pm 0.08$ \\
+C CLIP-CGA & CLIP-RN50x64 & eval only & $52.12 \pm 0.96$ & $\mathbf{33.08} \pm 0.39$ & $\mathbf{62.26} \pm 0.73$ & $\mathbf{1.37} \pm 0.39$ & $29.67 \pm 0.11$ & $27.54 \pm 0.01$ & $93.40 \pm 0.03$ & $0.42 \pm 0.01$ \\
+D SARCLIP-CGA & SARCLIP-ViT-B-32 & eval only & $51.04 \pm 0.07$ & $30.55 \pm 0.40$ & $57.49 \pm 0.76$ & $-1.16 \pm 0.40$ & $29.94 \pm 0.08$ & $26.85 \pm 0.06$ & $91.05 \pm 0.20$ & $-0.27 \pm 0.06$ \\
+E VLST & SARCLIP-ViT-B-32 & eval only & $52.71 \pm 0.16$ & $32.97 \pm 0.15$ & $62.05 \pm 0.28$ & $1.26 \pm 0.15$ & $\mathbf{29.95} \pm 0.20$ & $\mathbf{27.58} \pm 0.05$ & $\mathbf{93.51} \pm 0.18$ & $\mathbf{0.46} \pm 0.05$ \\
+\rowcolor{blue!7}
+F CGA+VLST & SARCLIP-ViT-B-32 & eval only & $51.47 \pm 0.37$ & $29.55 \pm 0.38$ & $55.61 \pm 0.71$ & $-2.16 \pm 0.38$ & $29.77 \pm 0.27$ & $26.86 \pm 0.19$ & $91.09 \pm 0.63$ & $-0.26 \pm 0.19$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
+\end{table*}
