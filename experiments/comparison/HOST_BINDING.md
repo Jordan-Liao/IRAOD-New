@@ -93,6 +93,11 @@ path-binding helpers through Python's `-m` search order.
 
 ## DIOR LoRA can precede detector staging
 
+Owner-confirmed current state supersedes the earlier untranslated-path failure:
+the deployed0fd539a DIOR smoke completed2/2 updates at18:30:26Z, and the
+approved10-epoch fit started18:30:58Z on221 GPU4 (reported pane3513810).
+Do not restart it, replace its code, or trigger another compatibility smoke.
+
 The copied `metadata.csv` is not rewritten. On this exact target host,
 `train_sarclip_lora_rsar.load_metadata` maps each old absolute `patch_path` in
 memory before reading the existing patch file. Class IDs, TRAIN flags,
@@ -138,3 +143,47 @@ cells. No exclusion or replay is implemented by this host-only patch.
 The existing RSAR1x32 logs showed roughly54601-54691MiB peak memory. A6000
 49140MiB may expose a real OOM at smoke time; no batch/world-size reduction,
 activation-checkpoint change or numerical workaround is introduced here.
+
+## Ready DIOR F2x16 and native evaluation contract
+
+After the owner stages the bound0f98 checkout, source checkpoint, DIOR VAL/TEST,
+F config metadata and SARCLIP assets, use the current integration code with
+the unchanged copied Q:
+
+```bash
+Q="$ART/comparison/xaf_student_quant_20260908/release_manifests_752a139"
+cd "$CODE"
+PYTHONNOUSERSITE=1 PYTHONPATH="$CODE" "$PY" \
+  -m experiments.comparison.smoke_frozen_training \
+  --queue "$Q" --dataset DIOR --domain clean --seed 42 --method F_text_only \
+  --gpus 0,1 --updates 2 \
+  --out-dir "$ART/comparison/xaf_student_quant_20260908/NON_RESULT_F_text_only_221_NEW_ATTEMPT"
+```
+
+No outer lock around the self-locking smoke. Pair0,1 uses29804; pair2,3 uses29806.
+The original scientific F config,2x16/global32,source and budget remain intact.
+Native evaluation uses the bound331d checkout and the actual final checkpoint,
+not a smoke checkpoint (smokes do not publish one). The existing finite worker
+owns its locks and calls `extension_training evaluate`; for an owner-run
+individual evaluation outside that worker, use exactly one outer lock:
+
+```bash
+"$PY" -m experiments.comparison.host_binding lock 2 -- "$PY" \
+  -m experiments.comparison.extension_training evaluate \
+  --queue "$Q" --gpu 2 --dataset DIOR --domain clean --seed 42 \
+  --method F_text_only --role ema
+```
+
+Current native wrapper instrumentation rejects nonfinite losses/gradients before
+updates, nonfinite checkpoint payloads before writing them, and nonfinite loaded
+models before evaluation. It does not change finite updates, repair tensors,
+retune settings, or replay the diagnosed failed runs. Frozen snapshots remain
+unchanged; the owner deploys a new integration snapshot for future detector work.
+
+The boundary wraps the actual standard MMCV optimizer hook and PyTorch
+optimizer/save calls used by frozen native entrypoints. It is not a replacement
+optimizer or an FP16/gradient-accumulation implementation. Finite CPU regressions
+preserve parameters, optimizer state, EMA, RNG, update counts and checkpoint
+bytes. On an invalid EMA save, an earlier finite Student file may remain as a
+partial failed run, but the bad EMA and final latest marker are not published.
+There is no silent tensor repair, batch skip, clipping change or automatic retry.

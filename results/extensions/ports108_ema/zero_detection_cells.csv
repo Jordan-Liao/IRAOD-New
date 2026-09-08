@@ -1,6 +1,6 @@
-dataset,domain,method,seed,role,mAP50,n_predictions,n_post_nms_detections,artifact_status,interpretation
-RSAR,point_target,IRG,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
-RSAR,point_target,LPLD,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
-RSAR,noise_suppression,IRG,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
-RSAR,noise_suppression,LPLD,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
-RSAR,noise_suppression,SFUT,44,ema,0.0,8538,0,complete,empty native output; cause not diagnosed
+dataset,domain,method,seed,role,mAP50,n_predictions,n_post_nms_detections,artifact_status,interpretation,numerical_status,EMA_nonfinite_tensors,Student_nonfinite_tensors
+RSAR,point_target,IRG,44,ema,0.0,8538,0,complete,NaN Student and EMA; first operator unknown,failed,195,213
+RSAR,point_target,LPLD,44,ema,0.0,8538,0,complete,NaN Student and EMA; first operator unknown,failed,195,195
+RSAR,noise_suppression,IRG,44,ema,0.0,8538,0,complete,NaN Student and EMA; first operator unknown,failed,195,213
+RSAR,noise_suppression,LPLD,44,ema,0.0,8538,0,complete,NaN Student and EMA; first operator unknown,failed,195,195
+RSAR,noise_suppression,SFUT,44,ema,0.0,8538,0,complete,NaN Student and EMA; first operator unknown,failed,195,195

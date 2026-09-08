@@ -7,7 +7,7 @@
   "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
   "selected_target_host_binding": {
-    "status": "implemented_not_deployed_or_launched_by_code_owner",
+    "status": "owner_deployed_0fd539a_DIOR_smoke_valid_and_fit_running",
     "hostname": "73F3-5xA6000-221",
     "endpoint": "zechuan@1.14.177.180:20138",
     "root": "/home/zechuan/iraod_artifacts",
@@ -22,6 +22,16 @@
     "old_host_4_to_7_binding_preserved": true,
     "metadata_and_frozen_snapshots_rewritten": false,
     "DIOR_LoRA": "Copied CSV patch paths map in memory; env/code/weights/patches suffice before detector staging; GPU owner owns deployment and outer locks",
+    "DIOR_owner_event": {
+      "code": "0fd539a",
+      "smoke_valid_updates": 2,
+      "smoke_at": "2026-09-08T18:30:26Z",
+      "fit_started_at": "2026-09-08T18:30:58Z",
+      "fit_epochs": 10,
+      "gpu": 4,
+      "reported_pane": 3513810,
+      "code_owner_restarted_or_retested": false
+    },
     "detector_dependencies": "Supervisor stages frozen0f98/331d and a39/36/84 snapshots, source queues/base plans, datasets and source weights",
     "memory_risk": "Prior RSAR1x32 allocated-memory logs54601-54691MiB exceed target49140MiB nominal; actual owner-run smoke decides, no batch reduction or numerical workaround",
     "five_NaN_runs": "Read-only diagnosis preserved; no automatic retraining or altered zeros"
@@ -50,8 +60,8 @@
       "new_EMA_TEST_image_records": 1037304,
       "new_EMA_post_nms_detections": 18229448,
       "zero_detection_cells": 5,
-      "zero_detection_cause": "not diagnosed by collection; all zero results retained",
-      "next": "Await native Student/ROI outputs from the GPU owner; explain five zero-output seed44 cells before interpreting affected equal-sample joint embeddings. No automatic rerun."
+      "zero_detection_cause": "Numerical failure confirmed in five final Student/EMA/optimizer states; first operator unknown, no healthy intermediate checkpoint. All zero values and aggregates retained; other103 not certified healthy.",
+      "next": "Future nonfinite states fail before publication/evaluation; no automatic rerun or tuning. Await actual valid Student/ROI outputs and keep two joint groups explicit about missing eligible points."
     },
     "B_REG": {
       "train_cells": 36,

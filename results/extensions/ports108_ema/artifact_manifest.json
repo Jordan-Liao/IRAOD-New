@@ -45,7 +45,40 @@
     }
   ],
   "statistical_scope": "Three declared methods in this EMA phase; three adaptation seeds conditional on fixed A. Not the final all-extension multiplicity family.",
-  "zero_detection_cause": "not diagnosed by this collection; artifact completeness does not certify numerical training health",
+  "zero_detection_cause": "Confirmed numerical failure: all five affected final Student/EMA checkpoints and optimizer states contain NaNs; exact first arithmetic operator remains unknown",
+  "numerical_diagnosis": {
+    "scope": "Only five zero-output runs and one matched completed nonzero control; no broad matrix audit",
+    "affected_seed": 44,
+    "affected_EMA_nonfinite_tensors": "195 of343 floating tensors in each of the five runs",
+    "affected_Student_nonfinite_tensors": {
+      "IRG/point_target": "213 of361",
+      "LPLD/point_target": "195 of343",
+      "IRG/noise_suppression": "213 of361",
+      "LPLD/noise_suppression": "195 of343",
+      "SFUT/noise_suppression": "195 of343"
+    },
+    "optimizer_states": "Nonfinite in all five affected runs",
+    "last_finite_logged_block": 240,
+    "first_nonfinite_logged_block": 250,
+    "later_nonfinite_logged_block": 260,
+    "exact_first_operator": "Not recorded; ten-step logging does not establish it",
+    "healthy_intermediate_checkpoint_available": false,
+    "load_identity": "Native checkpoint/config/code/classes/8538 image records match; EMA key shapes match control; no native eval loading mismatch",
+    "IRG_source_warning": "18 newly initialized auxiliary parameters also missing from source in the healthy control; not a missing detector-weight explanation",
+    "control": {
+      "method": "IRG",
+      "domain": "point_target",
+      "seed": 43,
+      "EMA_nonfinite_tensors": 0,
+      "Student_nonfinite_tensors": 0,
+      "optimizer_nonfinite_tensors": 0,
+      "native_detections": 103767,
+      "mAP50": 0.5261342525482178
+    },
+    "other_runs": "No blanket health claim for the other103; only the named control was checked finite",
+    "original_zero_values_and_aggregates_preserved": true,
+    "replay_retraining_or_tuning_performed": false
+  },
   "pending_joint_embedding_groups_with_zero_native_points": [
     "RSAR/point_target/seed_44/ema",
     "RSAR/noise_suppression/seed_44/ema"

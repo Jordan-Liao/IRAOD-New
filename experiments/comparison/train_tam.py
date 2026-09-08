@@ -29,6 +29,7 @@ from experiments.comparison.tam_artifacts import (
     BGR_MEAN, FIT_SEED, FORMAL_STEPS, NORMALIZATION, SCHEMA, checkpoint_payload,
 )
 from experiments.comparison import host_binding as host
+from experiments.comparison.numerical_integrity import optimizer_boundary
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -153,14 +154,17 @@ def train_loop(module, content_loader, style_loader, steps, device, log_file):
     log = csv.DictWriter(log_file, fieldnames=("iteration", "decoder", "moments", "lr"))
     log.writeheader()
     log_file.flush()
-    for iteration in range(steps):
-        losses = module.alternating_step(
-            next(content).to(device), next(style).to(device),
-            optimizer_d, optimizer_f, iteration)
-        log.writerow({"iteration": iteration, **{
-            key: float(losses[key]) for key in ("decoder", "moments", "lr")}})
-        if (iteration + 1) % 100 == 0:
-            log_file.flush()
+    # TAM already checks both losses before backward and its final payload before
+    # save. Add only the missing actual-step boundary, including bound TAM code.
+    with optimizer_boundary():
+        for iteration in range(steps):
+            losses = module.alternating_step(
+                next(content).to(device), next(style).to(device),
+                optimizer_d, optimizer_f, iteration)
+            log.writerow({"iteration": iteration, **{
+                key: float(losses[key]) for key in ("decoder", "moments", "lr")}})
+            if (iteration + 1) % 100 == 0:
+                log_file.flush()
     log_file.flush()
     return steps
 

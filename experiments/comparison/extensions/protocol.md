@@ -19,10 +19,15 @@ the approved next release; the code/report owner launches no GPU jobs.
 LaTeX, figures and DOCX are delivered; the large image-coverage CSV remains
 remote at `ports108_report_752a139` with provenance recorded.
 Five RSAR seed44 cells have zero detections and mAP0 (IRG/LPLD point_target;
-IRG/LPLD/SFUT noise_suppression). They remain in all means/statistics; cause is
-not diagnosed here. Their two corresponding EMA joint-tSNE groups have no
-eligible points for the affected methods. No points, scores or reruns are
-fabricated. Student/qualitative and other method scopes remain open.
+IRG/LPLD/SFUT noise_suppression). The bounded diagnosis now confirms NaNs in
+their final Student/EMA/optimizer states, with finite logged blocks through240
+and NaN blocks250/260. The first arithmetic operator remains unknown and no
+healthy intermediate checkpoint exists. All zeros and aggregates remain
+unchanged; only one matched nonzero control was checked finite, not all other103
+runs. Their two EMA joint-tSNE groups must explicitly show missing eligible
+points/numerical failure, not fabricated points or silently omitted methods.
+Future native execution adds failure detection only, without retuning or replay.
+Student/qualitative and other method scopes remain open.
 
 Student180 is now actually collected: **180/180**, failed0, plus12 reused fixed
 source evaluations. Native ordered predictions cover1,728,840 Student TEST

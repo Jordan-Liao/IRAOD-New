@@ -23,7 +23,9 @@ them to percent/percentage points without changing stored precision.
    LPLD is32.6856/32.2499/21.6506%. Seed44 has five zero-detection native cells:
    IRG/LPLD on `point_target`, and IRG/LPLD/SFUT on `noise_suppression`.
    Each still contains all8538 TEST image entries. These zero scores are
-   retained in the means and statistics; their cause is not diagnosed here.
+   retained in the means and statistics. The bounded diagnosis now confirms
+   numerical failure: final Student/EMA and optimizer state contain NaNs.
+   The first arithmetic operator remains unknown.
 2. **DIOR has small positive observed gains.** Relative mPC changes against A
    are+1.0095/+1.5793/+0.6288% for IRG/LPLD/SFUT, versus RSAR
    -3.4347/-8.9933/+1.6943%. This is descriptive, not evidence that every
@@ -38,8 +40,24 @@ The zero-detection rows are explicitly listed in `zero_detection_cells.csv`.
 They provide no eligible instances for the current equal-sample joint-tSNE
 rule in the seed44 RSAR `point_target/ema` and `noise_suppression/ema` groups.
 Do not invent points, replace seeds, drop zero scores or tune the display
-threshold. Existing training evidence may be investigated to explain the
-collapse; no rerun, training change or extra experiment was performed here.
+threshold. The groups must explicitly represent missing eligible points from
+numerical failure, not silently omit methods. No rerun, training change or
+extra experiment was performed.
+
+## Confirmed bounded numerical diagnosis
+
+All five affected EMA files have195/343 floating tensors containing NaNs.
+IRG Students have213/361; LPLD/SFUT Students have195/343. Recorded losses are
+finite through the block ending240 and NaN at250/260. No healthy intermediate
+checkpoint remains, so the first failing operator/sample is not established.
+Checkpoint/config/code/class/8538-ID identities and EMA key shapes match the
+nonzero control; this is not explained by incorrect checkpoint selection.
+
+The sole control, IRG/point_target/seed43, has finite Student/EMA/optimizer
+state and103767 detections. This does **not** certify all other103 runs healthy.
+See `artifact_manifest.json:numerical_diagnosis` for exact scope. The tables,
+raw scores, source baseline and statistics above remain unchanged; artifact
+completion must not be confused with three numerically successful seed runs.
 
 The source/code/checkpoint/native-ID records are retained in the report and
 `artifact_manifest.json`. Large prediction coverage remains remote with its

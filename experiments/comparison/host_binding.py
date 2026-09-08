@@ -183,7 +183,7 @@ def native_config_paths():
 
 
 def native_command(command, entry):
-    """Insert the path-only native entry around train.py/test.py on target only."""
+    """Insert the path/finite-boundary shim around native entries on target only."""
     command = list(command)
     if is_target_host():
         index = command.index(str(entry))
@@ -216,6 +216,15 @@ def install_native_artifact_reader():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     sys.modules[name] = module
+
+
+def native_integrity(*, evaluate=False):
+    """Load current instrumentation without redirecting frozen model imports."""
+    spec = importlib.util.spec_from_file_location(
+        "iraod_native_integrity", Path(__file__).with_name("numerical_integrity.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.native_boundaries(evaluate=evaluate)
 
 
 def locked_command(gpus, command):
@@ -270,7 +279,7 @@ def main():
     if is_target_host():
         os.environ.update(native_environment())
         install_native_artifact_reader()
-    with native_config_paths():
+    with native_config_paths(), native_integrity(evaluate=Path(entry).name == "test.py"):
         runpy.run_path(entry, run_name="__main__")
 
 

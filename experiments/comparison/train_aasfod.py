@@ -7,6 +7,11 @@ import shutil
 import subprocess
 import sys
 
+# This helper is invoked by absolute path with PYTHONPATH pointing at bound model
+# code. Keep orchestration (including the native shim) current; run() restores the
+# bound model path before configs are loaded and native subprocesses are launched.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from experiments.comparison.aasfod_protocol import validate_split
 from experiments.comparison.extension_training import load_cell, require_file
 from experiments.comparison.result_completion import write_json
