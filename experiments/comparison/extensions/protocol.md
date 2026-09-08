@@ -96,11 +96,14 @@ Additional ablations are not released until concrete existing controls and a
 small claim-driven matrix are identified. The completed B/D/E/F component
 comparison is reused, not rerun. No open-ended parameter sweep is authorized.
 
-## Identified additional ablation matrix (not yet released for training)
+## Superseded candidate deletions (never released for training)
 
-The two deletion controls below exist in the implemented F mechanism. They
-test whether its two extra forms of semantic feedback help or hurt; the
-negative core F result is a valid outcome, not a reason to search thresholds.
+The two controls below were identified as possible F deletions, but were never
+released or run. The original full plan contains the existing component
+comparisons and the `ablation_table.tex` deliverable, not an explicit requirement
+for these additional deletions or a parameter grid. Under the coordinator's
+latest minimal-ablation decision they are removed from the active matrix.
+Do not launch F_text_only or F_veto_only.
 
 | ID | Single change from F | Mechanism question |
 | --- | --- | --- |
@@ -117,7 +120,7 @@ expressions the identity on detector scores, while the hard-veto condition,
 drop score0, protection threshold0.9, semantic thresholds0.7/0.1 and VLST remain
 unchanged. This is not CGA-off (which is already E).
 
-Proposed scope: each variant on all 12 clean/corrupted domains, seeds42/43/44:
+Superseded proposed scope: each variant on all 12 clean/corrupted domains, seeds42/43/44:
 **36 training +36 final-EMA evaluations per variant;72+72 total**. Reuse A and F
 references, fixed dataset sources, one image-only VAL epoch, DDP2x16/global32,
 LR0.02 and final266/185 selection. Do not launch until the concrete resolved
@@ -291,7 +294,7 @@ strategy, not an implicit addition to this implementation.
 ## Formal finite metadata for smoke-accepted ports
 
 The execution adapter `experiments.comparison.extension_training` supports
-only explicitly selected IRG/LPLD/SFUT methods. Each selected method binds
+only explicitly selected IRG/LPLD/SFUT methods and the distinct B_REG control. Each selected method binds
 36 full training cells and36 final-EMA native evaluations across all12 domains
 and seeds42/43/44. Source A is reused, never enqueued for retraining.
 Preparation creates no model outputs and is not release/completion evidence.
@@ -345,8 +348,36 @@ epoch-final update after the last optimizer step and before the checkpoint;
 SF-UT performs its paper-defined after-step0.9996 updates.
 
 The distinct36-cell SF-UT arm is explicitly in scope. Its comparison with
-regression-off B is the predefined minimal regression contrast; no duplicate
-`B_regression_on` run is added. Because EMA retention/timing also differ,
-the report must not attribute all B-versus-SF-UT differences to regression
-alone. The other identified deletions remain exactly F_text_only and
-F_veto_only; AdaBN+Fixed SF-FixMatch is not automatically requested.
+regression-off B is NOT single-factor because EMA retention/timing also differ.
+The coordinator therefore authorized a distinct36-cell B_REG control, not a
+duplicate SF-UT alias. F_text_only/F_veto_only are not in the active matrix;
+AdaBN+Fixed SF-FixMatch is not automatically requested.
+
+## Authorized minimal extra ablation: B_REG
+
+`B_REG` enables `model.cfg.use_bbox_reg=True` for both RPN/ROI pseudo regression,
+with every other B setting unchanged. It runs the frozen training checkout
+`0f98a48b539f9260055fc305784ffbc924f50451`, uses the original dataset-specific
+B configs/source paths/augmentations/hooks, and retains B's .998
+iteration-start EMA, not SF-UT's .9996 after-step EMA.
+
+`b_regression.build_b_regression_spec` resolves the original B config with the
+same launch options, compares every semantic configuration value, and requires
+the exact scientific diff:
+
+```json
+[{"path":"model.cfg.use_bbox_reg","before":false,"after":true}]
+```
+
+Preparation emits minimal overlays referencing the original B configs and a
+per-cell `b_regression_config_diff.json`. Operational experiment/work paths
+are new; numerical settings, source, budget and EMA are not changed.
+Training records the true frozen0f98 producer and separately the new
+orchestration commit. It never modifies the frozen training checkout.
+
+Prepare only `--method B_REG` into NEW metadata/output roots using the same
+formal preparation interface above. This binds exactly36 training and36 EMA
+evaluation cells (all12 domains, seeds42/43/44), distinct from the already
+prepared108 IRG/LPLD/SF-UT cells. The existing B/D/E/F factorial is reused.
+No other explicit additional ablation control was found in the original plan;
+no wider grid or extra F tuning is released.

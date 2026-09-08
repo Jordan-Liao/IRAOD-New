@@ -7,6 +7,7 @@ import shlex
 import subprocess
 
 from experiments.comparison.collect_report_manifest import load_resolver
+from experiments.comparison.b_regression import build_b_regression_spec
 from experiments.comparison.extension_manifest import cell_key, evaluate_binding
 from experiments.comparison.report_inputs import EXPECTED_IMAGES, FINAL_ITERATION
 from experiments.comparison.report_qualitative import validate_plan
@@ -14,7 +15,8 @@ from experiments.comparison.result_completion import DOMAINS, read_json, write_j
 
 
 ROOT = Path(__file__).resolve().parents[2]
-METHODS = ("IRG", "LPLD", "SFUT")
+PORT_METHODS = ("IRG", "LPLD", "SFUT")
+METHODS = (*PORT_METHODS, "B_REG")
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
 EVALUATION_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
@@ -51,7 +53,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
             eval_code, python, methods):
     """Write only a NEW metadata queue; never create the formal output root."""
     if not methods or any(method not in METHODS for method in methods):
-        raise ValueError("Explicitly select IRG, LPLD and/or SFUT")
+        raise ValueError("Explicitly select IRG, LPLD, SFUT and/or B_REG")
     methods = tuple(dict.fromkeys(methods))
     base, report = read_json(base_plan), read_json(core_report)
     validate_plan(base)
@@ -87,7 +89,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
     expected = {(ds, domain) for ds, domains in DOMAINS.items() for domain in domains}
     if set(sources) != expected:
         raise ValueError("Completed core A must bind exactly the existing12 domains")
-    cells = {}
+    cells, overlays, regression_audits = {}, {}, {}
     for dataset, domains in DOMAINS.items():
         for domain in domains:
             source, reference = sources[dataset, domain], references[dataset, domain]
@@ -100,21 +102,44 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
             val = target_val(dataset, domain, reference["img_prefix"])
             for seed in SEEDS:
                 for method in methods:
-                    config = str(require_file(
-                        ROOT / "configs/unbiased_teacher/sfod/extensions"
-                        / f"{method.lower()}_{dataset.lower()}.py"))
                     root = artifacts / dataset.lower() / domain / f"seed_{seed}"
                     method_dir = root / "methods" / method
                     work = method_dir / "work"
                     iteration = FINAL_ITERATION[dataset]
-                    cells[cell_key(dataset, domain, seed, method)] = {
+                    key = cell_key(dataset, domain, seed, method)
+                    cell_code, cell_sha = str(ROOT), training_sha
+                    if method == "B_REG":
+                        overrides = {
+                            "data.samples_per_gpu": 32, "optimizer.lr": 0.02,
+                            "model.cfg.strict_source_free": True, "model.cfg.weight_l": 0,
+                            "model.cfg.weight_u": 1, "data.train.type": "StrictSourceFreeDOTADataset",
+                            "data.train.img_prefix": val,
+                            "data.train.unlabeled_epoch_size": TARGET_VAL_SIZE[dataset],
+                            "corrupt": domain, "load_from": checkpoint, "model.ema_ckpt": checkpoint,
+                            "seed": seed, "work_dir": str(work),
+                            "checkpoint_config.max_keep_ckpts": 2, "checkpoint_config.save_last": True,
+                        }
+                        spec = build_b_regression_spec(paths, dataset, overrides)
+                        name = f"b_reg_{dataset.lower()}.py"
+                        overlays[name] = spec["overlay_text"]
+                        config = str(out / name)
+                        cell_code, cell_sha = spec["training_code"], spec["training_code_sha"]
+                        regression_audits[key] = {
+                            **{k: v for k, v in spec.items() if k != "overlay_text"},
+                            "common_launch_overrides": overrides,
+                        }
+                    else:
+                        config = str(require_file(
+                            ROOT / "configs/unbiased_teacher/sfod/extensions"
+                            / f"{method.lower()}_{dataset.lower()}.py"))
+                    cells[key] = {
                         "dataset": dataset, "domain": domain, "seed": seed, "method": method,
                         "role": "ema", "source_checkpoint": checkpoint,
                         "source_id": source["source_id"], "source_seed": 42,
                         "config": config, "eval_config": eval_config,
                         "ann_file": reference["ann_file"], "img_prefix": reference["img_prefix"],
                         "target_val": val, "unlabeled_epoch_size": TARGET_VAL_SIZE[dataset],
-                        "training_code_sha": training_sha,
+                        "training_code": cell_code, "training_code_sha": cell_sha,
                         "root": str(root), "method_dir": str(method_dir), "work_dir": str(work),
                         "student_checkpoint": str(work / f"iter_{iteration}.pth"),
                         "checkpoint": str(work / f"iter_{iteration}_ema.pth"),
@@ -133,6 +158,10 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         "source_training_cells": 0, "cells": cells,
     }
     out.mkdir(parents=True, exist_ok=False)
+    for name, text in overlays.items():
+        (out / name).write_text(text)
+    if regression_audits:
+        write_json(out / "b_regression_config_diff.json", regression_audits)
     write_json(out / "runtime.json", runtime)
     write_json(out / "cells.json", cells)
     rows = "".join(f"{c['dataset']} {c['domain']} {c['seed']} {c['method']}\n"
@@ -184,8 +213,11 @@ def train(queue, gpu, dataset, domain, seed, method):
     if work.exists():
         raise FileExistsError(f"Refusing existing work directory: {work}")
     source = str(require_file(cell["source_checkpoint"]))
-    python, code = runtime["python"], Path(runtime["training_code"])
+    python = runtime["python"]
+    code = Path(cell.get("training_code", runtime["training_code"]))
     producer_sha = code_sha(code)
+    if method == "B_REG" and producer_sha != cell["training_code_sha"]:
+        raise ValueError("B_REG frozen B training code changed after preparation")
     command = [
         python, str(code / "train.py"), cell["config"], "--work-dir", str(work),
         "--gpus", "1", "--seed", str(seed), "--deterministic", "--no-validate",
@@ -206,9 +238,13 @@ def train(queue, gpu, dataset, domain, seed, method):
         "PYTHONUNBUFFERED": "1", "IRAOD_RUNTIME_READY": "1", "CONDA_PREFIX": prefix,
         "LD_LIBRARY_PATH": prefix + "/lib:" + env.get("LD_LIBRARY_PATH", ""),
     })
+    if method == "B_REG":
+        env.update(CGA_SCORER="none", CGA_BACKEND="none", CGA_FILTER_MODE="none",
+                   PYTHONDONTWRITEBYTECODE="1")
     work.mkdir(parents=True, exist_ok=False)
     write_json(Path(cell["method_dir"]) / "execution.json", {
         **cell, "training_code": str(code), "training_code_sha": producer_sha,
+        "orchestration_code": str(ROOT), "orchestration_code_sha": code_sha(ROOT),
         "command": command, "gpu": gpu, "status": "invoked_not_completion_evidence",
     })
     terminal = Path(cell["terminal_status"])

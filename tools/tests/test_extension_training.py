@@ -15,6 +15,7 @@ from experiments.comparison.collect_report_manifest import load_resolver
 from experiments.comparison.finite_resumer import Cell, load_cells, train_state
 from experiments.comparison.result_completion import DOMAINS, ROLES, SCHEMA, write_json
 from experiments.comparison.report_inputs import CLASSES, EXPECTED_IMAGES
+from experiments.comparison.b_regression import TRAINING_CODE_SHA as B_CODE_SHA
 
 
 class ExtensionTrainingTest(unittest.TestCase):
@@ -139,9 +140,60 @@ class ExtensionTrainingTest(unittest.TestCase):
             self.assertIn(f"checkpoint={checkpoint}", status)
             self.assertEqual(json.loads((out / "execution.json").read_text())["role"], role)
 
+    def test_b_reg_uses_frozen_code_and_persists_only_regression_config_diff(self):
+        (self.core / "train.py").write_text("# frozen B training entry; never executed\n")
+
+        def b_spec(paths, dataset, overrides):
+            self.assertNotIn("model.cfg.use_bbox_reg", overrides)
+            self.assertEqual(overrides["data.samples_per_gpu"], 32)
+            self.assertEqual(overrides["optimizer.lr"], .02)
+            reference = self.core / f"{dataset}_B.py"
+            return dict(
+                method="B_REG", reference_config=str(reference), training_code=str(self.core),
+                training_code_sha=B_CODE_SHA,
+                overlay_text=f"_base_ = {str(reference)!r}\nmodel = dict(cfg=dict(use_bbox_reg=True))\n",
+                config_diff=[dict(path="model.cfg.use_bbox_reg", before=False, after=True)],
+                operational_note="Only experiment/output identity differs operationally")
+
+        with patch.object(training, "build_b_regression_spec", side_effect=b_spec) as build:
+            self.prepare(("B_REG",))
+        self.assertEqual(build.call_count, 36)
+        audits = json.loads((self.queue / "b_regression_config_diff.json").read_text())
+        self.assertEqual(len(audits), 36)
+        self.assertTrue(all(a["config_diff"] == [
+            dict(path="model.cfg.use_bbox_reg", before=False, after=True)] for a in audits.values()))
+        cell = self.cell(method="B_REG")
+        self.assertEqual(cell["training_code"], str(self.core))
+        self.assertEqual(cell["training_code_sha"], B_CODE_SHA)
+        self.assertEqual(cell["config"], str(self.queue / "b_reg_dior.py"))
+        self.assertTrue(Path(cell["config"]).is_file())
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CGA_SCORER": "poison",
+                                      "SARCLIP_LORA": "/not-allowed.pth"}), \
+                patch.object(training, "code_sha",
+                             side_effect=lambda code: B_CODE_SHA if code == self.core else "orchestrator"), \
+                patch.object(training.subprocess, "run", side_effect=lambda *a, **kw: self.complete(cell)) as run:
+            self.train(method="B_REG")
+        self.assertEqual(run.call_args.args[0][1], str(self.core / "train.py"))
+        self.assertEqual(run.call_args.kwargs["cwd"], self.core)
+        env = run.call_args.kwargs["env"]
+        self.assertEqual(env["PYTHONPATH"], str(self.core))
+        self.assertEqual((env["CGA_SCORER"], env["CGA_BACKEND"], env["CGA_FILTER_MODE"]),
+                         ("none", "none", "none"))
+        self.assertNotIn("SARCLIP_LORA", env)
+        execution = json.loads((Path(cell["method_dir"]) / "execution.json").read_text())
+        self.assertEqual(execution["training_code_sha"], B_CODE_SHA)
+        self.assertEqual(execution["orchestration_code_sha"], "orchestrator")
+        with patch.object(training, "evaluate_binding") as evaluate:
+            training.evaluate(self.queue, 4, "DIOR", "cloudy", 44, "B_REG")
+        self.assertEqual(evaluate.call_args.args[0]["training_code_sha"], B_CODE_SHA)
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch.object(training, "code_sha", return_value="changed-frozen-code"), \
+                self.assertRaisesRegex(ValueError, "frozen B training code changed"):
+            self.train(domain="clean", seed=42, method="B_REG")
+
     def test_prepare_exact_selected_counts_paths_and_no_artifact_writes(self):
         original = {p: p.read_bytes() for p in self.core.iterdir() if p.is_file()}
-        for methods in (("IRG",), ("LPLD", "SFUT"), training.METHODS):
+        for methods in (("IRG",), ("LPLD", "SFUT"), training.PORT_METHODS):
             with self.subTest(methods=methods):
                 self.queue = self.root / ("metadata " + "-".join(methods))
                 with patch.object(training.subprocess, "run") as run, \
@@ -270,11 +322,11 @@ class ExtensionTrainingTest(unittest.TestCase):
             training.target_val("DIOR", "clean", str(missing))
 
     def test_train_all_methods_four_losses_env_and_exact_final_success(self):
-        self.prepare(training.METHODS)
+        self.prepare(training.PORT_METHODS)
         ambient = {"IRAOD_GPU_LOCKED": "1", "CGA_ENABLE": "1", "SARCLIP_MODEL": "old",
                    "VLST_ENABLE": "1", "LD_LIBRARY_PATH": "/existing/lib", "DIOR_EXTRA": "regressionFalse"}
         for ds, domain in (("DIOR", "cloudy"), ("RSAR", "clean")):
-            for method in training.METHODS:
+            for method in training.PORT_METHODS:
                 with self.subTest(dataset=ds, method=method):
                     cell = self.cell(ds, domain, method=method)
                     with patch.dict(os.environ, ambient), \
@@ -342,7 +394,7 @@ class ExtensionTrainingTest(unittest.TestCase):
         self.assertFalse(self.artifacts.exists())
 
     def test_train_nonzero_missing_empty_or_smoke_finals_cannot_succeed(self):
-        self.prepare(training.METHODS)
+        self.prepare(training.PORT_METHODS)
         cases = ((42, "IRG", "nonzero"), (43, "IRG", "missing"), (44, "IRG", "smoke"),
                  (42, "LPLD", "empty-ema"), (43, "LPLD", "missing-student"), (44, "LPLD", "spawn"))
         for seed, method, case in cases:

@@ -27,7 +27,7 @@ from experiments.comparison.result_completion import DOMAINS
 APPROVED = (4, 5, 6, 7)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
-FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT")
+FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "B_REG")
 SCRIPT = Path(__file__).resolve()
 LIBC = ctypes.CDLL(None, use_errno=True)
 LIBC.syscall.restype = ctypes.c_long

@@ -53,7 +53,7 @@
     "IRG/LPLD/SF-UT retain both pseudo regression branches; completed core A-F remains unchanged",
     "IRG/LPLD use actual epoch-end retention0.9/0.75 after final optimizer and before final checkpoint",
     "Distinct paper-defined SF-UT is included: 12 domains x 3 seeds, not reused B results",
-    "B-versus-SF-UT is the predefined regression contrast; do not duplicate the SF-UT arm under a B-regression-on alias",
+    "Correction: B-versus-SF-UT is not a single-factor regression contrast because EMA differs; add distinct B_REG with every other B setting and frozen training code unchanged",
     "AdaBN plus Fixed SF-FixMatch is a separate method and is not automatically requested"
   ]
 }
