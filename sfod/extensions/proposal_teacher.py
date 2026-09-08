@@ -36,8 +36,8 @@ def preclassifier_roi_forward(roi_head, features, proposals):
         hook.remove()
     if len(captured) != 1:
         raise RuntimeError('Expected exactly one pre-classifier ROI tensor')
-    result['preclassifier'] = captured[0]
-    return result
+    return {'cls_score': result['cls_score'], 'bbox_pred': result['bbox_pred'],
+            'preclassifier': captured[0]}
 
 
 class ProposalAlignedTeacher(UnbiasedTeacher):

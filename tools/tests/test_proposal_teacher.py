@@ -12,6 +12,8 @@ import torch
 from torch import nn
 
 from sfod.extensions.lpld import LPLDOBB
+from sfod.extensions.irg import IRGOBB
+from sfod.extensions.irg_losses import IRGLosses
 from sfod.extensions.proposal_teacher import (
     EpochFinalTeacherHook, ProposalAlignedTeacher,
     map_shared_geometry, preclassifier_roi_forward)
@@ -180,11 +182,13 @@ class ProposalTeacherTest(unittest.TestCase):
         torch.testing.assert_close(logits.grad, torch.zeros_like(logits))
 
     def test_configs_keep_geometry_four_losses_and_epoch_final_hook(self):
-        for dataset, classes, size in [('rsar', 6, 8467), ('dior', 20, 5863)]:
+        for method, dataset, classes, size in [
+                (m, ds, c, n) for m in ('lpld', 'irg')
+                for ds, c, n in [('rsar', 6, 8467), ('dior', 20, 5863)]]:
             cfg = Config.fromfile(
-                ROOT / f'configs/unbiased_teacher/sfod/extensions/lpld_{dataset}.py',
+                ROOT / f'configs/unbiased_teacher/sfod/extensions/{method}_{dataset}.py',
                 import_custom_modules=False)
-            self.assertEqual(cfg.model.type, 'LPLDOBB')
+            self.assertEqual(cfg.model.type, method.upper() + 'OBB')
             self.assertTrue(cfg.model.cfg.strict_source_free)
             self.assertTrue(cfg.model.cfg.use_bbox_reg)
             self.assertEqual(cfg.model.roi_head.bbox_head.type, 'RotatedShared2FCBBoxHead')
@@ -199,6 +203,32 @@ class ProposalTeacherTest(unittest.TestCase):
             teacher = Config.fromfile(ROOT / cfg.model.ema_config, import_custom_modules=False)
             self.assertEqual(teacher.model.backbone.type, 'OrthoNet')
             self.assertEqual(teacher.model.roi_head.bbox_head.num_classes, classes)
+
+    def test_irg_adapter_uses_distinct_classifier_owners_and_connected_empty_losses(self):
+        model = object.__new__(IRGOBB)
+        nn.Module.__init__(model)
+        model.irg = IRGLosses(4)
+        model.roi_head = TinyROI()
+        teacher = nn.Module()
+        teacher.roi_head = TinyROI().requires_grad_(False)
+        model.ema_model = teacher
+        xs = torch.randn(3, 4, requires_grad=True)
+        xt = torch.randn(3, 4)
+        student = dict(preclassifier=xs, cls_score=model.roi_head.bbox_head.fc_cls(xs))
+        target = dict(preclassifier=xt, cls_score=teacher.roi_head.bbox_head.fc_cls(xt))
+        with patch.object(model.irg, 'forward', wraps=model.irg.forward) as forward:
+            result = model.proposal_loss(torch.zeros(3, 5), None, target, student, {}, {})
+        self.assertIs(forward.call_args.args[-2], model.roi_head.bbox_head.fc_cls)
+        self.assertIs(forward.call_args.args[-1], teacher.roi_head.bbox_head.fc_cls)
+        self.assertEqual(result['irg_proposals'].item(), 3)
+        sum(value for key, value in result.items() if 'loss' in key).backward()
+        self.assertIsNotNone(xs.grad)
+        self.assertTrue(all(p.grad is None for p in teacher.parameters()))
+        model.zero_grad()
+        empty = model.proposal_loss(
+            torch.empty(0, 5), None, {}, {'cls_score': xs[:0]}, {}, {})
+        sum(value for key, value in empty.items() if 'loss' in key).backward()
+        self.assertTrue(all(p.grad is not None for p in model.irg.parameters()))
 
 
 if __name__ == '__main__':

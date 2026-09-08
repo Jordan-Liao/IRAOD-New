@@ -194,3 +194,50 @@ formal266/185 completion. Check finite losses, real proposal alignment,
 kept-count/empty-HPL behavior, frozen teacher during the iteration and correct
 final teacher mixing. No Student producer cutover or new formal training is
 implied by this smoke interface.
+
+## IRG implementation and pinned canonical choices
+
+`sfod/extensions/irg_losses.py` and `irg.py` now implement and connect the
+code-defined IRG mechanism. The source classifier ambiguity is resolved at
+the pinned author call site: the Student graph uses the current Student
+classifier; the Teacher graph uses the frozen Teacher classifier, retaining
+input gradients into the shared graph. The latter is not a no-grad branch.
+Graph/MLP parameters are registered before optimizer construction and excluded
+from the plain-detector EMA state.
+
+`configs/unbiased_teacher/sfod/extensions/irg_{rsar,dior}.py` reuse the
+same source architecture, image-only loader, four pseudo detection losses,
+auxiliary indexed proposal interface and HIGH-priority epoch-final hook.
+IRG's retention is0.9, so the one-epoch final Teacher is
+`0.9*source + 0.1*finalStudent`. These configs are available for scientific
+smoke, not a claim that any IRG run has finished.
+
+Author graphs use squared dot-product affinities normalized row-L1, not the
+paper softmax adjacency. Contrast uses the detached raw-affinity mask,
+two MLPs, an all-column denominator and forced-positive diagonal, not the
+paper's anchor-excluding expression. All three KL terms include background;
+the teacher and self-distillation targets are detached. Graphs/mining are
+per image; batch reduction averages per-image normalized losses, including
+zero-loss images.
+
+The deliberate common-base choices must accompany every report:
+1024-D OBB/FPN pre-classifier vectors instead of author2048-D vectors;
+common HPL>=0.7 instead of IRG author HPL>0.9 (LPLD author uses>0.7);
+one epoch/global32/LR0.02 rather than author ten epochs/batch1/LR0.001.
+This is an independent code-defined OBB/common-base reimplementation, not
+a bit-identical published benchmark reproduction.
+
+The existing weak `RResize` fixes `keep_ratio=True`; strong views share the
+same flip and have photometric changes only. Proposal mapping follows the
+same component-wise OBB rescale convention as native
+`RotatedBBoxHead.get_bboxes`; integer image resizing can introduce small
+x/y scale differences through pixel rounding. No arbitrary shear or
+perspective transform is supported or implied.
+
+Pinned paper/code attribution, canonical discrepancies, licensing evidence and
+implementation status are recorded in `official_ports.json`. The author
+annotation-dependent loader and training evaluator are deliberately NOT
+ported: their default empty-image filtering/class histograms can consult
+target GT before the mapper drops annotations. Only the existing image-only
+VAL loader and pseudo labels are used here. No target GT is used for LPLD
+online weighting; the paper's GT-IoU plots are motivation/analysis only.
