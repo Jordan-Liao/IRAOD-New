@@ -1,11 +1,13 @@
 # Next isolated finite detector revision
 
-Deployed code: `ROOT/integration_code_b87f34e`.
-Prepared combined queue: `ROOT/release_manifests_b87f34e`,180 train/360 eval
+Preserved prior code: `ROOT/integration_code_b87f34e`.
+Preserved prior queue: `ROOT/release_manifests_b87f34e`,180 train/360 eval
 (180 EMA +180 five-port Student), zero Student training. Detector-only and
 Student-only metadata are `mixed_detector_manifests_b87f34e` and
 `port_student_manifests_b87f34e`. These are actual prepared bindings, not GPU
-execution or result evidence.
+execution or result evidence. Its three-GPU capacity binding remains unchanged.
+Future metadata restores the already-authorized fourth GPU after the foreign
+occupation ended; this does not change any per-cell training budget/topology.
 
 Code-only delivery: do not modify the live a39 producer, its snapshots, any
 prepared source queue, or the frozen0f98 training checkout. Parent owns
@@ -99,9 +101,12 @@ is active or waiting for TSD/TAM. Rechecks use the producer's existing
 pidfd exit events only; no event source means a finite blocked exit, not a
 new polling scheduler. Completed model outputs do not recheck old TSD/TAM.
 
-New metadata permits only GPUs4,5,6; F uses only4,5 /29804. Worker/direct
-extension entries reject7. Historical core queues without this release
-metadata intentionally retain the old four-card API.
+New metadata permits only GPUs4,5,6,7; F uses the two original pairs
+4,5 /29804 and6,7 /29806. No four-GPU model or alternate pair is introduced:
+B_REG and other singles remain1x32; each F cell remains2x16 at the same LR.
+The existing executor still checks actual foreign occupancy and GPU/cell locks
+before allocation. GPUs0-3 remain outside the allowed set. Historical and
+already-prepared metadata are not rewritten.
 
 ## Producer and prerequisites
 
@@ -111,7 +116,7 @@ After the parent's producer-only cutover, keeping live canonical GPU jobs:
 "$PY" -m experiments.comparison.finite_resumer launch \
   --queue "$Q" --run-dir "$Q/finite_runs/NEW_ATTEMPT" \
   --train-list "$Q/train.list" --eval-list "$Q/eval.list" \
-  --gpus 4,5,6 --handoff-confirmed
+  --gpus 4,5,6,7 --handoff-confirmed
 ```
 
 Use only one `launch`, not one per input queue. Runner APIs are unchanged:
@@ -153,11 +158,13 @@ acquires the actual shared GPU and formal-cell locks for its entire lifetime.
   --gpus 4,5 --updates 2 --out-dir "$ROOT/NON_RESULT_F_text_only_NEW_ATTEMPT"
 ```
 
-Select one F deletion, not a new sweep. `F_veto_only` is also supported with
-the same pair. Updates are limited to1–4 actual optimizer steps.
+Select one F deletion, not a new sweep. `F_veto_only` is also supported.
+For the original second pair use `--gpus 6,7`; the harness selects port29806.
+B_REG may use any one currently free authorized GPU4-7. Updates are limited
+to1–4 actual optimizer steps.
 The harness runs the real frozen `train.py` and its original model imports,
 source, data, resolved controls, LR schedule and iteration-start EMA.
-B_REG remains1x32; F remains2x16, port29804, LR.02. A smoke-only native hook
+B_REG remains1x32; F remains2x16, with its pair's original port and LR.02. A smoke-only native hook
 counts actual optimizer calls and terminates after the requested update;
 it does not shorten epochs, alter the sampler or flush EMA.
 

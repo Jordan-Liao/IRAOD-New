@@ -47,7 +47,8 @@ supervisor's actual terminal evaluation artifacts and explicit Student
 bindings. Generalized qualitative producers/consumers and explicit native Student
 evaluation bindings are now implemented. `experiments/comparison/EXECUTION.md`
 documents one mixed finite producer with truthful TSD/TAM waiting states,
-shared EMA/Student model locks, GPU4/5/6-only release metadata and bounded
+shared EMA/Student model locks, explicitly bounded release capacity and
+bounded
 NON_RESULT B_REG/F smokes. No live controller or GPU execution is changed.
 
 `experiments/comparison/GENERALIZED_QUALITATIVE.md` binds360 new port ROI
@@ -72,6 +73,12 @@ ROI/visualization jobs,72 new grouped embedding jobs and three streaming
 collection commands. Its Student native paths exactly match the new finite
 Student bindings. All360 new ROI input records were pending at preparation;
 this is not a new evaluation or feature-result claim.
+
+The later capacity release restores authorization to use GPUs4,5,6,7 when
+actually free, including the original second F pair6,7/29806. This is a future
+metadata/executor binding change only: b87 roots and live a39 are preserved,
+per-cell1x32/2x16, LR, sources and budgets do not change, and actual foreign
+occupancy/shared locks still decide availability. GPUs0-3 remain excluded.
 
 CPU collection from the existing compatibility queue (new output directories):
 

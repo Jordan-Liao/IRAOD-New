@@ -14,7 +14,7 @@ def require_owned_gpu(run):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Port ROI extraction requires the existing owner's actual GPU lock")
     if os.environ.get("CUDA_VISIBLE_DEVICES") not in tuple(map(str, run["allowed_gpus"])):
-        raise ValueError("Port ROI extraction requires one bound physical GPU4,5,6")
+        raise ValueError("Port ROI extraction requires one bound physical GPU within4-7")
 
 
 def main():

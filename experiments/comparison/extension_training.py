@@ -18,8 +18,8 @@ PORT_METHODS = ("IRG", "LPLD", "SFUT")
 STUDENT_METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO")
 F_DELETIONS = ("F_text_only", "F_veto_only")
 METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO", "B_REG", *F_DELETIONS)
-ALLOWED_GPUS = (4, 5, 6)
-PAIR_PORTS = {(4, 5): 29804}
+ALLOWED_GPUS = (4, 5, 6, 7)
+PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
 EVALUATION_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
@@ -233,7 +233,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         "methods": methods, "seeds": SEEDS, "domains": DOMAINS,
         "train_cells": len(cells), "eval_cells": len(cells),
         "source_training_cells": 0, "cells": cells,
-        "allowed_gpus": list(ALLOWED_GPUS), "pair_ports": {"4,5": 29804},
+        "allowed_gpus": list(ALLOWED_GPUS),
+        "pair_ports": {",".join(map(str, pair)): port for pair, port in PAIR_PORTS.items()},
     }
     out.mkdir(parents=True, exist_ok=False)
     for name, text in overlays.items():
@@ -327,14 +328,14 @@ def require_prerequisites(cell):
 
 def train(queue, gpu, dataset, domain, seed, method):
     if gpu not in ALLOWED_GPUS:
-        raise ValueError("Training requires an approved GPU4,5,6")
+        raise ValueError("Training requires an approved GPU4,5,6,7")
     return _train(queue, (gpu,), None, dataset, domain, seed, method)
 
 
 def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
     gpus = tuple(int(gpu) for gpu in gpu_pair.split(","))
     if PAIR_PORTS.get(gpus) != port:
-        raise ValueError("DDP requires approved pair4,5/29804")
+        raise ValueError("DDP requires approved pair4,5/29804 or6,7/29806")
     return _train(queue, gpus, port, dataset, domain, seed, method)
 
 
@@ -432,7 +433,7 @@ def training_invocation(queue, runtime, cell, gpus, port, work):
 
 def evaluate(queue, gpu, dataset, domain, seed, method, role="ema"):
     if gpu not in ALLOWED_GPUS:
-        raise ValueError("Evaluation requires an approved GPU4,5,6")
+        raise ValueError("Evaluation requires an approved GPU4,5,6,7")
     if role not in ("ema", "student") or role == "student" and method not in STUDENT_METHODS:
         raise ValueError("Student native evaluations are limited to the five approved ports")
     runtime, cell = load_cell(queue, dataset, domain, seed, method, role)

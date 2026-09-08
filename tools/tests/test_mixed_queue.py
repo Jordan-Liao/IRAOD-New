@@ -74,8 +74,8 @@ class MixedQueueTest(unittest.TestCase):
 
     def test_union_preserves_every_binding_and_origin_runtime(self):
         self.assertEqual(self.paths.DATA["cells"], self.cells)
-        self.assertEqual(finite.allowed_gpus(self.paths), (4, 5, 6))
-        self.assertEqual(self.paths.DATA["pair_ports"], {"4,5": 29804})
+        self.assertEqual(finite.allowed_gpus(self.paths), (4, 5, 6, 7))
+        self.assertEqual(self.paths.DATA["pair_ports"], {"4,5": 29804, "6,7": 29806})
         for index, cell in enumerate(finite.load_cells([self.out / "train.list"], [])):
             runtime, binding = training.load_cell(self.out, cell.dataset, cell.domain, cell.seed, cell.method)
             self.assertEqual(binding, self.cells[cell.key])
@@ -86,11 +86,16 @@ class MixedQueueTest(unittest.TestCase):
             self.assertEqual(command[1], str(self.out / f"run_train_{cell.width}gpu.sh"))
             if cell.width == 2:
                 self.assertEqual(command[2:4], ["4,5", "29804"])
+                self.assertEqual(
+                    finite.runner_command(self.out, cell, "train", (6, 7))[2:4],
+                    ["6,7", "29806"])
         self.assertIn(str(training.ROOT), (self.out / "run_train_2gpu.sh").read_text())
         self.assertEqual(finite.lock_root(self.out), self.root / "locks/gpu")
         self.assertFalse((self.root / "outputs").exists())
         with self.assertRaises(finite.Blocked):
-            finite.TmuxBackend(self.out, self.root / "run", (6, 7))
+            finite.TmuxBackend(self.out, self.root / "run", (3, 4))
+        backend = finite.TmuxBackend(self.out, self.root / "four_gpu_run", (4, 5, 6, 7))
+        backend.selector.close()
 
     def test_tsd_missing_partial_mismatched_and_completed(self):
         cell = finite.Cell("DIOR", "clean", 42, "AASFOD")
@@ -322,7 +327,7 @@ class PortStudentQueueTest(unittest.TestCase):
                        dict(training_code=f"/actual/{method}", training_code_sha=f"actual-{method}"))
             with patch.object(training, "evaluate_binding") as native, \
                     patch.object(training, "require_prerequisites") as prerequisites:
-                training.evaluate(out, 6, "DIOR", "clean", 42, method, "student")
+                training.evaluate(out, 7, "DIOR", "clean", 42, method, "student")
             binding, runtime, gpu = native.call_args.args
             self.assertEqual(binding["role"], "student")
             self.assertEqual(binding["checkpoint"], original["student_checkpoint"])
@@ -330,11 +335,11 @@ class PortStudentQueueTest(unittest.TestCase):
             self.assertEqual(binding["training_code"], f"/actual/{method}")
             self.assertEqual(binding["training_code_sha"], f"actual-{method}")
             self.assertEqual(runtime["evaluation_code"], f"/native331/{method}")
-            self.assertEqual(gpu, 6)
+            self.assertEqual(gpu, 7)
             prerequisites.assert_not_called()
             self.assertFalse(Path(binding["eval_dir"]).exists())
-        with self.assertRaisesRegex(ValueError, "GPU4,5,6"):
-            training.evaluate(out, 7, "DIOR", "clean", 42, "IRG", "student")
+        with self.assertRaisesRegex(ValueError, "GPU4,5,6,7"):
+            training.evaluate(out, 3, "DIOR", "clean", 42, "IRG", "student")
 
     def test_generated_wrapper_passes_optional_sixth_role(self):
         out = self.root / "wrappers"

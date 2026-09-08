@@ -38,7 +38,7 @@ def validate_plan(plan):
             iteration = ({"RSAR": 531, "DIOR": 369} if run["method"] == "SFYOLO"
                          else {"RSAR": 266, "DIOR": 185})[ds]
             if (not run.get("native_prediction") or not run.get("export_code_sha")
-                    or run.get("allowed_gpus") != [4, 5, 6]
+                    or run.get("allowed_gpus") not in ([4, 5, 6], [4, 5, 6, 7])
                     or run.get("final_checkpoint_iteration") != iteration
                     or run.get("detector_epochs") != (2 if run["method"] == "SFYOLO" else 1)
                     or (run["method"] == "SFYOLO"

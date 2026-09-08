@@ -6,6 +6,8 @@ Actual prepared root:
 `/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908`.
 The360 Student/EMA native dependencies match the explicit release bindings.
 All360 ROI input records were pending when prepared; no extraction ran.
+These b87 plans retain their original GPU4,5,6 binding. Future newly prepared
+plans allow the ledger's GPUs4,5,6,7; old plans and exports remain valid unchanged.
 Preserved48 B-F embeddings below means the existing approved job/plan scope,
 not an assertion that48 completed files have been observed.
 
@@ -106,8 +108,10 @@ legacy B-F APIs; **do not rerun them to prepare this extension**.
 
 Only the compute owner executes `export_argv` in its recorded `cwd` with its
 actual GPU lock (`IRAOD_GPU_LOCKED=1`) and `CUDA_VISIBLE_DEVICES` set to exactly
-one physical GPU4,5,6. New bindings and the port exporter reject foreign GPU7
-and multi-GPU export visibility. A port run binds `eval_config`, final EMA or
+one physical GPU allowed by that plan. Future plans allow GPU4,5,6,7, while
+preserved b87 plans still allow4,5,6. GPUs0-3 and multi-GPU export visibility
+remain rejected; the existing execution owner avoids actual foreign occupancy.
+A port run binds `eval_config`, final EMA or
 Student checkpoint and `native_prediction.eval_dir`. EMA uses the runtime's
 `eval_dir`; Student uses the existing sibling convention
 `eval_full_DOMAIN_student_ids_v1`. The native evaluator must produce that

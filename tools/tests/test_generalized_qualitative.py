@@ -273,7 +273,7 @@ class GeneralizedQualitativeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "binding mismatch"):
             native_binding_evidence(run)
 
-    def test_port_roi_requires_owned_single_gpu_and_excludes_foreign_seven(self):
+    def test_port_roi_preserves_old_capacity_and_admits_new_owned_seven(self):
         from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import require_owned_gpu
 
         run = {"allowed_gpus": [4, 5, 6]}
@@ -286,6 +286,11 @@ class GeneralizedQualitativeTest(unittest.TestCase):
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "0", "CUDA_VISIBLE_DEVICES": "4"}):
             with self.assertRaisesRegex(RuntimeError, "actual GPU lock"):
                 require_owned_gpu(run)
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "7"}):
+            require_owned_gpu({"allowed_gpus": [4, 5, 6, 7]})
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "3"}):
+            with self.assertRaisesRegex(ValueError, "bound physical"):
+                require_owned_gpu({"allowed_gpus": [4, 5, 6, 7]})
 
     def test_report_reuses_bf_qualitative_references_without_recollecting_quantities(self):
         from experiments.comparison.final_report import build_report

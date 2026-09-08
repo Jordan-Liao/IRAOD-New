@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from experiments.comparison.extension_training import ALLOWED_GPUS, STUDENT_METHODS, write_runners
+from experiments.comparison.extension_training import ALLOWED_GPUS, PAIR_PORTS, STUDENT_METHODS, write_runners
 from experiments.comparison.finite_resumer import Cell, load_cells, lock_root
 from experiments.comparison.result_completion import read_json, write_json
 
@@ -71,7 +71,8 @@ def prepare(queues, out_dir, methods=None, role=None):
         "status": "prepared_not_execution_evidence",
         "python": first["python"],
         "evaluation_code_sha": first["evaluation_code_sha"],
-        "allowed_gpus": list(ALLOWED_GPUS), "pair_ports": {"4,5": 29804},
+        "allowed_gpus": list(ALLOWED_GPUS),
+        "pair_ports": {",".join(map(str, pair)): port for pair, port in PAIR_PORTS.items()},
         "cells": cells, "student_cells": students, "source_queues": origins,
         "train_cells": sum(scopes.values()), "eval_cells": len(scopes),
     }

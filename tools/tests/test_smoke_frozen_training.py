@@ -80,8 +80,9 @@ class FrozenCommandTest(unittest.TestCase):
             "cells": cells, "python": "/venv/bin/python", "training_code": "/orchestration"})
 
     def test_b_reg_and_one_f_control_use_real_frozen_training_with_fresh_nonresult_outputs(self):
-        for method, gpus in (("B_REG", "6"), ("F_text_only", "4,5")):
-            out = self.root / f"smoke_{method}"
+        for method, gpus in (("B_REG", "6"), ("B_REG", "7"),
+                             ("F_text_only", "4,5"), ("F_text_only", "6,7")):
+            out = self.root / f"smoke_{method}_{gpus.replace(',', '_')}"
 
             def launch(command, **kwargs):
                 self.assertEqual(kwargs["cwd"], Path("/frozen0f98"))
@@ -95,8 +96,9 @@ class FrozenCommandTest(unittest.TestCase):
                 self.assertIn("optimizer.lr=0.02", command)
                 self.assertNotIn("runner.max_epochs=1", command)
                 if method == "F_text_only":
+                    port = 29804 if gpus == "4,5" else 29806
                     self.assertEqual(command[1:5], [
-                        "-m", "torch.distributed.launch", "--nproc_per_node=2", "--master_port=29804"])
+                        "-m", "torch.distributed.launch", "--nproc_per_node=2", f"--master_port={port}"])
                     self.assertIn("data.samples_per_gpu=16", command)
                     self.assertEqual(kwargs["env"]["CGA_BLEND_DET_WEIGHT"], "0.7")
                     self.assertEqual(kwargs["env"]["SARCLIP_BASE"], "/frozen/sarclip.pt")
@@ -111,7 +113,7 @@ class FrozenCommandTest(unittest.TestCase):
                                dict(status="NON_RESULT", bounded_pass=True, optimizer_updates=2))
 
             with patch.object(training, "code_sha", return_value=TRAINING_CODE_SHA), \
-                    patch.object(finite, "idle_devices", return_value={4, 5, 6}), \
+                    patch.object(finite, "idle_devices", return_value={4, 5, 6, 7}), \
                     patch.object(smoke.subprocess, "run", side_effect=launch) as run:
                 self.assertEqual(smoke.run(self.queue, "DIOR", "clean", 42, method, gpus, out), out)
                 run.assert_called_once()
@@ -121,14 +123,23 @@ class FrozenCommandTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 smoke.run(self.queue, "DIOR", "clean", 42, method, gpus, out)
 
-    def test_rejects_foreign_gpu_wrong_pair_unbounded_or_formal_outputs(self):
+    def test_rejects_unapproved_gpu_wrong_pair_unbounded_or_formal_outputs(self):
         for method, gpus, updates in (
-                ("B_REG", "7", 2), ("F_text_only", "6,7", 2),
+                ("B_REG", "3", 2), ("F_text_only", "4,6", 2),
                 ("F_text_only", "4", 2), ("B_REG", "6", 5)):
             with self.assertRaises(ValueError):
                 smoke.run(self.queue, "DIOR", "clean", 42, method, gpus, self.root / "smoke", updates)
         with self.assertRaisesRegex(ValueError, "separate"):
             smoke.run(self.queue, "DIOR", "clean", 42, "B_REG", "6", self.root / "formal/B_REG/smoke")
+
+    def test_second_pair_still_rejects_foreign_occupancy(self):
+        with patch.object(training, "code_sha", return_value=TRAINING_CODE_SHA), \
+                patch.object(finite, "idle_devices", return_value={6}), \
+                patch.object(smoke.subprocess, "run") as launch:
+            with self.assertRaisesRegex(RuntimeError, "occupied"):
+                smoke.run(self.queue, "DIOR", "clean", 42, "F_text_only", "6,7", self.root / "busy")
+        launch.assert_not_called()
+        self.assertFalse((self.root / "busy").exists())
 
 
 if __name__ == "__main__":

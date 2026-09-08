@@ -513,10 +513,10 @@ class ExtensionTrainingTest(unittest.TestCase):
     def test_train_requires_approved_gpu_and_lock_without_writes(self):
         self.prepare()
         with patch.object(training.subprocess, "run") as run:
-            with self.assertRaisesRegex(ValueError, "GPU4,5,6"):
+            with self.assertRaisesRegex(ValueError, "GPU4,5,6,7"):
                 self.train(gpu=3)
-            with self.assertRaisesRegex(ValueError, "GPU4,5,6"):
-                self.train(gpu=7)
+            with self.assertRaisesRegex(ValueError, "GPU4,5,6,7"):
+                self.train(gpu=8)
             with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": ""}):
                 with self.assertRaisesRegex(RuntimeError, "shared GPU lock"):
                     self.train()

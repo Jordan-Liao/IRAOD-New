@@ -107,7 +107,7 @@ def native(argv):
 
 def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     from experiments.comparison.extension_training import (
-        F_DELETIONS, load_cell, training_invocation)
+        ALLOWED_GPUS, PAIR_PORTS, F_DELETIONS, load_cell, training_invocation)
     from experiments.comparison.b_regression import TRAINING_CODE_SHA
     from experiments.comparison.finite_resumer import Cell, idle_devices, lock_root, take_lock
     from experiments.comparison.result_completion import write_json
@@ -115,9 +115,10 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     if method not in ("B_REG", *F_DELETIONS) or not 1 <= updates <= 4:
         raise ValueError("Select B_REG or one F deletion and1-4 optimizer updates")
     devices = tuple(map(int, gpus.split(",")))
-    if ((method == "B_REG" and devices not in ((4,), (5,), (6,)))
-            or (method in F_DELETIONS and devices != (4, 5))):
-        raise ValueError("B_REG requires one GPU4/5/6; F requires pair4,5/29804")
+    if ((method == "B_REG" and (len(devices) != 1 or devices[0] not in ALLOWED_GPUS))
+            or (method in F_DELETIONS and devices not in PAIR_PORTS)):
+        raise ValueError("B_REG requires one GPU4-7; F requires pair4,5/29804 or6,7/29806")
+    port = PAIR_PORTS.get(devices)
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
     if cell["training_code_sha"] != TRAINING_CODE_SHA or cell["world_size"] != len(devices):
         raise ValueError("Smoke requires the original0f98 binding and unchanged topology")
@@ -128,7 +129,7 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     if out.exists():
         raise FileExistsError(f"NON_RESULT output must be NEW: {out}")
     code, sha, command, env = training_invocation(
-        queue, runtime, cell, devices, 29804 if len(devices) == 2 else None, out / "work")
+        queue, runtime, cell, devices, port, out / "work")
     train_index = command.index(str(code / "train.py"))
     command[train_index:train_index + 1] = [
         str(Path(__file__).resolve()), "--native", "--frozen-train", str(code / "train.py"),
@@ -154,7 +155,7 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
         env["IRAOD_GPU_LOCKED"] = "1"
         write_json(out / "invocation.json", {
             "status": "NON_RESULT", "cell": cell, "training_code_sha": sha,
-            "gpus": devices, "port": 29804 if len(devices) == 2 else None,
+            "gpus": devices, "port": port,
             "effective_global_batch": 32, "optimizer_updates": updates,
             "command": command, "formal_outputs_written": False,
         })
