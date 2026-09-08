@@ -642,6 +642,36 @@ else: raise SystemExit(2)
             capture_output=True).returncode, 0)
         self.release(cell.session("train"), rc=9)
 
+    def test_boundary_retry_cannot_train_reference_students_or_erase_completed_training(self):
+        completed = Cell("DIOR", "clean", 43, "B_REG")
+        references = [Cell("DIOR", "clean", 43, method, "student")
+                      for method in ("IRG", "LPLD", "SFUT")]
+        work, terminal = self.successful_train_files(completed)
+        preserved = {path: path.read_bytes() for path in (*work.iterdir(), terminal)}
+        rows = [{"cell": cell.__dict__, "train_requested": cell == completed,
+                 "training_ownership": "producer" if cell == completed else "eval_only",
+                 "train": "complete" if cell == completed else "blocked",
+                 "eval": "failed" if cell == completed else "blocked",
+                 "reasons": ["original failure evidence"], "adopted": [],
+                 "attempts": [{"phase": "eval", "status": "failed", "reason": "original attempt"}]}
+                for cell in (completed, *references)]
+        previous = self.root / "boundary-state.json"
+        finite.write_json(previous, {"scope": "finite_input_only", "status": "failed", "cells": rows})
+        old_bytes = previous.read_bytes()
+        for index, cell in enumerate((*references, completed)):
+            with self.subTest(cell=cell.key):
+                name = f"reject-training-{index}"
+                process, directory = self.start([completed], name, eval_cells=references, controls=(
+                    "--previous-state", str(previous), "--retry-cell", cell.key + ":train"))
+                self.assertEqual(process.wait(timeout=8), 2)
+                reason = "failed/blocked phase" if cell == completed else "not producer-owned"
+                self.assertIn(reason, (self.root / (name + ".log")).read_text())
+                self.assertFalse(directory.exists())  # Rejected before producer/recovery/worker startup.
+                self.assertEqual(previous.read_bytes(), old_bytes)
+                for path, content in preserved.items():
+                    self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(self.events, [])
+
     def successful_train_files(self, cell):
         work = self.q / "artifacts" / cell.dataset / cell.domain / str(cell.seed) / cell.method
         work = work / ("ddp2/work" if cell.width == 2 else "work")

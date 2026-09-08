@@ -104,11 +104,58 @@ the new runner from a separate checkout with the same frozen queue/lists and a
 new run directory. Retry-selected models must have no live canonical job; other
 live canonical jobs are adopted unchanged.
 
-This code delivery does not authorize that cutover. The existing
-experiment-supervisor retains the live abdca producer on221 GPUs0-3 and the
-separate RSAR work onGPU4. No second producer, deployment, GPU operation, transfer,
+This code delivery does not perform that cutover. The existing
+experiment-supervisor retains deployment/execution authority on221 GPUs0-3 and
+the separate RSAR work onGPU4. No second producer, deployment, GPU operation, transfer,
 data restoration, polling service or observer is part of this change. The dated
 cutover examples below are historical, not current authorization.
+
+### Owner-reported natural boundary at 2026-09-08 23:47:13 UTC
+
+The head reports that old producer3525468 naturally exited `failed` with
+`one or more finite tasks failed; no automatic retries`, leaving GPUs0-3 idle.
+This provides the original experiment owner a natural deployment boundary;
+there is no need to signal that exited producer. Independent RSAR onGPU4 must
+remain untouched. This is relayed evidence, not an inspection by this delivery.
+
+The360 entries are **mixed records, not360 training jobs**:
+
+| Reported category | State |
+| --- | --- |
+| Required B_REG/F training | 108 models:31 complete,77 failed |
+| AASFOD/SFYOLO waiting | 144 records, including their roles |
+| IRG/LPLD/SFUT reference Student models | 72 blocked records (24 per method); no retraining |
+| EMA evaluation | 31 failed,77 blocked,72 waiting |
+| Student evaluation | 36 failed,72 blocked,72 waiting |
+
+For owner deployment, retain the exact original train/eval lists and their role
+columns; do not turn the360 records or the eval list into a training list.
+`--previous-state` enforces the same finite keys and training ownership.
+Student `:train` retries and eval-only training are rejected, as are retries of
+completed training. A hold/release never grants training ownership. Keep the31
+valid trained models, original attempts/failure artifacts and existing valid
+F2-update smokes; do not enqueue or repeat those smokes.
+
+After the owner restores the required **frozen** dependencies, the clean-boundary
+invocation uses the new checkout, original terminal ledger and a new run
+directory. For example (owner-only; not executed by this code delivery):
+
+```bash
+PYTHONPATH="$RUNNER_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
+  --queue "$Q" --run-dir "$NEW_RUN" \
+  --train-list "$ORIGINAL_TRAIN_LIST" --eval-list "$ORIGINAL_EVAL_LIST" \
+  --previous-state "$OLD_RUN/state.json" \
+  --gpus 0,1,2,3 --handoff-confirmed \
+  --retry-cell RSAR/clean/43/B_REG:train
+```
+
+Retain any additional original list/external-ownership arguments unchanged.
+Select only actual failed, owned phases from the terminal ledger; repeat
+`--retry-cell` for each explicitly authorized selection. Do not retry the72
+reference Student models as training. An eval selection needs completed training.
+With no retry flags, failed states remain failed; with inputs still absent,
+selected retries wait without a runner attempt. No option restores data, consumes
+a request in the old executable, changes budgets or touches independent GPU4 work.
 
 ## Observed defects
 
