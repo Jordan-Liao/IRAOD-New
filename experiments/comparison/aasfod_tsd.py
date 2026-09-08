@@ -3,16 +3,19 @@
 import argparse
 import os
 from pathlib import Path
+import sys
 
 from experiments.comparison.aasfod_protocol import TSD_CHOICE, validate_split
 from experiments.comparison.extension_training import load_cell
 from experiments.comparison.result_completion import write_json
+from experiments.comparison import host_binding as host
 
 
 def run(queue, dataset, domain, seed, smoke_images=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("TSD must run under the existing owner's shared GPU lock")
-    _, cell = load_cell(queue, dataset, domain, seed, "AASFOD")
+    runtime, cell = load_cell(queue, dataset, domain, seed, "AASFOD")
+    code = Path(cell.get("training_code", runtime["training_code"]))
     output = Path(cell["tsd_split"])
     if smoke_images is not None:
         if smoke_images < 5:
@@ -20,6 +23,8 @@ def run(queue, dataset, domain, seed, smoke_images=None):
         output = output.with_name("tsd_smoke.json")
     if output.exists():
         raise FileExistsError(output)
+    sys.path.insert(0, str(code))
+    os.chdir(code)
     # Native dependencies are deliberately lazy: queue preparation needs none.
     import torch
     from mmcv import Config
@@ -32,9 +37,10 @@ def run(queue, dataset, domain, seed, smoke_images=None):
     from sfod.extensions.aasfod_mechanisms import aligned_tsd, high_variance_split
 
     set_random_seed(seed, deterministic=True)
-    config = Config.fromfile(cell["config"])
-    # Unmodified architecture for the common source; no adaptation discriminators.
-    teacher_cfg = Config.fromfile(config.model.ema_config)
+    with host.native_config_paths():
+        config = Config.fromfile(cell["config"])
+        # Unmodified architecture for the common source; no adaptation discriminators.
+        teacher_cfg = Config.fromfile(config.model.ema_config)
     detector = build_detector(teacher_cfg.model)
     load_checkpoint(detector, cell["source_checkpoint"], map_location="cpu")
     detector.cuda().requires_grad_(False).eval()

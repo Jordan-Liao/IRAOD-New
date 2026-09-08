@@ -166,6 +166,7 @@ class TargetTrainingTest(unittest.TestCase):
                         "dataset": dataset, "domain": domain,
                         "method": method, "role": role, "seed": 42,
                         "scope": "full_test", "image_ids": ids,
+                        "show_score_thr": 0.3,
                         "visualization_image_ids": ids,
                         "checkpoint_domain": "source" if method == "A" else domain,
                         "img_prefix": str(test), "ann_file": "/must/not/read/GT",

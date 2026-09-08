@@ -11,6 +11,7 @@ from experiments.comparison.extension_manifest import cell_key, evaluate_binding
 from experiments.comparison.report_inputs import EXPECTED_IMAGES, FINAL_ITERATION
 from experiments.comparison.report_qualitative import validate_plan
 from experiments.comparison.result_completion import DOMAINS, read_json, write_json
+from experiments.comparison import host_binding as host
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,8 +19,8 @@ PORT_METHODS = ("IRG", "LPLD", "SFUT")
 STUDENT_METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO")
 F_DELETIONS = ("F_text_only", "F_veto_only")
 METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO", "B_REG", *F_DELETIONS)
-ALLOWED_GPUS = (4, 5, 6, 7)
-PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
+ALLOWED_GPUS = host.approved_gpus()
+PAIR_PORTS = host.pair_ports()
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
 EVALUATION_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
@@ -31,7 +32,7 @@ def code_sha(code):
 
 
 def require_file(path):
-    path = Path(path)
+    path = host.read_path(path)
     if not path.is_file() or not path.stat().st_size:
         raise ValueError(f"Missing nonempty file: {path}")
     return path
@@ -295,17 +296,26 @@ def write_runners(out, python, lock):
         f" --queue {shlex.quote(str(out))}"
         ' --gpu-pair "$1" --port "$2" --dataset "$3" --domain "$4" --seed "$5" --method "$6"\n')
     ddp.chmod(0o755)
-    (out / "with_gpu_lock.sh").symlink_to(lock)
+    if host.is_target_host():
+        wrapper = out / "with_gpu_lock.sh"
+        wrapper.write_text(
+            "#!/usr/bin/env bash\nset -euo pipefail\n"
+            f"LOCKDIR={shlex.quote(host.SHARED_LOCK_ROOT)}\n"
+            f"export PYTHONPATH={shlex.quote(str(ROOT))}\n"
+            f"exec {shlex.quote(python)} -m experiments.comparison.host_binding lock \"$@\"\n")
+        wrapper.chmod(0o755)
+    else:
+        (out / "with_gpu_lock.sh").symlink_to(lock)
 
 
 def load_cell(queue, dataset, domain, seed, method, role="ema"):
-    runtime = read_json(Path(queue) / "runtime.json")
+    runtime = host.read_json(Path(host.map_path(queue)) / "runtime.json")
     key = cell_key(dataset, domain, seed, method)
     cell = runtime["student_cells" if role == "student" else "cells"][key]
     route = key + ("/student" if role == "student" else "")
     while "source_queues" in runtime:
         origin = runtime["source_queues"].get(route, runtime["source_queues"][key])
-        runtime = read_json(Path(origin) / "runtime.json")
+        runtime = host.read_json(Path(origin) / "runtime.json")
     return runtime, cell
 
 
@@ -314,7 +324,7 @@ def require_prerequisites(cell):
     if cell["method"] == "AASFOD":
         from experiments.comparison.aasfod_protocol import validate_split
 
-        validate_split(read_json(require_file(cell["tsd_split"])), cell)
+        validate_split(host.read_json(require_file(cell["tsd_split"])), cell)
     elif cell["method"] == "SFYOLO":
         from experiments.comparison.tam_artifacts import load_completed_tam
 
@@ -328,14 +338,14 @@ def require_prerequisites(cell):
 
 def train(queue, gpu, dataset, domain, seed, method):
     if gpu not in ALLOWED_GPUS:
-        raise ValueError("Training requires an approved GPU4,5,6,7")
+        raise ValueError("Training requires a host-approved GPU" + ",".join(map(str, ALLOWED_GPUS)))
     return _train(queue, (gpu,), None, dataset, domain, seed, method)
 
 
 def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
     gpus = tuple(int(gpu) for gpu in gpu_pair.split(","))
     if PAIR_PORTS.get(gpus) != port:
-        raise ValueError("DDP requires approved pair4,5/29804 or6,7/29806")
+        raise ValueError(f"DDP requires a host-approved pair/port: {PAIR_PORTS}")
     return _train(queue, gpus, port, dataset, domain, seed, method)
 
 
@@ -376,6 +386,8 @@ def _train(queue, gpus, port, dataset, domain, seed, method):
 
 def training_invocation(queue, runtime, cell, gpus, port, work):
     """One frozen native command/environment shared by formal and bounded smoke."""
+    runtime, cell = host.map_data(runtime), host.map_data(cell)
+    work = Path(host.map_path(work))
     dataset, domain, seed, method = (cell[k] for k in ("dataset", "domain", "seed", "method"))
     source = str(require_file(cell["source_checkpoint"]))
     python = runtime["python"]
@@ -409,9 +421,12 @@ def training_invocation(queue, runtime, cell, gpus, port, work):
         ]
     if method == "AASFOD":
         command = [
-            python, "-m", "experiments.comparison.train_aasfod",
-            "--queue", str(Path(queue).resolve()), "--dataset", dataset,
+            python, *([str(ROOT / "experiments/comparison/train_aasfod.py")]
+                      if host.is_target_host() else ["-m", "experiments.comparison.train_aasfod"]),
+            "--queue", host.map_path(Path(queue).absolute()), "--dataset", dataset,
             "--domain", domain, "--seed", str(seed)]
+    else:
+        command = host.native_command(command, code / "train.py")
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("CGA_", "SARCLIP_", "VLST_"))}
     prefix = str(Path(python).parent.parent)
@@ -428,16 +443,23 @@ def training_invocation(queue, runtime, cell, gpus, port, work):
         env.update(cell["model_environment"])
         env.update(cell["wrapper_environment"])
         env.update(MASTER_PORT=str(port), PYTHONDONTWRITEBYTECODE="1")
+    if method == "AASFOD":
+        # The current stage helper reads mapped queues, but train.py/model imports
+        # must remain the originally bound method checkout, not this executor.
+        env["PYTHONPATH"] = os.pathsep.join((str(ROOT), str(code)))
+    if host.is_target_host():
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env = host.map_data(env)
     return code, producer_sha, command, env
 
 
 def evaluate(queue, gpu, dataset, domain, seed, method, role="ema"):
     if gpu not in ALLOWED_GPUS:
-        raise ValueError("Evaluation requires an approved GPU4,5,6,7")
+        raise ValueError("Evaluation requires a host-approved GPU" + ",".join(map(str, ALLOWED_GPUS)))
     if role not in ("ema", "student") or role == "student" and method not in STUDENT_METHODS:
         raise ValueError("Student native evaluations are limited to the five approved ports")
     runtime, cell = load_cell(queue, dataset, domain, seed, method, role)
-    execution = read_json(Path(cell["method_dir"]) / "execution.json")
+    execution = host.read_json(Path(cell["method_dir"]) / "execution.json")
     binding = {
         **cell, "role": role, "checkpoint": cell["checkpoint"],
         "config": cell["eval_config"], "training_code_sha": execution["training_code_sha"],

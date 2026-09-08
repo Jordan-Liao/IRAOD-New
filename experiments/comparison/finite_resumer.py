@@ -22,10 +22,11 @@ import sys
 import time
 
 from experiments.comparison.result_completion import DOMAINS
+from experiments.comparison import host_binding as host
 
 
-APPROVED = (4, 5, 6, 7)
-PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
+APPROVED = host.approved_gpus()
+PAIR_PORTS = host.pair_ports()
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
 FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO",
                        "B_REG", "F_text_only", "F_veto_only")
@@ -83,7 +84,7 @@ def load_cells(train_files, eval_files):
     cells = {}
     for training, files in ((True, train_files), (False, eval_files)):
         for path in files:
-            for line in Path(path).read_text().splitlines():
+            for line in host.read_path(path).read_text().splitlines():
                 if not line.strip() or line.lstrip().startswith("#"):
                     continue
                 fields = line.split()
@@ -130,6 +131,8 @@ def write_json(path, data):
 
 
 def lock_root(queue):
+    if host.is_target_host():
+        return Path(host.SHARED_LOCK_ROOT)
     for line in (Path(queue) / "with_gpu_lock.sh").read_text().splitlines():
         if line.startswith("LOCKDIR="):
             values = shlex.split(line.split("=", 1)[1])
@@ -159,6 +162,8 @@ def last_exit(path, names):
 
 
 def load_paths(queue):
+    if host.is_target_host():
+        return host.load_paths(queue)
     spec = importlib.util.spec_from_file_location("finite_xaf_paths", Path(queue) / "paths.py")
     module = importlib.util.module_from_spec(spec)
     old = sys.dont_write_bytecode
@@ -202,7 +207,10 @@ def prerequisite_state(paths, cell):
 
 def allowed_gpus(paths):
     # Historical core queues intentionally retain their original four-card API.
-    return tuple(getattr(paths, "DATA", {}).get("allowed_gpus", APPROVED))
+    if host.is_target_host():
+        return host.approved_gpus()
+    return tuple(g for g in getattr(paths, "DATA", {}).get("allowed_gpus", APPROVED)
+                 if g in APPROVED)
 
 
 def wrappers_complete(queue, paths, cell, phase):
@@ -242,7 +250,8 @@ def eval_state(queue, paths, cell, check_wrap=True):
             return "blocked"
         metric = json.loads(metrics[0].read_text())
         value = float(metric["metric"]["mAP"])
-        if not math.isfinite(value) or not 0 <= value <= 1 or metric["config"] != order["config"]:
+        if (not math.isfinite(value) or not 0 <= value <= 1
+                or not host.same_path(metric["config"], order["config"])):
             return "blocked"
         n = paths.EXPECT_PRED[cell.dataset]
         ids = order["image_ids"]
@@ -251,7 +260,7 @@ def eval_state(queue, paths, cell, check_wrap=True):
         expected_checkpoint = checkpoint(cell.dataset, cell.domain, str(cell.seed), cell.method)
         if (order["schema"] != "iraod-prediction-image-order-v1"
                 or order["origin"] != "inference_batch_img_metas" or order["status"] != "complete"
-                or order["checkpoint"] != expected_checkpoint
+                or not host.same_path(order["checkpoint"], expected_checkpoint)
                 or order["evaluation_code_sha"] != getattr(paths, "EVALUATION_CODE_SHA", EVAL_SHA)
                 or order["predictions_file"] != pred.name
                 or order["n_images"] != n or order["dataset_size"] != n
@@ -270,6 +279,27 @@ def eval_state(queue, paths, cell, check_wrap=True):
 
 
 def runner_command(queue, cell, phase, gpus):
+    if host.is_target_host():
+        if (not set(gpus).issubset(host.approved_gpus())
+                or len(gpus) != (cell.width if phase == "train" else 1)):
+            raise ValueError("Invalid target-host GPU assignment")
+        if cell.role != "ema" and phase == "train":
+            raise ValueError("Student quantitative extensions are evaluation-only")
+        # Never execute the copied Bash wrappers (old absolute paths/GPU IDs).
+        from experiments.comparison.extension_training import load_cell
+        runtime, _ = load_cell(queue, cell.dataset, cell.domain, cell.seed, cell.method, cell.role)
+        action = "evaluate" if phase == "eval" else "train-ddp" if len(gpus) == 2 else "train"
+        command = [runtime["python"], str(SCRIPT.with_name("extension_training.py")), action,
+                   "--queue", host.map_path(queue), "--dataset", cell.dataset,
+                   "--domain", cell.domain, "--seed", str(cell.seed), "--method", cell.method]
+        if len(gpus) == 2:
+            command += ["--gpu-pair", ",".join(map(str, gpus)),
+                        "--port", str(host.pair_ports()[tuple(gpus)])]
+        else:
+            command += ["--gpu", str(gpus[0])]
+        if phase == "eval":
+            command += ["--role", cell.role]
+        return command
     args = [cell.dataset, cell.domain, str(cell.seed), cell.method]
     if phase == "eval":
         role = [cell.role] if cell.role == "student" else []
@@ -365,7 +395,7 @@ def pane_job(name, pane, queue):
 
 class TmuxBackend:
     def __init__(self, queue, run_dir, gpus=APPROVED, tmux=("tmux",)):
-        self.queue, self.run_dir = Path(queue), Path(run_dir)
+        self.queue, self.run_dir = Path(host.map_path(queue)), Path(host.map_path(run_dir))
         self.gpus, self.tmux = tuple(gpus), tuple(tmux)
         self.lock_dir = lock_root(queue)
         self.paths = load_paths(queue)
@@ -697,7 +727,7 @@ def run_finite(cells, backend, external=(), external_owners=None):
 
 
 def worker(job_file):
-    job = json.loads(Path(job_file).read_text())
+    job = host.read_json(job_file)
     cell, phase = Cell(**job["cell"]), job["phase"]
     queue, gpus = Path(job["queue"]), tuple(job["gpus"])
     root = lock_root(queue)
@@ -732,7 +762,8 @@ def worker(job_file):
                 locks.append(lock)
             if not set(gpus).issubset(idle_devices(gpus)):
                 raise Blocked("GPU is occupied by another process; no runner invoked")
-            env = {**os.environ, "IRAOD_GPU_LOCKED": "1"}
+            env = {**os.environ, "IRAOD_GPU_LOCKED": "1",
+                   "PYTHONPATH": str(SCRIPT.parents[2])}
             rc = subprocess.run(runner_command(queue, cell, phase, gpus), env=env).returncode
             valid = (train_state if phase == "train" else eval_state)(
                 queue, paths, cell, check_wrap=False)
@@ -750,7 +781,7 @@ def worker(job_file):
             "cell": asdict(cell), "phase": phase, "gpus": list(gpus),
             "status": status, "exit_code": rc, "reason": reason,
         })
-        if owns_cell:
+        if owns_cell and not host.is_target_host():
             with (queue / f"wrap_{cell.session(phase)}.status").open("a") as stream:
                 stream.write(f"wrap_exit={rc} {time.time()} cell={cell.key} phase={phase}\n")
         for lock in reversed(locks):
@@ -774,7 +805,7 @@ def main():
                             help="Finite externally owned cells: never submit their training, only observe/evaluate")
         resume.add_argument("--external-owner-session", action="append", default=[],
                             help="SESSION=GPU[,GPU]: reserve cards and observe this existing owner's exit")
-        resume.add_argument("--gpus", default="4,5,6,7")
+        resume.add_argument("--gpus", default=",".join(map(str, APPROVED)))
         resume.add_argument("--handoff-confirmed", action="store_true",
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
     run_worker = commands.add_parser("worker")
@@ -786,7 +817,7 @@ def main():
         parser.error("Stop old producers only; preserve canonical GPU tmux, then use --handoff-confirmed")
     gpus = tuple(int(g) for g in args.gpus.split(","))
     if len(set(gpus)) != len(gpus) or not set(gpus).issubset(APPROVED) or not gpus:
-        parser.error("Only approved GPUs 4,5,6,7 are allowed")
+        parser.error(f"Only host-approved GPUs {APPROVED} are allowed")
     try:
         probe = open_pidfd(os.getpid())
         os.close(probe)

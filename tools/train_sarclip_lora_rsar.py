@@ -14,10 +14,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from iraod_runtime import ensure_iraod_runtime
+from experiments.comparison.host_binding import PREFIXES, TARGET_HOST, is_target_host, map_path
+
+
+def configure_runtime():
+    prefix = ("/home/zechuan/miniforge3/envs/iraod" if is_target_host()
+              else "/home/liaojr/anaconda3/envs/cliptorch")
+    os.environ.setdefault("IRAOD_CONDA_PREFIX", prefix)
+    ensure_iraod_runtime()
+
 
 if __name__ == "__main__":
-    os.environ.setdefault("IRAOD_CONDA_PREFIX", "/home/liaojr/anaconda3/envs/cliptorch")
-    ensure_iraod_runtime()
+    configure_runtime()
 
 import numpy as np
 import torch
@@ -70,9 +78,10 @@ def parse_args(argv=None):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--metadata", required=True)
     parser.add_argument("--crop-mode", choices=["aabb", "rotated", "all"], default="aabb")
-    parser.add_argument("--sarclip-dir", default="/home/storageSDA1/liaojr/SARCLIP")
+    parser.add_argument("--sarclip-dir", default=(
+        map_path(REPO_ROOT) if is_target_host() else "/home/storageSDA1/liaojr/SARCLIP"))
     parser.add_argument("--sarclip-pretrained", required=True)
-    parser.add_argument("--sarclip-cache-dir", default=None)
+    parser.add_argument("--sarclip-cache-dir", default=map_path(REPO_ROOT) if is_target_host() else None)
     parser.add_argument("--sarclip-model", default="ViT-B-32")
     parser.add_argument("--output", required=True)
     parser.add_argument("--epochs", type=int, default=10)
@@ -105,6 +114,9 @@ def parse_args(argv=None):
             parser.error("--smoke-steps requires real LoRA, not visual projection")
     if args.templates is None:
         args.templates = DEFAULT_TEMPLATES[args.dataset]
+    for name in ("metadata", "sarclip_dir", "sarclip_pretrained", "sarclip_cache_dir", "output"):
+        if getattr(args, name) is not None:
+            setattr(args, name, map_path(getattr(args, name)))
     return args
 
 
@@ -122,6 +134,7 @@ def import_sarclip(sarclip_dir):
 
 
 def load_metadata(path, crop_mode, dataset="RSAR"):
+    path = map_path(path)
     classes = DATASET_CLASSES[dataset]
     rows = []
     with open(path, "r", encoding="utf-8") as f:
@@ -141,6 +154,8 @@ def load_metadata(path, crop_mode, dataset="RSAR"):
                 raise ValueError(f"{context}: class_name/class_id do not match {dataset}")
             if crop_mode != "all" and row.get("crop_mode") != crop_mode:
                 continue
+            if row.get("patch_path"):
+                row["patch_path"] = map_path(row["patch_path"])
             if not row.get("patch_path") or not Path(row["patch_path"]).is_file():
                 raise FileNotFoundError(f"{context}: patch file not found: {row.get('patch_path')}")
             row["class_id"] = class_id
@@ -397,6 +412,8 @@ def build_config(args, rows, model, adapter_type, trainable_names):
         "training_git_sha": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True,
         ).strip(),
+        **({"execution_host": TARGET_HOST, "metadata_path_mapping": dict(PREFIXES),
+            "metadata_file_rewritten": False} if is_target_host() else {}),
     }
 
 

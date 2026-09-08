@@ -5,7 +5,8 @@ from pathlib import Path
 
 from experiments.comparison.extension_training import ALLOWED_GPUS, PAIR_PORTS, STUDENT_METHODS, write_runners
 from experiments.comparison.finite_resumer import Cell, load_cells, lock_root
-from experiments.comparison.result_completion import read_json, write_json
+from experiments.comparison.result_completion import write_json
+from experiments.comparison import host_binding as host
 
 
 def prepare(queues, out_dir, methods=None, role=None):
@@ -15,13 +16,13 @@ def prepare(queues, out_dir, methods=None, role=None):
     if methods and not set(methods).issubset(STUDENT_METHODS):
         raise ValueError("Student selection is limited to the five approved ports")
     selected = set(methods or STUDENT_METHODS)
-    out = Path(out_dir).resolve()
+    out = Path(host.map_path(out_dir)).absolute()
     if out.exists():
         raise FileExistsError(f"Mixed metadata directory must be NEW: {out}")
     cells, students, origins, runtimes, scopes = {}, {}, {}, [], {}
     for queue in queues:
-        queue = Path(queue).resolve()
-        runtime = read_json(queue / "runtime.json")
+        queue = Path(host.map_path(queue)).absolute()
+        runtime = host.read_json(queue / "runtime.json")
         runtimes.append((queue, runtime))
         if role == "student":
             scope = {Cell(*(binding[k] for k in ("dataset", "domain", "seed", "method")),
@@ -35,7 +36,7 @@ def prepare(queues, out_dir, methods=None, role=None):
             origin, source = queue, runtime
             while "source_queues" in source:
                 origin = Path(source["source_queues"][key])
-                source = read_json(origin / "runtime.json")
+                source = host.read_json(origin / "runtime.json")
             if key in cells and (cells[key] != binding or origins[key] != str(origin)):
                 raise ValueError(f"Conflicting original model binding: {key}")
             if cell in scopes:
@@ -52,7 +53,7 @@ def prepare(queues, out_dir, methods=None, role=None):
                 student_origin, source = queue, runtime
                 while "source_queues" in source:
                     student_origin = Path(source["source_queues"].get(cell.key, source["source_queues"][key]))
-                    source = read_json(student_origin / "runtime.json")
+                    source = host.read_json(student_origin / "runtime.json")
                 origins[cell.key] = str(student_origin)
             scopes[cell] = train
     if not scopes:
@@ -64,7 +65,7 @@ def prepare(queues, out_dir, methods=None, role=None):
                 or runtime["python"] != first["python"]
                 or runtime["evaluation_code_sha"] != first["evaluation_code_sha"]):
             raise ValueError("Union requires one shared lock, interpreter and native evaluation revision")
-    # All scientific/path fields remain byte-for-byte JSON-equivalent bindings.
+    # Scientific fields remain JSON-equivalent; target paths are operational views.
     # Per-cell runtime selection retains each original training/evaluation checkout.
     runtime = {
         "schema": "iraod-mixed-detector-queue-v1",

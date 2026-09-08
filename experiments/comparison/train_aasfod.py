@@ -5,10 +5,12 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 from experiments.comparison.aasfod_protocol import validate_split
-from experiments.comparison.extension_training import ROOT, load_cell, require_file
-from experiments.comparison.result_completion import read_json, write_json
+from experiments.comparison.extension_training import load_cell, require_file
+from experiments.comparison.result_completion import write_json
+from experiments.comparison import host_binding as host
 
 
 def stage_specs(cell, work, smoke_steps=None):
@@ -39,7 +41,11 @@ def run(queue, dataset, domain, seed, smoke_steps=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Use the existing owner's shared GPU lock")
     runtime, cell = load_cell(queue, dataset, domain, seed, "AASFOD")
-    validate_split(read_json(require_file(cell["tsd_split"])), cell)
+    validate_split(host.read_json(require_file(cell["tsd_split"])), cell)
+    code = Path(cell.get("training_code", runtime["training_code"]))
+    if host.is_target_host():
+        sys.path.insert(0, str(code))
+        os.chdir(code)
     work = Path(cell["work_dir"])
     if smoke_steps is not None:
         work = work.with_name("smoke_work")
@@ -53,7 +59,8 @@ def run(queue, dataset, domain, seed, smoke_steps=None):
         directory = Path(spec["work_dir"])
         if directory.exists():
             raise FileExistsError(directory)
-        cfg = Config.fromfile(cell["config"])
+        with host.native_config_paths():
+            cfg = Config.fromfile(cell["config"])
         cfg.model.cfg.update(aasfod_stage=spec["stage"],
                              aasfod_ema_interval=spec["ema_interval"])
         # Runner loads the student; hook copies its entire detector into teacher.
@@ -76,14 +83,15 @@ def run(queue, dataset, domain, seed, smoke_steps=None):
         cfg.work_dir = str(directory)
         config_path = work / (spec["stage"] + ".py")
         cfg.dump(str(config_path))
-        command = [runtime["python"], str(ROOT / "train.py"), str(config_path),
+        command = [runtime["python"], str(code / "train.py"), str(config_path),
                    "--work-dir", str(directory), "--gpus", "1", "--seed", str(seed),
                    "--deterministic", "--no-validate"]
+        command = host.native_command(command, code / "train.py")
         spec["command"] = command
         write_json(work / "stages.json", {
             "status": "invoked_not_completion_evidence", "budget": cell["aasfod_budget"],
             "smoke_steps": smoke_steps, "stages": specs})
-        subprocess.run(command, cwd=ROOT, check=True)
+        subprocess.run(command, cwd=code, env={**os.environ, "PYTHONPATH": str(code)}, check=True)
         require_file(spec["student_checkpoint"])
         require_file(spec["teacher_checkpoint"])
     if smoke_steps is None:

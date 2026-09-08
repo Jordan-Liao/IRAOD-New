@@ -24,17 +24,18 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 
 from experiments.comparison.extension_training import TARGET_VAL_SIZE, target_val
 from experiments.comparison.report_qualitative import validate_plan
-from experiments.comparison.result_completion import DOMAINS, read_json
+from experiments.comparison.result_completion import DOMAINS
 from experiments.comparison.tam_artifacts import (
     BGR_MEAN, FIT_SEED, FORMAL_STEPS, NORMALIZATION, SCHEMA, checkpoint_payload,
 )
+from experiments.comparison import host_binding as host
 
 
 ROOT = Path(__file__).resolve().parents[2]
 OFFICIAL_SFYOLO_SHA = "c84dfad79a889b5f172d7192ee0379edfd738835"
 BATCH_SIZE = 8
 SEEDS = (FIT_SEED,)
-GPUS = (4, 5, 6, 7)
+GPUS = host.approved_gpus()
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
 
@@ -62,7 +63,7 @@ def discover_target_images(base_plan, dataset, domain, seed, workers=16):
         raise ValueError("Unsupported dataset/domain")
     if seed not in SEEDS:
         raise ValueError("TAM fit seed must be 42; detector seeds reuse this fit")
-    plan = read_json(base_plan)
+    plan = host.read_json(base_plan)
     validate_plan(plan)
     if plan.get("adaptation_seed", 42) != 42:
         raise ValueError("The accepted base plan must use adaptation seed42")
@@ -80,8 +81,8 @@ def discover_target_images(base_plan, dataset, domain, seed, workers=16):
             f"found {len(ids)} images, {len(set(ids))} unique stems")
     return {
         "dataset": dataset, "domain": domain, "seed": seed, "split": "val",
-        "root": str(root), "image_ids": ids,
-        "image_paths": [str(path) for path in paths],
+        "root": host.map_path(root), "image_ids": ids,
+        "image_paths": [host.map_path(path) for path in paths],
         "selection": "All image files in target VAL; no labels or GT-presence filtering",
         "reproducibility": reproducibility(seed, workers),
     }
@@ -179,7 +180,7 @@ def run_training(*, base_plan, dataset, domain, seed, vgg_weights, out_dir,
     """
     if not 0 < steps <= FORMAL_STEPS or workers < 0:
         raise ValueError("Invalid steps or workers")
-    out = Path(out_dir).resolve()
+    out = Path(host.map_path(out_dir)).resolve()
     out.mkdir(parents=True, exist_ok=False)
     terminal = {"schema": SCHEMA, "status": "failed", "requested_steps": steps,
                 "identity": {"dataset": dataset, "domain": domain, "seed": seed},
@@ -187,7 +188,7 @@ def run_training(*, base_plan, dataset, domain, seed, vgg_weights, out_dir,
     checkpoint = out / "tam.pth"
     partial = out / "tam.pth.partial"
     try:
-        encoder = Path(vgg_weights).resolve()
+        encoder = host.read_path(vgg_weights).resolve()
         if not encoder.is_file() or not encoder.stat().st_size:
             raise ValueError("VGG weights must be an explicit existing nonempty external file")
         manifest = discover_target_images(base_plan, dataset, domain, seed, workers)
@@ -195,9 +196,10 @@ def run_training(*, base_plan, dataset, domain, seed, vgg_weights, out_dir,
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         config = {
             "schema": SCHEMA, "identity": terminal["identity"], "split": "val",
-            "base_plan": str(Path(base_plan).resolve()), "training_code_sha": code_sha,
+            "base_plan": host.map_path(Path(host.map_path(base_plan)).resolve()),
+            "training_code_sha": code_sha,
             "official_sfyolo_commit": OFFICIAL_SFYOLO_SHA,
-            "encoder_weights": str(encoder), "encoder_bytes": encoder.stat().st_size,
+            "encoder_weights": host.map_path(encoder), "encoder_bytes": encoder.stat().st_size,
             "steps": steps, "formal_steps": FORMAL_STEPS, "batch_size": BATCH_SIZE,
             "optimizer_updates": 2 * steps, "detector_seeds": [42, 43, 44],
             "result_scope": "formal" if steps == FORMAL_STEPS else "NON_RESULT",
@@ -243,7 +245,7 @@ def run_training(*, base_plan, dataset, domain, seed, vgg_weights, out_dir,
 def configure_gpu(gpu):
     """Validate ownership before any CUDA/model call, then set physical GPU visibility."""
     if gpu not in GPUS:
-        raise ValueError("GPU must be one of 4, 5, 6, 7")
+        raise ValueError(f"GPU must be one of {GPUS}")
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Compute owner must hold the GPU lock: IRAOD_GPU_LOCKED=1")
     if os.environ.get("PYTHONNOUSERSITE") != "1" or not sys.flags.no_user_site:

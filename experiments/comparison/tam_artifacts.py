@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import torch
+from experiments.comparison.host_binding import map_path, map_data
 
 
 SCHEMA = "iraod-target-augmentation-v1"
@@ -30,8 +31,8 @@ def checkpoint_payload(module, identity, encoder_weights, steps, code_sha, image
         "training_steps": steps,
         "identity": identity,
         "training_code_sha": code_sha,
-        "encoder_weights": str(Path(encoder_weights).resolve()),
-        "image_manifest": str(Path(image_manifest).resolve()),
+        "encoder_weights": map_path(Path(map_path(encoder_weights)).resolve()),
+        "image_manifest": map_path(Path(map_path(image_manifest)).resolve()),
         "normalization": NORMALIZATION,
         "objective": "generic_aerial_code_formula; decoder_then_F1_F2; alpha_train1",
         "components": components,
@@ -39,7 +40,7 @@ def checkpoint_payload(module, identity, encoder_weights, steps, code_sha, image
 
 
 def load_completed_tam(path, identity, device):
-    payload = torch.load(path, map_location="cpu", weights_only=True)
+    payload = map_data(torch.load(map_path(path), map_location="cpu", weights_only=True))
     if (payload["schema"] != SCHEMA or payload["status"] != "complete"
             or payload["training_steps"] != FORMAL_STEPS or payload["identity"] != identity):
         raise ValueError("Detector adaptation requires a completed TAM for this dataset/domain/fit seed42")

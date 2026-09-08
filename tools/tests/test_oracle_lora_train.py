@@ -17,6 +17,7 @@ from PIL import Image
 from torch import nn
 
 from experiments.comparison.labels import CLASSES
+from experiments.comparison import host_binding
 from tools import train_sarclip_lora_rsar as trainer
 
 
@@ -109,6 +110,47 @@ class OracleLoraTrainTests(unittest.TestCase):
         with mock.patch("iraod_runtime.ensure_iraod_runtime") as ensure:
             importlib.reload(trainer)
         ensure.assert_not_called()
+
+    def test_selected_host_maps_copied_patch_rows_without_rewriting_csv(self):
+        original_root = "/mnt/shared/zechuan/iraod_artifacts"
+        self.write_rows([self.row("DIOR", patch_path=original_root + "/patch.png")])
+        before = self.metadata.read_bytes()
+        with mock.patch.object(host_binding.socket, "gethostname",
+                               return_value=host_binding.TARGET_HOST), \
+                mock.patch.object(host_binding, "PREFIXES", ((original_root, str(self.root)),)):
+            rows = trainer.load_metadata(self.metadata, "aabb", "DIOR")
+        self.assertEqual(rows[0]["patch_path"], str(self.patch))
+        self.assertEqual(rows[0]["class_id"], 0)
+        self.assertEqual(rows[0]["class_name"], CLASSES["DIOR"][0])
+        self.assertEqual(self.metadata.read_bytes(), before)
+        with mock.patch.object(host_binding.socket, "gethostname", return_value="7T83-8xA100-67"):
+            with self.assertRaisesRegex(FileNotFoundError, "patch file"):
+                trainer.load_metadata(self.metadata, "aabb", "DIOR")
+
+    def test_target_cli_paths_runtime_and_code_cache_preserve_recipe(self):
+        with mock.patch.object(host_binding.socket, "gethostname",
+                               return_value=host_binding.TARGET_HOST):
+            args = trainer.parse_args([
+                "--dataset", "DIOR",
+                "--metadata", "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",
+                "--sarclip-pretrained", "/mnt/shared/zechuan/iraod_weights/sarclip/base.safetensors",
+                "--output", "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_adapter",
+            ])
+            self.assertEqual(args.metadata,
+                             "/home/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv")
+            self.assertEqual(args.sarclip_pretrained, "/home/zechuan/iraod_weights/sarclip/base.safetensors")
+            self.assertEqual(args.sarclip_dir, host_binding.map_path(trainer.REPO_ROOT))
+            self.assertEqual(args.sarclip_cache_dir, args.sarclip_dir)
+            self.assertEqual((args.epochs, args.batch_size, args.lr, args.weight_decay,
+                              args.lora_r, args.lora_alpha, args.lora_dropout),
+                             (10, 64, 1e-4, 1e-4, 8, 16.0, 0.0))
+            with mock.patch.dict(trainer.os.environ, {}, clear=False), \
+                    mock.patch.object(trainer, "ensure_iraod_runtime") as ensure:
+                trainer.os.environ.pop("IRAOD_CONDA_PREFIX", None)
+                trainer.configure_runtime()
+                self.assertEqual(trainer.os.environ["IRAOD_CONDA_PREFIX"],
+                                 "/home/zechuan/miniforge3/envs/iraod")
+                ensure.assert_called_once()
 
     def test_optional_legacy_cap_is_seeded_but_formal_default_keeps_all_rows(self):
         rows = [{"class_id": c, "id": i} for c in range(2) for i in range(6)]

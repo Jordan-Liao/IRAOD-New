@@ -1,5 +1,15 @@
 # Oracle TRAIN preparation and bounded smoke
 
+## Selected target migration
+
+For exact host `73F3-5xA6000-221` (endpoint20138), use the host-bound code and
+commands in `experiments/comparison/HOST_BINDING.md`. It maps copied absolute
+CSV patch paths in memory, preserves the original CSV and scientific recipe,
+and uses the owner's selected environment/root. Outer LoRA ownership uses
+`python -m experiments.comparison.host_binding lock GPU -- COMMAND`, not the
+copied .67 Bash lock script with its old absolute path. No detector staging
+is required for DIOR LoRA once its own environment/code/weights/patches arrive.
+
 ## Real-LoRA smoke (NON_RESULT)
 
 Run **only by the GPU owner**, from the deployed checkout, with an existing

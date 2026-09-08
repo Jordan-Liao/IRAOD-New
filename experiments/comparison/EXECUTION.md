@@ -1,4 +1,12 @@
-# Next isolated finite detector revision
+# Finite detector execution bindings
+
+For the selected `73F3-5xA6000-221` target (endpoint20138), use
+`HOST_BINDING.md`: immutable copied-Q runtime path views, GPUs0-4, original
+pair ports29804/29806 bound to0,1 and2,3, and the single mapped shared lock
+directory. The supervisor alone deploys and executes; this is not a new
+scheduler or a change to scientific1x32/2x16 budgets.
+
+## Preserved .67 execution bindings
 
 Current future code: `ROOT/integration_code_752a139`.
 Current future queue: `ROOT/release_manifests_752a139`,180 train/360 eval

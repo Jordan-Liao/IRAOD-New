@@ -335,7 +335,10 @@ def evaluate(queue, gpu, dataset, domain, seed, method, role):
 
 def evaluate_binding(cell, runtime, gpu):
     """Execute one explicit native evaluation binding under its owner's GPU lock."""
-    if gpu not in (4, 5, 6, 7) or cell["role"] not in ("ema", "student"):
+    from experiments.comparison import host_binding as host
+
+    cell, runtime = host.map_data(cell), host.map_data(runtime)
+    if gpu not in host.approved_gpus() or cell["role"] not in ("ema", "student"):
         raise ValueError("Only approved-GPU final EMA/Student bindings are supported")
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Invoke via the finite worker holding the shared GPU lock")
@@ -348,13 +351,14 @@ def evaluate_binding(cell, runtime, gpu):
            "PYTHONPATH": str(code), "PYTHONNOUSERSITE": "1", "PYTHONUNBUFFERED": "1",
            "IRAOD_RUNTIME_READY": "1", "CONDA_PREFIX": prefix,
            "LD_LIBRARY_PATH": prefix + "/lib:" + os.environ.get("LD_LIBRARY_PATH", ""),
-           "RSAR_ROOT": "/mnt/shared/zechuan/iraod_data/RSAR"}
+           "RSAR_ROOT": host.map_path("/mnt/shared/zechuan/iraod_data/RSAR")}
     command = [
         python, str(code / "test.py"), cell["config"], cell["checkpoint"],
         "--eval", "mAP", "--out", str(out / "predictions.pkl"), "--work-dir", str(out),
         "--training-code-sha", cell["training_code_sha"], "--cfg-options",
         "data.test.ann_file=" + cell["ann_file"], "data.test.img_prefix=" + cell["img_prefix"],
     ]
+    command = host.native_command(command, code / "test.py")
     write_json(out / "execution.json", {**cell, "command": command,
                                       "evaluation_code_sha": runtime["evaluation_code_sha"]})
     with (out / "eval.log").open("w") as log:
@@ -372,7 +376,7 @@ def evaluate_binding(cell, runtime, gpu):
     (out / "class_ap.txt").write_text(table.group(1) + "\n")
     class_table(out / "class_ap.txt", dataset)
     order = read_json(out / "predictions.pkl.image_ids.json")
-    if (order["checkpoint"] != cell["checkpoint"]
+    if (not host.same_path(order["checkpoint"], cell["checkpoint"])
             or order["evaluation_code_sha"] != runtime["evaluation_code_sha"]
             or order["n_images"] != EXPECTED_IMAGES[dataset]):
         raise ValueError("Native checkpoint/code/full-TEST identity mismatch")

@@ -6,6 +6,26 @@
   "deployed_code": "integration_code_752a139",
   "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
+  "selected_target_host_binding": {
+    "status": "implemented_not_deployed_or_launched_by_code_owner",
+    "hostname": "73F3-5xA6000-221",
+    "endpoint": "zechuan@1.14.177.180:20138",
+    "root": "/home/zechuan/iraod_artifacts",
+    "root_storage_alias": "/mnt/HDD_14TB/zechuan/iraod_artifacts",
+    "python": "/home/zechuan/miniforge3/envs/iraod/bin/python",
+    "allowed_gpus": [0, 1, 2, 3, 4],
+    "F_pair_ports": {"0,1": 29804, "2,3": 29806},
+    "shared_gpu_locks": "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks",
+    "copied_queue_unchanged": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139",
+    "interface": "experiments/comparison/HOST_BINDING.md",
+    "scientific_configs_batch_world_source_budget_changed": false,
+    "old_host_4_to_7_binding_preserved": true,
+    "metadata_and_frozen_snapshots_rewritten": false,
+    "DIOR_LoRA": "Copied CSV patch paths map in memory; env/code/weights/patches suffice before detector staging; GPU owner owns deployment and outer locks",
+    "detector_dependencies": "Supervisor stages frozen0f98/331d and a39/36/84 snapshots, source queues/base plans, datasets and source weights",
+    "memory_risk": "Prior RSAR1x32 allocated-memory logs54601-54691MiB exceed target49140MiB nominal; actual owner-run smoke decides, no batch reduction or numerical workaround",
+    "five_NaN_runs": "Read-only diagnosis preserved; no automatic retraining or altered zeros"
+  },
   "scopes": {
     "Student180": {
       "status": "actual_quantitative_collected",

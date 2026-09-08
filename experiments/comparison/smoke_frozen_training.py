@@ -117,7 +117,7 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     devices = tuple(map(int, gpus.split(",")))
     if ((method == "B_REG" and (len(devices) != 1 or devices[0] not in ALLOWED_GPUS))
             or (method in F_DELETIONS and devices not in PAIR_PORTS)):
-        raise ValueError("B_REG requires one GPU4-7; F requires pair4,5/29804 or6,7/29806")
+        raise ValueError(f"B_REG requires one of {ALLOWED_GPUS}; F requires {PAIR_PORTS}")
     port = PAIR_PORTS.get(devices)
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
     model_cell = Cell(dataset, domain, seed, method)
@@ -126,7 +126,8 @@ def run(queue, dataset, domain, seed, method, gpus, out_dir, updates=2):
     world_size = cell["world_size"] if "world_size" in cell else model_cell.width
     if cell["training_code_sha"] != TRAINING_CODE_SHA or world_size != len(devices):
         raise ValueError("Smoke requires the original0f98 binding and unchanged topology")
-    out = Path(out_dir).resolve()
+    from experiments.comparison.host_binding import map_path
+    out = Path(map_path(out_dir)).resolve()
     formal = Path(cell["method_dir"]).resolve()
     if out == formal or formal in out.parents or out in formal.parents:
         raise ValueError("NON_RESULT outputs must be separate from the formal cell")
