@@ -1,5 +1,14 @@
 # Explicit ports: full TEST ROI, fixed views and grouped joint t-SNE
 
+Actual prepared root:
+`ROOT/qualitative_manifests_b87f34e`, with exporter
+`ROOT/integration_code_b87f34e`, where ROOT is the existing
+`/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908`.
+The360 Student/EMA native dependencies match the explicit release bindings.
+All360 ROI input records were pending when prepared; no extraction ran.
+Preserved48 B-F embeddings below means the existing approved job/plan scope,
+not an assertion that48 completed files have been observed.
+
 This is preparation/collection code, **not execution evidence**. No GPU work,
 training change, source re-export, numerical detector change, scheduler, or
 queue regeneration is introduced. DRU, the three ablations and oracle methods

@@ -59,6 +59,20 @@ visualization/embedding/collection use separate explicit environments.
 Formal GPU inputs and these generated artifacts are still pending;
 implementation and metadata do not close the parent gate.
 
+The isolated release is deployed at `integration_code_b87f34e` under the
+extension root. Actual `release_manifests_b87f34e` contains180 detector training
+cells and360 evaluation cells (180 EMA +180 five-port Students), restricted to
+GPUs4,5,6 and Fpair4,5/29804. No IRG/LPLD/SFUT training is requeued.
+All original per-cell scientific/path bindings were preserved. At preparation,
+B_REG36/F72 passed input admission; AASFOD36/SFYOLO36 were explicitly waiting
+for TSD/TAM. No producer or GPU job was started.
+
+`qualitative_manifests_b87f34e` contains the three seed-specific plans,360
+ROI/visualization jobs,72 new grouped embedding jobs and three streaming
+collection commands. Its Student native paths exactly match the new finite
+Student bindings. All360 new ROI input records were pending at preparation;
+this is not a new evaluation or feature-result claim.
+
 CPU collection from the existing compatibility queue (new output directories):
 
 ```bash

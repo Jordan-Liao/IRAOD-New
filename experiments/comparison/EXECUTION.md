@@ -1,5 +1,12 @@
 # Next isolated finite detector revision
 
+Deployed code: `ROOT/integration_code_b87f34e`.
+Prepared combined queue: `ROOT/release_manifests_b87f34e`,180 train/360 eval
+(180 EMA +180 five-port Student), zero Student training. Detector-only and
+Student-only metadata are `mixed_detector_manifests_b87f34e` and
+`port_student_manifests_b87f34e`. These are actual prepared bindings, not GPU
+execution or result evidence.
+
 Code-only delivery: do not modify the live a39 producer, its snapshots, any
 prepared source queue, or the frozen0f98 training checkout. Parent owns
 integration/deployment and producer-only cutover; preserve existing GPU workers.
