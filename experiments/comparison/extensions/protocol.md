@@ -97,14 +97,13 @@ Additional ablations are not released until concrete existing controls and a
 small claim-driven matrix are identified. The completed B/D/E/F component
 comparison is reused, not rerun. No open-ended parameter sweep is authorized.
 
-## Superseded candidate deletions (never released for training)
+## Explicitly approved F deletion controls
 
-The two controls below were identified as possible F deletions, but were never
-released or run. The original full plan contains the existing component
-comparisons and the `ablation_table.tex` deliverable, not an explicit requirement
-for these additional deletions or a parameter grid. Under the coordinator's
-latest minimal-ablation decision they are removed from the active matrix.
-Do not launch F_text_only or F_veto_only.
+The two controls below were initially candidates and were held, not run.
+The coordinator subsequently explicitly approved exactly these two additions,
+each36 training/EMA cells, alongside the separate B_REG36 control. This is
+the authority for their active matrix, not a claim that the original plan
+contained an unspecified grid. No other F values or deletion variants are added.
 
 | ID | Single change from F | Mechanism question |
 | --- | --- | --- |
@@ -121,7 +120,7 @@ expressions the identity on detector scores, while the hard-veto condition,
 drop score0, protection threshold0.9, semantic thresholds0.7/0.1 and VLST remain
 unchanged. This is not CGA-off (which is already E).
 
-Superseded proposed scope: each variant on all 12 clean/corrupted domains, seeds42/43/44:
+Approved scope: each variant on all 12 clean/corrupted domains, seeds42/43/44:
 **36 training +36 final-EMA evaluations per variant;72+72 total**. Reuse A and F
 references, fixed dataset sources, one image-only VAL epoch, DDP2x16/global32,
 LR0.02 and final266/185 selection. Do not launch until the concrete resolved
@@ -295,7 +294,7 @@ strategy, not an implicit addition to this implementation.
 ## Formal finite metadata for smoke-accepted ports
 
 The execution adapter `experiments.comparison.extension_training` supports
-only explicitly selected IRG/LPLD/SFUT methods and the distinct B_REG control. Each selected method binds
+only explicitly selected IRG/LPLD/SFUT methods, B_REG, F_text_only and F_veto_only. Each selected method binds
 36 full training cells and36 final-EMA native evaluations across all12 domains
 and seeds42/43/44. Source A is reused, never enqueued for retraining.
 Preparation creates no model outputs and is not release/completion evidence.
@@ -320,8 +319,9 @@ Both metadata and output roots must be new and separate. The generated
 `runtime.json`, `cells.json`, `train.list`, `eval.list`, `paths.py` and wrappers
 bind fixed source identities, actual target VAL directories, current training
 code/config, the unchanged331d evaluation checkout and exact266/185 finals.
-Single-GPU global32/LR0.02 execution removes ambient VLM variables and explicitly
-keeps regression enabled. Failed processes or missing final Student/EMA files
+Single-GPU IRG/LPLD/SF-UT/B_REG execution keeps global32/LR0.02 and regression
+enabled. The F deletions instead retain frozen F's DDP2x16, regression-off
+objective, original model environment and iteration-start EMA. Failed processes or missing final Student/EMA files
 receive nonzero terminal status; iter2 smoke files cannot count as formal finals.
 The evaluator reuses the common native binding helper and records the actual
 new training producer, not the old core producer.
@@ -352,8 +352,8 @@ SF-UT performs its paper-defined after-step0.9996 updates.
 The distinct36-cell SF-UT arm is explicitly in scope. Its comparison with
 regression-off B is NOT single-factor because EMA retention/timing also differ.
 The coordinator therefore authorized a distinct36-cell B_REG control, not a
-duplicate SF-UT alias. F_text_only/F_veto_only are not in the active matrix;
-AdaBN+Fixed SF-FixMatch is not automatically requested.
+duplicate SF-UT alias. The later explicit approval also adds F_text_only and
+F_veto_only, each36 cells. AdaBN+Fixed SF-FixMatch is not automatically requested.
 
 ## Authorized minimal extra ablation: B_REG
 
@@ -382,7 +382,38 @@ formal preparation interface above. This binds exactly36 training and36 EMA
 evaluation cells (all12 domains, seeds42/43/44), distinct from the already
 prepared108 IRG/LPLD/SF-UT cells. The existing B/D/E/F factorial is reused.
 No other explicit additional ablation control was found in the original plan;
-no wider grid or extra F tuning is released.
+the later coordinator approval adds only the two named F deletions, not a wider
+grid or other F tuning.
+
+## Executable F deletion bindings
+
+`f_deletion.build_f_deletion_spec` reads the original dataset-specific F config
+from the unchanged0f98 checkout, reconstructs the exact core DDP model environment,
+and verifies original alpha0.5/blend0.7. It emits a fully resolved executable
+config, not an inheritance overlay whose parent could reset the environment.
+The config restores its effective model environment after loading; a poisoned
+outer environment is used in the CPU round-trip check.
+
+The exact allowed differences are:
+
+| Control | Resolved config diff | Effective environment diff |
+| --- | --- | --- |
+| F_text_only | `model.cfg.vlst_text_visual_alpha:0.5->1.0` | none |
+| F_veto_only | none | `CGA_BLEND_DET_WEIGHT:'0.7'->'1.0'` |
+
+All other F loss weights, thresholds, source, augmentations, hooks, and base VLM
+bindings remain unchanged. Actual source-CGA scalar construction is covered by
+CPU tests with only the VLM constructor mocked; native scientific smoke remains
+required before formal execution.
+
+Use the formal preparation CLI with explicit `--method F_text_only --method
+F_veto_only` and `--sarclip-base` set to the verified existing base SARCLIP.
+Fresh metadata contains72 train/72 EMA bindings and
+`f_deletion_config_diff.json`. The six-argument `run_train_2gpu.sh` matches the
+existing finite API and supports only4,5/port29804 or6,7/port29806. It executes
+frozen0f98 via torch.distributed.launch, samples16/rank, global32, LR0.02,
+find_unused_parameters=True and regression-off. It does not overwrite core F,
+claim a smoke as formal, or launch/control GPUs during preparation.
 
 Actual B_REG metadata and36 executable-overlay audits are available at
 `/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_manifests_0e5f8f7/`.

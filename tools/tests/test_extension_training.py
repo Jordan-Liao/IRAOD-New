@@ -198,7 +198,7 @@ class ExtensionTrainingTest(unittest.TestCase):
         self.assertEqual(evaluate.call_args.args[0]["training_code_sha"], B_CODE_SHA)
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
                 patch.object(training, "code_sha", return_value="changed-frozen-code"), \
-                self.assertRaisesRegex(ValueError, "frozen B training code changed"):
+                self.assertRaisesRegex(ValueError, "training code changed"):
             self.train(domain="clean", seed=42, method="B_REG")
 
     def test_prepare_exact_selected_counts_paths_and_no_artifact_writes(self):

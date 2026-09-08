@@ -15,7 +15,9 @@ from experiments.comparison.result_completion import DOMAINS, read_json, write_j
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT_METHODS = ("IRG", "LPLD", "SFUT")
-METHODS = (*PORT_METHODS, "B_REG")
+F_DELETIONS = ("F_text_only", "F_veto_only")
+METHODS = (*PORT_METHODS, "B_REG", *F_DELETIONS)
+PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 SEEDS = (42, 43, 44)
 TARGET_VAL_SIZE = {"RSAR": 8467, "DIOR": 5863}
 EVALUATION_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
@@ -49,10 +51,12 @@ def target_val(dataset, domain, test_prefix):
 
 
 def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
-            eval_code, python, methods):
+            eval_code, python, methods, sarclip_base=None):
     """Write only a NEW metadata queue; never create the formal output root."""
     if not methods or any(method not in METHODS for method in methods):
-        raise ValueError("Explicitly select IRG, LPLD, SFUT and/or B_REG")
+        raise ValueError("Explicitly select a supported port or approved ablation")
+    if any(method in F_DELETIONS for method in methods) and not sarclip_base:
+        raise ValueError("F deletions require the explicit frozen SARCLIP base")
     methods = tuple(dict.fromkeys(methods))
     base, report = read_json(base_plan), read_json(core_report)
     validate_plan(base)
@@ -88,7 +92,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
     expected = {(ds, domain) for ds, domains in DOMAINS.items() for domain in domains}
     if set(sources) != expected:
         raise ValueError("Completed core A must bind exactly the existing12 domains")
-    cells, overlays, regression_audits = {}, {}, {}
+    cells, overlays, regression_audits, f_audits = {}, {}, {}, {}
     for dataset, domains in DOMAINS.items():
         for domain in domains:
             source, reference = sources[dataset, domain], references[dataset, domain]
@@ -103,10 +107,12 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                 for method in methods:
                     root = artifacts / dataset.lower() / domain / f"seed_{seed}"
                     method_dir = root / "methods" / method
-                    work = method_dir / "work"
+                    world_size = 2 if method in F_DELETIONS else 1
+                    work = method_dir / "ddp2/work" if world_size == 2 else method_dir / "work"
                     iteration = FINAL_ITERATION[dataset]
                     key = cell_key(dataset, domain, seed, method)
                     cell_code, cell_sha = str(ROOT), training_sha
+                    model_environment, wrapper_environment = {}, {}
                     if method == "B_REG":
                         from experiments.comparison.b_regression import build_b_regression_spec
 
@@ -129,6 +135,28 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                             **{k: v for k, v in spec.items() if k != "overlay_text"},
                             "common_launch_overrides": overrides,
                         }
+                    elif method in F_DELETIONS:
+                        from experiments.comparison.f_deletion import build_f_deletion_spec
+
+                        overrides = {
+                            "data.samples_per_gpu": 16, "optimizer.lr": 0.02,
+                            "find_unused_parameters": True,
+                            "model.cfg.strict_source_free": True, "model.cfg.weight_l": 0,
+                            "model.cfg.weight_u": 1, "data.train.type": "StrictSourceFreeDOTADataset",
+                            "data.train.img_prefix": val,
+                            "data.train.unlabeled_epoch_size": TARGET_VAL_SIZE[dataset],
+                            "corrupt": domain, "load_from": checkpoint, "model.ema_ckpt": checkpoint,
+                            "seed": seed, "work_dir": str(work),
+                            "checkpoint_config.max_keep_ckpts": 2, "checkpoint_config.save_last": True,
+                        }
+                        spec = build_f_deletion_spec(paths, dataset, method, sarclip_base, overrides)
+                        name = f"{method}_{dataset}_{domain}_{seed}.py"
+                        overlays[name] = spec["config_text"]
+                        config = str(out / name)
+                        cell_code, cell_sha = spec["training_code"], spec["training_code_sha"]
+                        model_environment = spec["effective_model_environment"]
+                        wrapper_environment = spec["wrapper_environment"]
+                        f_audits[key] = {k: v for k, v in spec.items() if k != "config_text"}
                     else:
                         config = str(require_file(
                             ROOT / "configs/unbiased_teacher/sfod/extensions"
@@ -141,11 +169,15 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                         "ann_file": reference["ann_file"], "img_prefix": reference["img_prefix"],
                         "target_val": val, "unlabeled_epoch_size": TARGET_VAL_SIZE[dataset],
                         "training_code": cell_code, "training_code_sha": cell_sha,
+                        "world_size": world_size, "samples_per_gpu": 32 // world_size,
+                        "use_bbox_reg": method not in F_DELETIONS,
+                        "model_environment": model_environment,
+                        "wrapper_environment": wrapper_environment,
                         "root": str(root), "method_dir": str(method_dir), "work_dir": str(work),
                         "student_checkpoint": str(work / f"iter_{iteration}.pth"),
                         "checkpoint": str(work / f"iter_{iteration}_ema.pth"),
-                        "eval_dir": str(method_dir / f"eval_full_{domain}_ids_v1"),
-                        "terminal_status": str(method_dir / "terminal_status"),
+                        "eval_dir": str(work.parent / f"eval_full_{domain}_ids_v1"),
+                        "terminal_status": str(work.parent / "terminal_status"),
                         "status": "prepared_not_execution_evidence",
                     }
     runtime = {
@@ -163,6 +195,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         (out / name).write_text(text)
     if regression_audits:
         write_json(out / "b_regression_config_diff.json", regression_audits)
+    if f_audits:
+        write_json(out / "f_deletion_config_diff.json", f_audits)
     write_json(out / "runtime.json", runtime)
     write_json(out / "cells.json", cells)
     rows = "".join(f"{c['dataset']} {c['domain']} {c['seed']} {c['method']}\n"
@@ -196,6 +230,14 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
             f" --queue {shlex.quote(str(out))}"
             ' --gpu "$1" --dataset "$2" --domain "$3" --seed "$4" --method "$5"\n')
         script.chmod(0o755)
+    ddp = out / "run_train_2gpu.sh"
+    ddp.write_text(
+        "#!/usr/bin/env bash\nset -euo pipefail\nexport PYTHONNOUSERSITE=1\n"
+        f"export PYTHONPATH={shlex.quote(str(ROOT))}\n"
+        f"exec {shlex.quote(python)} -m experiments.comparison.extension_training train-ddp"
+        f" --queue {shlex.quote(str(out))}"
+        ' --gpu-pair "$1" --port "$2" --dataset "$3" --domain "$4" --seed "$5" --method "$6"\n')
+    ddp.chmod(0o755)
     (out / "with_gpu_lock.sh").symlink_to(lock)
     return out
 
@@ -208,9 +250,22 @@ def load_cell(queue, dataset, domain, seed, method):
 def train(queue, gpu, dataset, domain, seed, method):
     if gpu not in (4, 5, 6, 7):
         raise ValueError("Training requires an approved GPU4-7")
+    return _train(queue, (gpu,), None, dataset, domain, seed, method)
+
+
+def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
+    gpus = tuple(int(gpu) for gpu in gpu_pair.split(","))
+    if PAIR_PORTS.get(gpus) != port:
+        raise ValueError("DDP requires approved pair4,5/29804 or6,7/29806")
+    return _train(queue, gpus, port, dataset, domain, seed, method)
+
+
+def _train(queue, gpus, port, dataset, domain, seed, method):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Invoke via the finite worker holding the shared GPU lock")
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
+    if len(gpus) != cell.get("world_size", 1):
+        raise ValueError("GPU topology differs from the frozen cell binding")
     work = Path(cell["work_dir"])
     if work.exists():
         raise FileExistsError(f"Refusing existing work directory: {work}")
@@ -218,24 +273,31 @@ def train(queue, gpu, dataset, domain, seed, method):
     python = runtime["python"]
     code = Path(cell.get("training_code", runtime["training_code"]))
     producer_sha = code_sha(code)
-    if method == "B_REG" and producer_sha != cell["training_code_sha"]:
-        raise ValueError("B_REG frozen B training code changed after preparation")
-    command = [
-        python, str(code / "train.py"), cell["config"], "--work-dir", str(work),
-        "--gpus", "1", "--seed", str(seed), "--deterministic", "--no-validate",
-        "--cfg-options", "data.samples_per_gpu=32", "optimizer.lr=0.02",
+    if method in ("B_REG", *F_DELETIONS) and producer_sha != cell["training_code_sha"]:
+        raise ValueError("Frozen baseline training code changed after preparation")
+    command = [python]
+    if len(gpus) == 2:
+        command += ["-m", "torch.distributed.launch", "--nproc_per_node=2", f"--master_port={port}"]
+    command += [
+        str(code / "train.py"), cell["config"], "--work-dir", str(work),
+        *(["--gpus", "1"] if len(gpus) == 1 else ["--launcher", "pytorch"]),
+        "--seed", str(seed), "--deterministic", "--no-validate",
+        "--cfg-options", f"data.samples_per_gpu={32 // len(gpus)}", "optimizer.lr=0.02",
         "model.cfg.strict_source_free=True", "model.cfg.weight_l=0", "model.cfg.weight_u=1",
-        "model.cfg.use_bbox_reg=True", "data.train.type=StrictSourceFreeDOTADataset",
+        f"model.cfg.use_bbox_reg={cell.get('use_bbox_reg', True)}",
+        "data.train.type=StrictSourceFreeDOTADataset",
         "data.train.img_prefix=" + cell["target_val"],
         "data.train.unlabeled_epoch_size=" + str(cell["unlabeled_epoch_size"]),
         "corrupt=" + domain, "load_from=" + source, "model.ema_ckpt=" + source,
         "checkpoint_config.max_keep_ckpts=2", "checkpoint_config.save_last=True",
     ]
+    if len(gpus) == 2:
+        command.append("find_unused_parameters=True")
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("CGA_", "SARCLIP_", "VLST_"))}
     prefix = str(Path(python).parent.parent)
     env.update({
-        "PYTHONPATH": str(code), "CUDA_VISIBLE_DEVICES": str(gpu),
+        "PYTHONPATH": str(code), "CUDA_VISIBLE_DEVICES": ",".join(map(str, gpus)),
         "CUDA_DEVICE_ORDER": "PCI_BUS_ID", "PYTHONNOUSERSITE": "1",
         "PYTHONUNBUFFERED": "1", "IRAOD_RUNTIME_READY": "1", "CONDA_PREFIX": prefix,
         "LD_LIBRARY_PATH": prefix + "/lib:" + env.get("LD_LIBRARY_PATH", ""),
@@ -243,11 +305,16 @@ def train(queue, gpu, dataset, domain, seed, method):
     if method == "B_REG":
         env.update(CGA_SCORER="none", CGA_BACKEND="none", CGA_FILTER_MODE="none",
                    PYTHONDONTWRITEBYTECODE="1")
+    if method in F_DELETIONS:
+        env.update(cell["model_environment"])
+        env.update(cell["wrapper_environment"])
+        env.update(MASTER_PORT=str(port), PYTHONDONTWRITEBYTECODE="1")
     work.mkdir(parents=True, exist_ok=False)
     write_json(Path(cell["method_dir"]) / "execution.json", {
         **cell, "training_code": str(code), "training_code_sha": producer_sha,
         "orchestration_code": str(ROOT), "orchestration_code_sha": code_sha(ROOT),
-        "command": command, "gpu": gpu, "status": "invoked_not_completion_evidence",
+        "command": command, "gpu": gpus[0] if len(gpus) == 1 else None,
+        "gpus": list(gpus), "status": "invoked_not_completion_evidence",
     })
     terminal = Path(cell["terminal_status"])
     rc = 1
@@ -283,16 +350,22 @@ def main():
                  "eval-code", "python"):
         prep.add_argument("--" + name, required=True)
     prep.add_argument("--method", dest="methods", action="append", choices=METHODS, required=True)
-    for action in ("train", "evaluate"):
+    prep.add_argument("--sarclip-base", help="Required frozen base SARCLIP for F deletions")
+    for action in ("train", "train-ddp", "evaluate"):
         entry = commands.add_parser(action)
         for name in ("queue", "dataset", "domain"):
             entry.add_argument("--" + name, required=True)
         entry.add_argument("--method", choices=METHODS, required=True)
-        entry.add_argument("--gpu", type=int, required=True)
+        if action == "train-ddp":
+            entry.add_argument("--gpu-pair", required=True)
+            entry.add_argument("--port", required=True, type=int)
+        else:
+            entry.add_argument("--gpu", type=int, required=True)
         entry.add_argument("--seed", type=int, choices=SEEDS, required=True)
     args = vars(parser.parse_args())
     command = args.pop("command")
-    result = {"prepare": prepare, "train": train, "evaluate": evaluate}[command](**args)
+    result = {"prepare": prepare, "train": train, "train-ddp": train_ddp,
+              "evaluate": evaluate}[command](**args)
     if result is not None:
         print(result)
 

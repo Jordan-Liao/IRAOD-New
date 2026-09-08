@@ -27,7 +27,7 @@ from experiments.comparison.result_completion import DOMAINS
 APPROVED = (4, 5, 6, 7)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
-FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "B_REG")
+FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "B_REG", "F_text_only", "F_veto_only")
 SCRIPT = Path(__file__).resolve()
 LIBC = ctypes.CDLL(None, use_errno=True)
 LIBC.syscall.restype = ctypes.c_long
@@ -69,7 +69,7 @@ class Cell:
 
     @property
     def width(self):
-        return 2 if self.method in ("E", "F") else 1
+        return 2 if self.method in ("E", "F", "F_text_only", "F_veto_only") else 1
 
 
 def load_cells(train_files, eval_files):
