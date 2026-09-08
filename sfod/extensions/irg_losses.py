@@ -43,14 +43,15 @@ class IRGGraph(nn.Module):
 def contrastive_mask(raw_affinities: Tensor) -> Tensor:
     """Detached row-minmax S > .5 positives, with the diagonal always positive.
 
-    Use raw signed S, not squared/normalized adjacency. No epsilon is specified
-    for minmax: a constant row yields no threshold positives (NaN > .5 is false)
-    before the diagonal is set.
+    Use raw signed S, not squared/normalized adjacency. Constant rows explicitly
+    yield no threshold positives before the diagonal is set, without NaNs.
     """
     scores = raw_affinities.detach()
     row_min = scores.amin(dim=-1, keepdim=True)
     row_max = scores.amax(dim=-1, keepdim=True)
-    mask = (scores - row_min) / (row_max - row_min) > 0.5
+    row_range = row_max - row_min
+    denominator = row_range.masked_fill(row_range == 0, 1)
+    mask = (scores - row_min) / denominator > 0.5
     mask.fill_diagonal_(True)
     return mask
 

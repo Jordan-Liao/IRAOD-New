@@ -89,6 +89,17 @@ class IRGLossesTest(unittest.TestCase):
         self.assertFalse(torch.equal(mask, irg.contrastive_mask(
             F.normalize(raw.square(), p=1, dim=-1))))
 
+    def test_constant_rows_and_single_proposal_are_finite_diagonal_only(self):
+        mask = irg.contrastive_mask(torch.ones(3, 3))
+        torch.testing.assert_close(mask, torch.eye(3, dtype=torch.bool))
+        losses = irg.IRGLosses(2)
+        features = torch.ones(1, 2, requires_grad=True)
+        value = losses.contrastive_loss(features, torch.ones(1, 1))
+        self.assertTrue(torch.isfinite(value))
+        self.assertEqual(value.item(), 0)
+        value.backward()
+        torch.testing.assert_close(features.grad, torch.zeros_like(features))
+
     def test_contrastive_numerical_all_columns_diagonal_and_gradients(self):
         losses = irg.IRGLosses(2).double()
         with torch.no_grad():

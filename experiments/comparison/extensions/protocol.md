@@ -328,3 +328,25 @@ extension remains restricted to the original B-F cells. No automatic model retry
 source retraining, new scheduler, or Student producer cutover is performed by
 preparation. The sole live Student submitter and its GPU workers must remain
 untouched until the current owner explicitly coordinates formal control.
+
+## Confirmed common freeze and scope decisions
+
+`common_base_evidence.json` records literal values read from the actual saved
+RSAR/DIOR clean seed42 B training configs. Both explicitly contain confidence0.7,
+batch32, LR0.02, one epoch, weight_l0/weight_u1 and regression-off, together
+with the unchanged dataset-specific source paths. This is observed evidence,
+not an assumed0.7 default; the audit is limited to the two named base records.
+All extension configs retain the unchanged strict B augmentation pipelines.
+
+The coordinator permits method-inherent training-only IRG modules, both
+pseudo regression branches for IRG/LPLD/SF-UT, and their proper EMA cadences.
+Source weights/detector are not replaced. IRG/LPLD perform one actual
+epoch-final update after the last optimizer step and before the checkpoint;
+SF-UT performs its paper-defined after-step0.9996 updates.
+
+The distinct36-cell SF-UT arm is explicitly in scope. Its comparison with
+regression-off B is the predefined minimal regression contrast; no duplicate
+`B_regression_on` run is added. Because EMA retention/timing also differ,
+the report must not attribute all B-versus-SF-UT differences to regression
+alone. The other identified deletions remain exactly F_text_only and
+F_veto_only; AdaBN+Fixed SF-FixMatch is not automatically requested.
