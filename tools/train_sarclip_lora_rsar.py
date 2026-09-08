@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from iraod_runtime import ensure_iraod_runtime
-from experiments.comparison.host_binding import PREFIXES, TARGET_HOST, is_target_host, map_path
+from tools.oracle_runtime_paths import PREFIXES, TARGET_HOST, is_target_host, map_path
 
 
 def configure_runtime():

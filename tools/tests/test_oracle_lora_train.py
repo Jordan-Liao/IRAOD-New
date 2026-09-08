@@ -5,7 +5,10 @@ import importlib
 import json
 import random
 import subprocess
+import shutil
+import sys
 import tempfile
+import types
 import unittest
 from collections import OrderedDict
 from pathlib import Path
@@ -17,7 +20,7 @@ from PIL import Image
 from torch import nn
 
 from experiments.comparison.labels import CLASSES
-from experiments.comparison import host_binding
+from tools import oracle_runtime_paths as host_binding
 from tools import train_sarclip_lora_rsar as trainer
 
 
@@ -126,6 +129,44 @@ class OracleLoraTrainTests(unittest.TestCase):
         with mock.patch.object(host_binding.socket, "gethostname", return_value="7T83-8xA100-67"):
             with self.assertRaisesRegex(FileNotFoundError, "patch file"):
                 trainer.load_metadata(self.metadata, "aabb", "DIOR")
+
+    def test_reported_real_dior_crop_path_legacy_failure_and_standalone_fix(self):
+        prefix = "/mnt/shared/zechuan/iraod_artifacts"
+        relative = ("oracle_dior_patches_36c2053/DIOR/aabb/golffield/"
+                    "brightness_train_00001_0_e0.4.png")
+        original_path = prefix + "/" + relative
+        mapped = self.root / relative
+        mapped.parent.mkdir(parents=True)
+        shutil.copyfile(self.patch, mapped)
+        self.write_rows([self.row("DIOR", CLASSES["DIOR"].index("golffield"),
+                                  patch_path=original_path)])
+        before = self.metadata.read_bytes()
+        # Replay the actual deployed adb6ba4 loader, which has no prefix binding.
+        source = subprocess.check_output(
+            ["git", "show", "adb6ba4:tools/train_sarclip_lora_rsar.py"],
+            cwd=trainer.REPO_ROOT, text=True)
+        legacy = types.ModuleType("legacy_adb6ba4_oracle")
+        legacy.__file__ = trainer.__file__
+        exec(compile(source, "adb6ba4:tools/train_sarclip_lora_rsar.py", "exec"), legacy.__dict__)
+        with self.assertRaisesRegex(FileNotFoundError, "brightness_train_00001_0_e0.4.png"):
+            legacy.load_metadata(self.metadata, "aabb", "DIOR")
+        with mock.patch.object(host_binding.socket, "gethostname",
+                               return_value=host_binding.TARGET_HOST), \
+                mock.patch.object(host_binding, "PREFIXES", ((prefix, str(self.root)),)):
+            rows = trainer.load_metadata(self.metadata, "aabb", "DIOR")
+        self.assertEqual(rows[0]["patch_path"], str(mapped))
+        self.assertEqual(Path(rows[0]["patch_path"]).relative_to(self.root).as_posix(), relative)
+        self.assertEqual(mapped.read_bytes(), self.patch.read_bytes())
+        self.assertEqual(self.metadata.read_bytes(), before)
+
+    def test_standalone_path_module_needs_no_detector_host_binding(self):
+        result = subprocess.run([
+            sys.executable, "-S", "-c",
+            "from tools import oracle_runtime_paths; import sys; "
+            "assert 'experiments.comparison.host_binding' not in sys.modules; "
+            "assert not {'torch','mmcv','mmdet','mmrotate'} & sys.modules.keys()"],
+            cwd=trainer.REPO_ROOT, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_target_cli_paths_runtime_and_code_cache_preserve_recipe(self):
         with mock.patch.object(host_binding.socket, "gethostname",
