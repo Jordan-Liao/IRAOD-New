@@ -24,7 +24,8 @@ Same freeze: seed42, final EMA, weight_l=0, use_bbox_reg=False, no target LoRA.
 ## Ports
 IRG/LPLD have independent OBB implementations awaiting scientific smoke and
 formal results; see `extensions/protocol.md`. SF-UT is NOT equivalent to B:
-it retains RPN and ROI pseudo regression, which B disables. A distinct
-paper-defined SF-UT arm is required; no B result may fill that row.
+it retains RPN and ROI pseudo regression, which B disables. The distinct
+paper-defined SFUTOBB implementation is available for scientific smoke;
+no B result may fill that row, and formal SF-UT results remain pending.
 Simple-SFOD's AdaBN+Fixed SF-FixMatch is a separate strategy, not another
 name for B. Frozen historical reports are preserved, not rewritten.

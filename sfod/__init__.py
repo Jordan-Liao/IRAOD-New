@@ -13,6 +13,7 @@ from .rotated_unbiased_teacher import UnbiasedTeacher
 from .unbiased_teacher_vlst import UnbiasedTeacherVLST
 from .extensions.lpld import LPLDOBB
 from .extensions.irg import IRGOBB
+from .extensions.sfut import SFUTOBB
 
 from .oriented_rcnn_cga import OrientedRCNN_CGA
 from .semantic_weighted_roi_head import SemanticWeightedOrientedStandardRoIHead

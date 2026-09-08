@@ -1,6 +1,6 @@
 {
   "implementation": "Independent algorithm reimplementation; no novel upstream source vendored",
-  "license_evidence": "IRG and LPLD lack a tracked LICENSE/COPYING; GitHub license is null and PKG-INFO reports UNKNOWN. No source-copy grant established for those trees; other repositories are reviewed separately.",
+  "license_evidence": "IRG and LPLD lack a tracked LICENSE/COPYING; GitHub license is null and PKG-INFO reports UNKNOWN. Simple-SFOD also has no tracked LICENSE/COPYING. No raw source-copy grant is established; implementations are independent and attributed.",
   "common_protocol": {
     "data": "Existing image-only target VAL loader; never annotation-dependent empty-image filtering or target GT histograms",
     "sources": "Unchanged dataset-specific OrthoNet-50/FPN Oriented R-CNN sources",
@@ -12,7 +12,7 @@
     "features": "actual 1024-D pre-fc_cls vectors, original indexed teacher proposals in matched shared geometry",
     "batch_reduction": "mean of per-image normalized losses, including zero-loss images; no cross-image graph",
     "selection": "final teacher; method-specific update cadence declared below",
-    "not_claimed": "Published ten-epoch, batch1, LR0.001 benchmark reproduction"
+    "not_claimed": "Published-budget or bit-identical author benchmark reproduction; method-specific differences are recorded below"
   },
   "IRG": {
     "upstream": "https://github.com/Vibashan/irg-sfda",
@@ -34,7 +34,7 @@
     "explicit_port_differences": [
       "OBB/FPN pre-classifier D1024 instead of author ResNet ROI D2048",
       "Shared HPL>=0.7 instead of official HPL>0.9",
-      "Shared one-epoch/batch32/LR0.02 budget and per-image graph batching"
+      "Shared one-epoch/batch32/LR0.02 versus author ten epochs/batch1/LR0.001, with per-image graph batching"
     ],
     "status": "implemented_pending_remote_scientific_smoke_and_formal_runs"
   },
@@ -57,7 +57,7 @@
     "explicit_port_differences": [
       "Rotated pooling/decoding/IoU and source pre-classifier D1024",
       "Common HPL>=0.7 rather than author strict >0.7",
-      "Shared one-epoch/batch32/LR0.02 budget and per-image mining/averaging"
+      "Shared one-epoch/batch32/LR0.02 versus author ten epochs/batch1/LR0.001, with per-image mining/averaging"
     ],
     "status": "implemented_pending_remote_scientific_smoke_and_formal_runs"
   },
@@ -68,10 +68,17 @@
     "active_regression": "https://github.com/EPFL-IMOS/simple-SFOD/blob/ee24594869bde0069947540275a28eebb3d4a540/daod/engine/trainers/source_free_adaptive_teacher.py#L541-L552",
     "teacher_update_code_mismatch": "https://github.com/EPFL-IMOS/simple-SFOD/blob/ee24594869bde0069947540275a28eebb3d4a540/daod/engine/trainers/source_free_adaptive_teacher.py#L581",
     "B_equivalence_verdict": "distinct: SF-UT actively weights RPN and ROI pseudo regression, while actual B sets both to zero",
-    "canonical_choice_pending_details": "Explicit paper-defined SF-UT, not the README-selected source variant with weak-strong augmentation disabled and teacher update commented",
-    "paper_mechanisms": "Weak/strong teacher-student self-training, full pseudo detection classification/regression, per-iteration EMA retention0.9996",
+    "canonical_choice": "Explicit paper-defined SF-UT, not the README-selected source variant with weak-strong augmentation disabled and teacher update commented",
+    "paper_mechanisms": "Teacher weak-view pseudo labels, strong Student, full RPN/ROI pseudo classification/regression, actual EMA after each optimizer step with retention0.9996",
+    "rejected_single_wq_alias": "Alternate trainer generates pseudo labels from Student even though it maintains an evaluation EMA; this is not teacher-based SF-UT",
+    "single_wq_evidence": "https://github.com/EPFL-IMOS/simple-SFOD/blob/ee24594869bde0069947540275a28eebb3d4a540/daod/engine/trainers/source_free_adaptive_teacher_single.py#L385-L390",
+    "explicit_port_differences": [
+      "Shared OBB source architecture, image-only loader and common weak/strong transforms",
+      "Common HPL>=0.7 instead of original strict threshold>0.8",
+      "Shared one-epoch/global32/LR0.02 budget; no new graph, projection head or source retraining"
+    ],
     "separate_umbrella_strategy": "AdaBN plus Fixed SF-FixMatch: target-only BN statistics pass, fixed pseudo labels, no EMA teacher updates; not B or SF-UT",
     "B_results": "preserved as classification-only ST; never reused as an SF-UT result",
-    "status": "distinct_arm_required_not_implemented_or_run"
+    "status": "paper_defined_implementation_pending_remote_scientific_smoke_and_formal_runs"
   }
 }

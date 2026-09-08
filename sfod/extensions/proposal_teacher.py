@@ -43,12 +43,13 @@ def preclassifier_roi_forward(roi_head, features, proposals):
 class ProposalAlignedTeacher(UnbiasedTeacher):
     """Image-only pseudo detection plus per-image, proposal-aligned auxiliary loss.
 
-    The teacher is frozen during each epoch. Only EpochFinalTeacherHook updates
-    it, before the epoch checkpoint. Auxiliary modules belong to the Student
-    object, not its plain-detector EMA model.
+    The teacher is frozen during forward/backward. A method-specific hook updates
+    it after an optimizer step or at epoch end. Auxiliary modules belong to the
+    Student object, not its plain-detector EMA model.
     """
 
     epoch_teacher_momentum = None
+    iteration_teacher_momentum = None
 
     def __init__(self, *args, cfg, **kwargs):
         if not cfg.get('strict_source_free') or not cfg.get('use_bbox_reg'):
@@ -97,7 +98,14 @@ class ProposalAlignedTeacher(UnbiasedTeacher):
         losses = self.parse_loss({**rpn_losses, **roi_losses})
         losses = {f'{name}_unlabeled': value * self.weight_u if 'loss' in name else value
                   for name, value in losses.items()}
+        losses.update(self.auxiliary_losses(
+            teacher, teacher_features, student_features, all_proposals, pseudo_boxes,
+            img_metas_unlabeled, img_metas_unlabeled_1))
+        losses['pseudo_num'] = img_unlabeled.new_tensor(self.pseudo_num.sum() / self.image_num)
+        return losses
 
+    def auxiliary_losses(self, teacher, teacher_features, student_features,
+                         all_proposals, pseudo_boxes, img_metas_unlabeled, img_metas_unlabeled_1):
         proposals = [p[:300, :5].detach() for p in all_proposals]
         strong_proposals = [
             map_shared_geometry(p, weak, strong) for p, weak, strong in
@@ -116,10 +124,8 @@ class ProposalAlignedTeacher(UnbiasedTeacher):
                 {k: student_roi[k][selected] for k in ('cls_score', 'bbox_pred', 'preclassifier')},
                 img_metas_unlabeled[index], img_metas_unlabeled_1[index]))
             start += count
-        for name in per_image[0]:
-            losses[name] = sum(row[name] for row in per_image) / len(per_image)
-        losses['pseudo_num'] = img_unlabeled.new_tensor(self.pseudo_num.sum() / self.image_num)
-        return losses
+        return {name: sum(row[name] for row in per_image) / len(per_image)
+                for name in per_image[0]}
 
     def proposal_loss(self, proposals, hpl, teacher_roi, student_roi, weak_meta, strong_meta):
         raise NotImplementedError
@@ -139,4 +145,19 @@ class EpochFinalTeacherHook(Hook):
     def after_train_epoch(self, runner):
         model = runner.model.module if is_module_wrapper(runner.model) else runner.model
         model.update_ema_model(model.epoch_teacher_momentum)
+        model.ema_model.eval()
+
+
+@HOOKS.register_module()
+class AfterOptimizerTeacherHook(Hook):
+    """Priority45: after the standard optimizer40, before checkpoints50."""
+
+    def before_run(self, runner):
+        model = runner.model.module if is_module_wrapper(runner.model) else runner.model
+        if not isinstance(model, ProposalAlignedTeacher) or model.iteration_teacher_momentum is None:
+            raise TypeError('AfterOptimizerTeacherHook requires an iteration-EMA port model')
+
+    def after_train_iter(self, runner):
+        model = runner.model.module if is_module_wrapper(runner.model) else runner.model
+        model.update_ema_model(model.iteration_teacher_momentum)
         model.ema_model.eval()

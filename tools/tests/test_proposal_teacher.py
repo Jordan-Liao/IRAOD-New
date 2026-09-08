@@ -14,8 +14,9 @@ from torch import nn
 from sfod.extensions.lpld import LPLDOBB
 from sfod.extensions.irg import IRGOBB
 from sfod.extensions.irg_losses import IRGLosses
+from sfod.extensions.sfut import SFUTOBB
 from sfod.extensions.proposal_teacher import (
-    EpochFinalTeacherHook, ProposalAlignedTeacher,
+    AfterOptimizerTeacherHook, EpochFinalTeacherHook, ProposalAlignedTeacher,
     map_shared_geometry, preclassifier_roi_forward)
 
 
@@ -183,7 +184,7 @@ class ProposalTeacherTest(unittest.TestCase):
 
     def test_configs_keep_geometry_four_losses_and_epoch_final_hook(self):
         for method, dataset, classes, size in [
-                (m, ds, c, n) for m in ('lpld', 'irg')
+                (m, ds, c, n) for m in ('lpld', 'irg', 'sfut')
                 for ds, c, n in [('rsar', 6, 8467), ('dior', 20, 5863)]]:
             cfg = Config.fromfile(
                 ROOT / f'configs/unbiased_teacher/sfod/extensions/{method}_{dataset}.py',
@@ -198,8 +199,13 @@ class ProposalTeacherTest(unittest.TestCase):
             self.assertEqual(cfg.optimizer.lr, 0.02)
             self.assertEqual(cfg.runner.type, 'SemiEpochBasedRunner')
             self.assertEqual(cfg.runner.max_epochs, 1)
-            hook = next(h for h in cfg.custom_hooks if h['type'] == 'EpochFinalTeacherHook')
-            self.assertEqual(hook['priority'], 'HIGH')
+            if method == 'sfut':
+                hook = next(h for h in cfg.custom_hooks if h['type'] == 'AfterOptimizerTeacherHook')
+                self.assertEqual(hook['priority'], 45)
+                self.assertFalse(any(h['type'] == 'EpochFinalTeacherHook' for h in cfg.custom_hooks))
+            else:
+                hook = next(h for h in cfg.custom_hooks if h['type'] == 'EpochFinalTeacherHook')
+                self.assertEqual(hook['priority'], 'HIGH')
             teacher = Config.fromfile(ROOT / cfg.model.ema_config, import_custom_modules=False)
             self.assertEqual(teacher.model.backbone.type, 'OrthoNet')
             self.assertEqual(teacher.model.roi_head.bbox_head.num_classes, classes)
@@ -229,6 +235,41 @@ class ProposalTeacherTest(unittest.TestCase):
             torch.empty(0, 5), None, {}, {'cls_score': xs[:0]}, {}, {})
         sum(value for key, value in empty.items() if 'loss' in key).backward()
         self.assertTrue(all(p.grad is not None for p in model.irg.parameters()))
+
+    def test_sfut_updates_after_optimizer_before_save_and_has_no_auxiliary_head(self):
+        class Model(SFUTOBB):
+            def __init__(self):
+                nn.Module.__init__(self)
+                self.weight = nn.Parameter(torch.tensor([0.], dtype=torch.double))
+                teacher = nn.Module()
+                teacher.weight = nn.Parameter(torch.tensor([0.], dtype=torch.double),
+                                              requires_grad=False)
+                self.ema_model = teacher
+
+        class Optimizer(Hook):
+            def after_train_iter(self, runner):
+                with torch.no_grad():
+                    runner.model.weight.add_(2)
+
+        saved = []
+
+        class Save(Hook):
+            def after_train_iter(self, runner):
+                saved.append(runner.model.ema_model.weight.item())
+
+        model = Model()
+        runner = object.__new__(EpochBasedRunner)
+        runner.model, runner._hooks = model, []
+        runner.register_hook(Save(), priority=50)
+        runner.register_hook(AfterOptimizerTeacherHook(), priority=45)
+        runner.register_hook(Optimizer(), priority=40)
+        runner.call_hook('before_run')
+        for _ in range(2):
+            runner.call_hook('after_train_iter')
+        self.assertAlmostEqual(saved[0], .0004 * 2, places=12)
+        self.assertAlmostEqual(saved[1], .9996 * saved[0] + .0004 * 4, places=12)
+        self.assertEqual(model.auxiliary_losses(None, None, None, None, None, None, None), {})
+        self.assertEqual(list(model.state_dict()), ['weight'])
 
 
 if __name__ == '__main__':

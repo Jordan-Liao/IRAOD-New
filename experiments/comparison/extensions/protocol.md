@@ -265,3 +265,25 @@ views and per-iteration EMA0.9996. The source variant must be labeled separately
 The umbrella's AdaBN+Fixed SF-FixMatch strategy is also distinct: target-only
 BN statistics, then fixed pseudo labels rather than an updating EMA teacher.
 It is not collapsed into B or silently added as another experiment matrix.
+
+## Paper-defined SF-UT implementation (distinct from B)
+
+`sfod/extensions/sfut.py` and
+`configs/unbiased_teacher/sfod/extensions/sfut_{rsar,dior}.py` implement the
+paper-defined mechanism on the existing source architecture and shared
+one-epoch/global32/LR0.02 budget. Teacher weak-view predictions supervise the
+strong Student through all four RPN/ROI classification/regression losses.
+There is no graph, extra head, low-confidence distillation or Student-based
+pseudo-label generation. Both models initialize from the fixed source.
+
+`AfterOptimizerTeacherHook` runs at priority45: after the standard optimizer40
+and before checkpoint50. It actually updates the teacher after every optimizer
+step with retention0.9996, including the final step. It is not the core B
+iteration-start EMA0.998, a frozen-teacher source variant, or the alternate
+single_wq trainer that labels with its Student.
+
+The common HPL>=0.7 overrides the paper's original strict threshold>0.8 and
+is explicitly disclosed. B's regression-off numbers are not reused. This
+distinct arm is available for owner scientific smoke; no formal run or
+SF-UT result is claimed. AdaBN+Fixed SF-FixMatch remains a separate, unreleased
+strategy, not an implicit addition to this implementation.
