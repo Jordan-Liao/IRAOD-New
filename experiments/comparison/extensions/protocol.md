@@ -287,3 +287,44 @@ is explicitly disclosed. B's regression-off numbers are not reused. This
 distinct arm is available for owner scientific smoke; no formal run or
 SF-UT result is claimed. AdaBN+Fixed SF-FixMatch remains a separate, unreleased
 strategy, not an implicit addition to this implementation.
+
+## Formal finite metadata for smoke-accepted ports
+
+The execution adapter `experiments.comparison.extension_training` supports
+only explicitly selected IRG/LPLD/SFUT methods. Each selected method binds
+36 full training cells and36 final-EMA native evaluations across all12 domains
+and seeds42/43/44. Source A is reused, never enqueued for retraining.
+Preparation creates no model outputs and is not release/completion evidence.
+
+```bash
+ART=/mnt/shared/zechuan/iraod_artifacts/comparison
+EXT="$ART/xaf_student_quant_20260908"
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+META="$EXT/formal_ports_manifests_NEW_COMMIT"
+RUNS="$EXT/formal_ports_runs_NEW_COMMIT"
+"$PY" -m experiments.comparison.extension_training prepare \
+  --base-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
+  --core-report "$ART/final_delivery_20260908_4a6bc50/report/report.json" \
+  --core-paths "$ART/xaf_s424344/paths.py" \
+  --out-dir "$META" --artifact-root "$RUNS" \
+  --eval-code /mnt/SSD2_8TB/zechuan/IRAOD-New-rc331d213 \
+  --python "$PY" --method IRG --method LPLD --method SFUT
+```
+
+Both metadata and output roots must be new and separate. The generated
+`runtime.json`, `cells.json`, `train.list`, `eval.list`, `paths.py` and wrappers
+bind fixed source identities, actual target VAL directories, current training
+code/config, the unchanged331d evaluation checkout and exact266/185 finals.
+Single-GPU global32/LR0.02 execution removes ambient VLM variables and explicitly
+keeps regression enabled. Failed processes or missing final Student/EMA files
+receive nonzero terminal status; iter2 smoke files cannot count as formal finals.
+The evaluator reuses the common native binding helper and records the actual
+new training producer, not the old core producer.
+
+Only after scientific smokes and explicit compute-owner control coordination,
+the owner can use these four-field lists with the existing finite event-driven
+runner. IRG/LPLD/SFUT are admitted as training/EMA methods; the separate Student
+extension remains restricted to the original B-F cells. No automatic model retry,
+source retraining, new scheduler, or Student producer cutover is performed by
+preparation. The sole live Student submitter and its GPU workers must remain
+untouched until the current owner explicitly coordinates formal control.

@@ -27,6 +27,7 @@ from experiments.comparison.result_completion import DOMAINS
 APPROVED = (4, 5, 6, 7)
 PAIR_PORTS = {(4, 5): 29804, (6, 7): 29806}
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
+FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT")
 SCRIPT = Path(__file__).resolve()
 LIBC = ctypes.CDLL(None, use_errno=True)
 LIBC.syscall.restype = ctypes.c_long
@@ -84,10 +85,11 @@ def load_cells(train_files, eval_files):
                 ds, domain, seed, method = fields[:4]
                 cell = Cell(ds, domain, int(seed), method, fields[4] if len(fields) == 5 else "ema")
                 if (ds not in DOMAINS or domain not in DOMAINS[ds] or cell.seed not in (42, 43, 44)
-                        or method not in tuple("ABCDEF") or (training and method == "A")
+                        or method not in (*tuple("ABCDEF"), *FORMAL_PORT_METHODS)
+                        or (training and method == "A")
                         or (method == "A" and cell.seed != 42)
                         or cell.role not in ("ema", "student")
-                        or (cell.role == "student" and (training or method == "A"))):
+                        or (cell.role == "student" and (training or method not in tuple("BCDEF")))):
                     raise ValueError(f"Cell outside the approved finite protocol: {line}")
                 cells[cell] = cells.get(cell, False) or training
     if not cells:

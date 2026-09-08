@@ -158,12 +158,20 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python, arti
 
 
 def evaluate(queue, gpu, dataset, domain, seed, method, role):
-    if role != "student" or gpu not in (4, 5, 6, 7):
-        raise ValueError("Only approved-GPU Student evaluation is supported by this entry")
-    if os.environ.get("IRAOD_GPU_LOCKED") != "1":
-        raise RuntimeError("Invoke via the finite worker holding the shared GPU lock")
+    if role != "student":
+        raise ValueError("This entry selects only Student bindings")
     runtime = read_json(Path(queue) / "runtime.json")
     cell = runtime["student_cells"][cell_key(dataset, domain, seed, method)]
+    evaluate_binding(cell, runtime, gpu)
+
+
+def evaluate_binding(cell, runtime, gpu):
+    """Execute one explicit native evaluation binding under its owner's GPU lock."""
+    if gpu not in (4, 5, 6, 7) or cell["role"] not in ("ema", "student"):
+        raise ValueError("Only approved-GPU final EMA/Student bindings are supported")
+    if os.environ.get("IRAOD_GPU_LOCKED") != "1":
+        raise RuntimeError("Invoke via the finite worker holding the shared GPU lock")
+    dataset, domain, seed, method = (cell[k] for k in ("dataset", "domain", "seed", "method"))
     out = Path(cell["eval_dir"])
     out.mkdir(parents=True, exist_ok=False)
     python, code = runtime["python"], Path(runtime["evaluation_code"])
@@ -185,7 +193,7 @@ def evaluate(queue, gpu, dataset, domain, seed, method, role):
         result = subprocess.run(command, cwd=code, env=env, stdout=log, stderr=subprocess.STDOUT)
     (out / "eval_status").write_text(
         f"eval_exit={result.returncode} {datetime.now(timezone.utc).isoformat()} "
-        f"name={method} domain={domain} seed={seed} role=student "
+        f"name={method} domain={domain} seed={seed} role={cell['role']} "
         f"checkpoint={cell['checkpoint']} sidecar=predictions.pkl.image_ids.json\n")
     if result.returncode:
         raise subprocess.CalledProcessError(result.returncode, command)
@@ -199,7 +207,7 @@ def evaluate(queue, gpu, dataset, domain, seed, method, role):
     if (order["checkpoint"] != cell["checkpoint"]
             or order["evaluation_code_sha"] != runtime["evaluation_code_sha"]
             or order["n_images"] != EXPECTED_IMAGES[dataset]):
-        raise ValueError("Native Student checkpoint/code/full-TEST identity mismatch")
+        raise ValueError("Native checkpoint/code/full-TEST identity mismatch")
     (out / "pred_count.txt").write_text(f"{order['n_images']} expect={EXPECTED_IMAGES[dataset]}\n")
 
 
