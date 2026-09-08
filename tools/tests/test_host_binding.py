@@ -53,7 +53,7 @@ class HostBindingTest(unittest.TestCase):
                 def native(path, run_name):
                     self.assertEqual(path, entry)
                     self.assertEqual(run_name, "__main__")
-                    self.assertEqual(sys.argv, [entry, *arguments, f"--local-rank={rank}"])
+                    self.assertEqual(sys.argv, [entry, f"--local-rank={rank}", *arguments])
 
                 run = stack.enter_context(patch.object(host.runpy, "run_path", side_effect=native))
                 host.main()
