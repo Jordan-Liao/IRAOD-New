@@ -1,0 +1,3 @@
+id,parent,fairness_group,control,value,datasets,domains,seeds,training_cells,ema_eval_cells,epochs,global_batch,topology,lr,status
+F_text_only,F,Source-Free,model.cfg.vlst_text_visual_alpha,1.0,RSAR;DIOR,all12_including_clean,42;43;44,36,36,1,32,2x16,0.02,identified_not_released
+F_veto_only,F,Source-Free,CGA_BLEND_DET_WEIGHT,1.0,RSAR;DIOR,all12_including_clean,42;43;44,36,36,1,32,2x16,0.02,identified_not_released
