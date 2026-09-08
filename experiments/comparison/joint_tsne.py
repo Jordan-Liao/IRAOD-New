@@ -25,6 +25,10 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
         key=lambda r: r["method"])
     if [r["method"] for r in selected] != list("ABCDEF"):
         raise ValueError("A/source plus B-F of the requested role are required")
+    adaptation_seed = plan.get("adaptation_seed", 42)
+    if (adaptation_seed not in (42, 43, 44) or any(
+            r["seed"] != (42 if r["method"] == "A" else adaptation_seed) for r in selected)):
+        raise ValueError("Joint embedding requires fixed source42 and one declared adaptation seed")
     if len({r["checkpoint_domain"] for r in selected if r["method"] != "A"}) != 1:
         raise ValueError("B-F must share one adaptation domain within a comparison")
     reservoirs, stats = [], []
@@ -33,8 +37,7 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
     for run in selected:
         index, records = load_export(run)
         identity = (index["classes"], index["test_cfg"], index["rescale"],
-                    index["feature_point"], run["image_ids"], run["show_score_thr"],
-                    run["seed"])
+                    index["feature_point"], run["image_ids"], run["show_score_thr"])
         if reference is None:
             reference = identity
         elif identity != reference:
@@ -134,6 +137,7 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
         writer.writerows(points)
     write_json(out / "protocol.json", {
         "schema": SCHEMA, "dataset": dataset, "domain": domain, "comparison": comparison,
+        "adaptation_seed": adaptation_seed,
         "sampling_seed": 42, "sample_cap": cap, "points_per_method": count,
         "roi_scope": "full_test",
         "sampling": "streamed bottom-k random-priority reservoir; equal count; no class/GT selection",

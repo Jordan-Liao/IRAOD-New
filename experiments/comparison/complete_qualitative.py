@@ -59,7 +59,8 @@ def collect_completion(plan_path, embedding_root, out_dir, expected_detections=N
     summary = {
         "schema": "iraod-qualitative-completion-summary-v1",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "scope": "seed42_full_test_roi_and_frozen_visualizations_and_joint_embeddings",
+        "scope": f"seed{read_json(plan_path).get('adaptation_seed', 42)}"
+                 "_full_test_roi_and_frozen_visualizations_and_joint_embeddings",
         "qualitative_status": "complete" if complete else "partial",
         "quantitative_status": "pending_separate_evidence",
         "all_eight_items_complete": False,

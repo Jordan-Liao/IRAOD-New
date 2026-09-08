@@ -53,13 +53,16 @@ class Cell:
     domain: str
     seed: int
     method: str
+    role: str = "ema"
 
     @property
     def key(self):
-        return f"{self.dataset}/{self.domain}/{self.seed}/{self.method}"
+        suffix = "/student" if self.role == "student" else ""
+        return f"{self.dataset}/{self.domain}/{self.seed}/{self.method}{suffix}"
 
     def session(self, phase):
-        return f"{'xaf' if phase == 'train' else 'xafE'}-{self.dataset}-{self.domain}-{self.seed}-{self.method}"
+        suffix = "-student" if self.role == "student" else ""
+        return f"{'xaf' if phase == 'train' else 'xafE'}-{self.dataset}-{self.domain}-{self.seed}-{self.method}{suffix}"
 
     @property
     def width(self):
@@ -73,11 +76,16 @@ def load_cells(train_files, eval_files):
             for line in Path(path).read_text().splitlines():
                 if not line.strip() or line.lstrip().startswith("#"):
                     continue
-                ds, domain, seed, method = line.split()
-                cell = Cell(ds, domain, int(seed), method)
+                fields = line.split()
+                if len(fields) not in (4, 5):
+                    raise ValueError("Finite rows require DS DOMAIN SEED METHOD [ema|student]")
+                ds, domain, seed, method = fields[:4]
+                cell = Cell(ds, domain, int(seed), method, fields[4] if len(fields) == 5 else "ema")
                 if (ds not in DOMAINS or domain not in DOMAINS[ds] or cell.seed not in (42, 43, 44)
                         or method not in tuple("ABCDEF") or (training and method == "A")
-                        or (method == "A" and cell.seed != 42)):
+                        or (method == "A" and cell.seed != 42)
+                        or cell.role not in ("ema", "student")
+                        or (cell.role == "student" and (training or method == "A"))):
                     raise ValueError(f"Cell outside the approved finite protocol: {line}")
                 cells[cell] = cells.get(cell, False) or training
     if not cells:
@@ -170,7 +178,8 @@ def train_state(queue, paths, cell, check_wrap=True):
 
 
 def eval_state(queue, paths, cell, check_wrap=True):
-    out = Path(paths.eval_full_dir(cell.dataset, cell.domain, str(cell.seed), cell.method))
+    resolve = paths.eval_student_dir if cell.role == "student" else paths.eval_full_dir
+    out = Path(resolve(cell.dataset, cell.domain, str(cell.seed), cell.method))
     pred = out / "predictions.pkl"
     sidecar = out / "predictions.pkl.image_ids.json"
     if not pred.exists() and not sidecar.exists():
@@ -186,6 +195,8 @@ def eval_state(queue, paths, cell, check_wrap=True):
               if lines else {})
     expected_status = {"eval_exit": "0", "name": cell.method,
                        "domain": cell.domain, "seed": str(cell.seed)}
+    if cell.role == "student":
+        expected_status["role"] = "student"
     if any(fields.get(key) != value for key, value in expected_status.items()):
         return "blocked"
     wrap = last_exit(Path(queue) / f"wrap_{cell.session('eval')}.status", ("wrap_exit",))
@@ -203,11 +214,12 @@ def eval_state(queue, paths, cell, check_wrap=True):
         n = paths.EXPECT_PRED[cell.dataset]
         ids = order["image_ids"]
         records = order["records"]
-        expected_checkpoint = paths.ema_path(cell.dataset, cell.domain, str(cell.seed), cell.method)
+        checkpoint = paths.student_path if cell.role == "student" else paths.ema_path
+        expected_checkpoint = checkpoint(cell.dataset, cell.domain, str(cell.seed), cell.method)
         if (order["schema"] != "iraod-prediction-image-order-v1"
                 or order["origin"] != "inference_batch_img_metas" or order["status"] != "complete"
                 or order["checkpoint"] != expected_checkpoint
-                or order["evaluation_code_sha"] != EVAL_SHA
+                or order["evaluation_code_sha"] != getattr(paths, "EVALUATION_CODE_SHA", EVAL_SHA)
                 or order["predictions_file"] != pred.name
                 or order["n_images"] != n or order["dataset_size"] != n
                 or len(ids) != n or len(set(ids)) != n or len(records) != n
@@ -227,7 +239,10 @@ def eval_state(queue, paths, cell, check_wrap=True):
 def runner_command(queue, cell, phase, gpus):
     args = [cell.dataset, cell.domain, str(cell.seed), cell.method]
     if phase == "eval":
-        return ["bash", str(Path(queue) / "run_eval_full.sh"), str(gpus[0]), *args]
+        role = [cell.role] if cell.role == "student" else []
+        return ["bash", str(Path(queue) / "run_eval_full.sh"), str(gpus[0]), *args, *role]
+    if cell.role != "ema":
+        raise ValueError("Student quantitative extensions are evaluation-only")
     if cell.width == 1:
         return ["bash", str(Path(queue) / "run_train_1gpu.sh"), str(gpus[0]), *args]
     pair = tuple(gpus)
@@ -289,8 +304,10 @@ def pane_job(name, pane, queue):
         if filename in ("run_train_1gpu.sh", "run_train_2gpu.sh", "run_eval_full.sh"):
             start = i + (3 if filename == "run_train_2gpu.sh" else 2)
             ds, domain, seed, method = tokens[start:start + 4]
-            cell = Cell(ds, domain, int(seed), method)
             phase = "eval" if filename == "run_eval_full.sh" else "train"
+            role = ("student" if phase == "eval" and tokens[start + 4:start + 5] == ["student"]
+                    else "ema")
+            cell = Cell(ds, domain, int(seed), method, role)
             if cell.session(phase) != name or Path(token).parent != Path(queue):
                 raise Blocked(f"Canonical runner identity mismatch: {name}")
             return cell, phase, tuple(int(g) for g in tokens[i + 1].split(",")), None
@@ -457,7 +474,7 @@ class TmuxBackend:
             if not receipt.is_file():
                 return "failed", "worker exited without a terminal receipt"
             result = json.loads(receipt.read_text())
-            if result["cell"] != asdict(cell) or result["phase"] != phase:
+            if Cell(**result["cell"]) != cell or result["phase"] != phase:
                 return "failed", "terminal receipt identity mismatch"
             if result["status"] != "complete":
                 return result["status"], result.get("reason", "worker failed")

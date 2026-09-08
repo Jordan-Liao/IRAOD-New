@@ -35,6 +35,8 @@ def student_path(ds, domain, seed, method):
     return str(work_dir(ds, domain, seed, method) / ("iter_266.pth" if ds=="RSAR" else "iter_185.pth"))
 def eval_full_dir(ds, domain, seed, method):
     return str(method_dir(ds, domain, seed, method) / ("eval_full_"+domain+"_ids_v1"))
+def eval_student_dir(ds, domain, seed, method):
+    return str(method_dir(ds, domain, seed, method) / ("eval_full_"+domain+"_student_ids_v1"))
 '''
 
 RUNNER_SOURCE = '''
@@ -43,6 +45,8 @@ sys.path.insert(0,str(pathlib.Path(__file__).parent))
 import paths
 q=pathlib.Path(__file__).parent
 kind,*args=sys.argv[1:]
+role="student" if kind=="eval" and len(args)==6 and args[-1]=="student" else "ema"
+if role=="student": args.pop()
 if kind=="train2":
     assert len(args)==6,args
     gpu,port,ds,domain,seed,method=args
@@ -53,6 +57,7 @@ else:
 gpus=[int(x) for x in gpu.split(",")]
 phase="eval" if kind=="eval" else "train"
 name=("xafE" if phase=="eval" else "xaf")+"-"+ds+"-"+domain+"-"+seed+"-"+method
+if role=="student": name+="-student"
 held=[]
 for g in gpus:
     f=(q/"gpu_locks"/("gpu"+str(g)+".lock")).open("a+")
@@ -80,8 +85,9 @@ if phase=="train":
         pathlib.Path(paths.ema_path(ds,domain,seed,method)).write_bytes(b"CPU fixture final EMA")
         pathlib.Path(paths.student_path(ds,domain,seed,method)).write_bytes(b"CPU fixture final student")
 else:
-    out=pathlib.Path(paths.eval_full_dir(ds,domain,seed,method)); out.mkdir(parents=True,exist_ok=True)
-    (out/"eval_status").write_text("eval_exit="+str(rc)+" name="+method+" domain="+domain+" seed="+seed+"\\n")
+    resolve=paths.eval_student_dir if role=="student" else paths.eval_full_dir
+    out=pathlib.Path(resolve(ds,domain,seed,method)); out.mkdir(parents=True,exist_ok=True)
+    (out/"eval_status").write_text("eval_exit="+str(rc)+" name="+method+" domain="+domain+" seed="+seed+" role="+role+"\\n")
     if rc==0:
         with (out/"predictions.pkl").open("wb") as f: pickle.dump([[],[]],f)
         (out/"pred_count.txt").write_text("2 expect=2\\n")
@@ -89,7 +95,7 @@ else:
         (out/"eval_fixture.json").write_text(json.dumps({"config":"/fixture.py","metric":{"mAP":0.5}}))
         (out/"predictions.pkl.image_ids.json").write_text(json.dumps({
             "schema":"iraod-prediction-image-order-v1","origin":"inference_batch_img_metas",
-            "status":"complete","checkpoint":paths.ema_path(ds,domain,seed,method),
+            "status":"complete","checkpoint":(paths.student_path if role=="student" else paths.ema_path)(ds,domain,seed,method),
             "config":"/fixture.py",
             "evaluation_code_sha":EVAL_SHA,"predictions_file":"predictions.pkl",
             "n_images":2,"dataset_size":2,"image_ids":["image_z","image_a"],
@@ -170,7 +176,9 @@ else: raise SystemExit(2)
         train = self.q / (name + "-train.txt")
         evaluate = self.q / (name + "-eval.txt")
         train.write_text("".join(f"{c.dataset} {c.domain} {c.seed} {c.method}\n" for c in cells))
-        evaluate.write_text("".join(f"{c.dataset} {c.domain} {c.seed} {c.method}\n" for c in eval_cells))
+        evaluate.write_text("".join(
+            f"{c.dataset} {c.domain} {c.seed} {c.method}"
+            + (" student" if c.role == "student" else "") + "\n" for c in eval_cells))
         extra = []
         if external:
             reserved = self.q / (name + "-external.txt")

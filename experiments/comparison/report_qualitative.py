@@ -18,12 +18,15 @@ def validate_plan(plan):
     if (len(plan["runs"]) != len(expected)
             or {r["run_id"] for r in plan["runs"]} != expected):
         raise ValueError("Qualitative plan must cover exactly the 132 full-test groups")
+    adaptation_seed = plan.get("adaptation_seed", 42)
+    if adaptation_seed not in (42, 43, 44):
+        raise ValueError("Qualitative adaptation seed must be 42,43,44")
     selections = {}
     for run in plan["runs"]:
         validate_run(run)
         ds = run["dataset"]
         if (run["run_id"] != f"{ds}/{run['domain']}/{run['method']}/{run['role']}"
-                or run["seed"] != 42):
+                or run["seed"] != (42 if run["method"] == "A" else adaptation_seed)):
             raise ValueError("Qualitative run identity differs from the fixed matrix")
         domain = "source" if run["method"] == "A" else run["domain"]
         if run["checkpoint_domain"] != domain:
@@ -79,7 +82,7 @@ def inspect_embedding(entry, plan):
             if (point["method"] != run["method"] or point["role"] != run["role"]
                     or point["checkpoint"] != run["checkpoint"]
                     or point["dataset"] != ds or point["domain"] != domain
-                    or int(point["seed"]) != 42 or point["config"] != run["config"]
+                    or int(point["seed"]) != run["seed"] or point["config"] != run["config"]
                     or point["checkpoint_domain"] != run["checkpoint_domain"]
                     or feature_file.parent != Path(run["out_dir"])
                     or int(point["point_index"]) != j):
