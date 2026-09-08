@@ -7,7 +7,6 @@ import shlex
 import subprocess
 
 from experiments.comparison.collect_report_manifest import load_resolver
-from experiments.comparison.b_regression import build_b_regression_spec
 from experiments.comparison.extension_manifest import cell_key, evaluate_binding
 from experiments.comparison.report_inputs import EXPECTED_IMAGES, FINAL_ITERATION
 from experiments.comparison.report_qualitative import validate_plan
@@ -109,6 +108,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                     key = cell_key(dataset, domain, seed, method)
                     cell_code, cell_sha = str(ROOT), training_sha
                     if method == "B_REG":
+                        from experiments.comparison.b_regression import build_b_regression_spec
+
                         overrides = {
                             "data.samples_per_gpu": 32, "optimizer.lr": 0.02,
                             "model.cfg.strict_source_free": True, "model.cfg.weight_l": 0,
@@ -189,6 +190,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         script = out / filename
         script.write_text(
             "#!/usr/bin/env bash\nset -euo pipefail\n"
+            "export PYTHONNOUSERSITE=1\n"
             f"export PYTHONPATH={shlex.quote(str(ROOT))}\n"
             f"exec {shlex.quote(python)} -m experiments.comparison.extension_training {action}"
             f" --queue {shlex.quote(str(out))}"

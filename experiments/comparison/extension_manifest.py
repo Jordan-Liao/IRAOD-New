@@ -109,6 +109,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python, arti
         "    return DATA['student_cells'][f'{ds}/{domain}/{seed}/{method}']['eval_dir']\n")
     (queue / "run_eval_full.sh").write_text(
         "#!/usr/bin/env bash\nset -euo pipefail\n"
+        "export PYTHONNOUSERSITE=1\n"
         "exec " + shlex.quote(str(python)) +
         " -m experiments.comparison.extension_manifest evaluate --queue " +
         shlex.quote(str(queue)) +

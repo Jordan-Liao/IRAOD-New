@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from experiments.comparison import extension_training as training
 from experiments.comparison import extension_manifest
+from experiments.comparison import b_regression
 from experiments.comparison.collect_report_manifest import load_resolver
 from experiments.comparison.finite_resumer import Cell, load_cells, train_state
 from experiments.comparison.result_completion import DOMAINS, ROLES, SCHEMA, write_json
@@ -140,6 +141,15 @@ class ExtensionTrainingTest(unittest.TestCase):
             self.assertIn(f"checkpoint={checkpoint}", status)
             self.assertEqual(json.loads((out / "execution.json").read_text())["role"], role)
 
+    def test_unrelated_metadata_import_does_not_require_mmcv_or_opencv(self):
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.modules['mmcv']=None; "
+             "from experiments.comparison import extension_training; "
+             "assert 'B_REG' in extension_training.METHODS"],
+            cwd=training.ROOT, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_b_reg_uses_frozen_code_and_persists_only_regression_config_diff(self):
         (self.core / "train.py").write_text("# frozen B training entry; never executed\n")
 
@@ -155,7 +165,7 @@ class ExtensionTrainingTest(unittest.TestCase):
                 config_diff=[dict(path="model.cfg.use_bbox_reg", before=False, after=True)],
                 operational_note="Only experiment/output identity differs operationally")
 
-        with patch.object(training, "build_b_regression_spec", side_effect=b_spec) as build:
+        with patch.object(b_regression, "build_b_regression_spec", side_effect=b_spec) as build:
             self.prepare(("B_REG",))
         self.assertEqual(build.call_count, 36)
         audits = json.loads((self.queue / "b_regression_config_diff.json").read_text())
@@ -250,6 +260,7 @@ class ExtensionTrainingTest(unittest.TestCase):
                 for filename in ("run_train_1gpu.sh", "run_eval_full.sh"):
                     self.assertTrue(os.access(self.queue / filename, os.X_OK))
                     self.assertIn(str(training.ROOT), (self.queue / filename).read_text())
+                    self.assertIn("export PYTHONNOUSERSITE=1", (self.queue / filename).read_text())
         self.assertFalse(self.artifacts.exists())
         self.assertEqual({p: p.read_bytes() for p in self.core.iterdir() if p.is_file()}, original)
 

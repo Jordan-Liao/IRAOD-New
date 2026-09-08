@@ -29,6 +29,7 @@ the existing scientific Python. Preparation is CPU metadata-only:
 ```bash
 ART=/mnt/shared/zechuan/iraod_artifacts/comparison
 PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+export PYTHONNOUSERSITE=1
 EXT=/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908
 META="$EXT/repo_manifests_NEW_COMMIT"
 "$PY" -m experiments.comparison.extension_manifest prepare \
@@ -303,6 +304,7 @@ Preparation creates no model outputs and is not release/completion evidence.
 ART=/mnt/shared/zechuan/iraod_artifacts/comparison
 EXT="$ART/xaf_student_quant_20260908"
 PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+export PYTHONNOUSERSITE=1
 META="$EXT/formal_ports_manifests_NEW_COMMIT"
 RUNS="$EXT/formal_ports_runs_NEW_COMMIT"
 "$PY" -m experiments.comparison.extension_training prepare \
@@ -381,3 +383,18 @@ evaluation cells (all12 domains, seeds42/43/44), distinct from the already
 prepared108 IRG/LPLD/SF-UT cells. The existing B/D/E/F factorial is reused.
 No other explicit additional ablation control was found in the original plan;
 no wider grid or extra F tuning is released.
+
+Actual B_REG metadata and36 executable-overlay audits are available at
+`/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_manifests_0e5f8f7/`.
+Every actual overlay was loaded against its original B config and compared
+with identical launch options; the only difference was regression False->True.
+The formal output root was not created and no model/producer was launched.
+
+Use `PYTHONNOUSERSITE=1` before starting the metadata/worker Python, matching
+the frozen training wrappers. On67, user-site NumPy2 shadows the existing
+conda NumPy1.26.4 and breaks OpenCV/MMCV ABI if isolation is omitted. The
+actual audit succeeded with the existing conda environment and isolation;
+no package was installed, upgraded or downgraded. Generated launchers now set
+the flag before Python starts; previously prepared0e5 launchers require the
+same flag in the owner/finite-parent environment. Do not modify live workers
+or global packages to resolve this import-path issue.
