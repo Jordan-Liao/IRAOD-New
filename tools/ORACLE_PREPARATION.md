@@ -54,7 +54,7 @@ deltas fail without publishing successful smoke evidence. Use a fresh output
 directory for another attempt; existing smoke/training artifacts are preserved.
 These are engineering checks, not adapter quality or scientific result evidence.
 
-## Both dataset inputs are ready; GPU execution is still pending
+## Dataset and adapter readiness
 
 The parent accepted the compute owner's RSAR `ORACLE_RECONCILE_OK` terminal
 event at2026-09-08T10:38:52Z:1,047,844 actual metadata rows match summary and
@@ -68,9 +68,13 @@ DIOR's97,902 reconciled rows remain ready at
 `/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv`.
 The frozen10epoch/batch64 budgets remain163,730 RSAR and15,300 DIOR optimizer
 updates. Data preparation is complete for both datasets, not adapter training.
-Ports108 still owns the GPUs; no oracle GPU smoke or training was launched.
-The existing execution owner retains the capacity gate before the bounded
-NON_RESULT smoke and then each dataset-specific adapter.
+The sole owner has now validated DIOR final_epoch10 completion on221 at
+2026-09-08T19:14:24Z. Its2971460-byte adapter is
+`/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/lora_dior.pth`.
+Epoch10 loss.0250/accuracy.9922 are TRAIN patch metrics, not detector TEST.
+No weights are vendored in Git. DIOR24 detector preparation is independent of
+the pending RSAR adapter; see `experiments/comparison/ORACLE_TRAINING.md`.
+The existing owner retains GPU execution and final artifact validation.
 
 CPU regression command (existing unittest runner):
 

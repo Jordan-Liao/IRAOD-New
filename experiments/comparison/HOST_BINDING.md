@@ -99,7 +99,11 @@ path-binding helpers through Python's `-m` search order.
 Owner-confirmed current state supersedes the earlier untranslated-path failure:
 the deployed0fd539a DIOR smoke completed2/2 updates at18:30:26Z, and the
 approved10-epoch fit started18:30:58Z on221 GPU4 (reported pane3513810).
-Do not restart it, replace its code, or trigger another compatibility smoke.
+The owner subsequently validated final_epoch10 completion at19:14:24Z:
+`lora_dior.pth`2971460 bytes, epoch10 TRAIN loss.0250/accuracy.9922, not TEST.
+Do not rerun that completed fit or trigger another compatibility smoke.
+DIOR-only24 detector bindings are prepared through `ORACLE_TRAINING.md`;
+they do not wait for an RSAR adapter.
 
 The copied `metadata.csv` is not rewritten. On this exact target host,
 `train_sarclip_lora_rsar.load_metadata` maps each old absolute `patch_path` in

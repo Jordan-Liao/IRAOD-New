@@ -77,7 +77,26 @@
       "actual_patch_count": 97902,
       "materialization_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json",
       "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",
-      "status": "97902 actual TRAIN patches complete and reconciled against all class/domain counts and physical files; no GPU adapter training"
+      "adapter_completion": {
+        "evidence_source": "Sole compute owner validation accepted; not independently repeated by code owner",
+        "host": "73F3-5xA6000-221",
+        "gpu": 4,
+        "terminal_at": "2026-09-08T19:14:24Z",
+        "path": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/lora_dior.pth",
+        "bytes": 2971460,
+        "config": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/config.json",
+        "train_log": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/train_log.csv",
+        "training_git_sha": "0fd539a5a5b8a2ad34c0c1f97023f539acdcbf7a",
+        "status": "complete",
+        "epochs_completed": 10,
+        "selection": "final_epoch",
+        "selected_epoch": 10,
+        "training_epoch10_loss": 0.0250,
+        "training_epoch10_accuracy": 0.9922,
+        "metric_scope": "TRAIN patch classification only; not native detector TEST accuracy or mAP"
+      },
+      "detector_preparation": "DIOR-only24 cells via experiments.comparison.oracle_training; existing payload admission, no RSAR adapter dependency",
+      "status": "Owner-validated final10-epoch DIOR adapter available; detector/native TEST results not yet supplied"
     }
   },
   "oracle_variants": ["SARCLIP-LoRA-CGA", "SARCLIP-LoRA-CGA+VLST"],

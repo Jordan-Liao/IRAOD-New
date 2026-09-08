@@ -7,7 +7,7 @@
   "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
   "selected_target_host_binding": {
-    "status": "owner_deployed_0fd539a_DIOR_smoke_valid_and_fit_running",
+    "status": "owner_validated_DIOR_adapter_terminal_detectors_pending",
     "hostname": "73F3-5xA6000-221",
     "endpoint": "zechuan@1.14.177.180:20138",
     "root": "/home/zechuan/iraod_artifacts",
@@ -28,6 +28,12 @@
       "smoke_at": "2026-09-08T18:30:26Z",
       "fit_started_at": "2026-09-08T18:30:58Z",
       "fit_epochs": 10,
+      "fit_terminal_at": "2026-09-08T19:14:24Z",
+      "fit_status": "complete_final_epoch10_owner_validated",
+      "adapter_bytes": 2971460,
+      "training_epoch10_loss": 0.0250,
+      "training_epoch10_accuracy": 0.9922,
+      "training_metrics_are_not_TEST": true,
       "gpu": 4,
       "reported_pane": 3513810,
       "code_owner_restarted_or_retested": false
@@ -118,13 +124,16 @@
     "oracle": {
       "adapters": 2,
       "detector_train_cells": 72,
-      "status": "both_dataset_TRAIN_inputs_ready_real_weight_smokes_and_adapters_pending_capacity",
+      "status": "DIOR_adapter_complete_owner_validated_DIOR_detector24_preparation_ready_RSAR_adapter_pending",
       "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
       "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
       "RSAR": "Parent-accepted compute-owner terminal reconciliation:1047844 metadata rows,324418544bytes,149692 per perturbation domain,no clean,all6class counts match,zero rejects; builder157722 exited; no GPU launch",
       "RSAR_evidence": "experiments/comparison/extensions/oracle_rsar_materialization.json",
-      "DIOR": "5862 cloudy TRAIN images generated;97902 three-corruption patches complete and reconciled,32634/domain,20classes,zero rejects;15300 adapter optimizer updates at10epochs/batch64; no GPU launch",
-      "DIOR_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json"
+      "DIOR": "97902 TRAIN patches and final10-epoch adapter are owner-validated;15300 adapter updates,2971460-byte lora_dior.pth, final_epoch10. Trainingloss.0250/accuracy.9922 are not TEST metrics.",
+      "DIOR_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json",
+      "DIOR_adapter_evidence": "experiments/comparison/extensions/oracle_recipe.json:datasets.DIOR.adapter_completion",
+      "DIOR_detector_scope": {"train_cells": 24, "EMA_eval_cells": 24, "source_training_cells": 0, "RSAR_adapter_dependency": false},
+      "DIOR_detector_interface": "experiments/comparison/ORACLE_TRAINING.md"
     },
     "qualitative_and_new_method_consumers": {
       "status": "not_complete",

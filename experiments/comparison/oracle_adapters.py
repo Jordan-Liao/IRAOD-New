@@ -6,6 +6,7 @@ import torch
 
 from experiments.comparison.labels import CLASSES, ORACLE_TRAINING_TEMPLATES
 from experiments.comparison.result_completion import DOMAINS
+from experiments.comparison import host_binding as host
 from sarclip_adapter import ADAPTER_FORMAT, freeze_for_inference, load_adapter_checkpoint
 
 
@@ -25,7 +26,8 @@ def inspect_oracle_adapter(path, dataset, base_weights):
         raise ValueError("Oracle adapter does not match the frozen dataset/TRAIN/final-epoch LoRA recipe")
     if payload["classes"] != list(CLASSES[dataset]):
         raise ValueError("Oracle adapter class order differs from the detector dataset")
-    if Path(payload["sarclip_pretrained"]).resolve() != Path(base_weights).expanduser().resolve():
+    if (Path(host.map_path(payload["sarclip_pretrained"])).expanduser().resolve()
+            != Path(host.map_path(base_weights)).expanduser().resolve()):
         raise ValueError("Oracle adapter does not bind the declared base SARCLIP initialization")
     if payload.get("max_patches") is not None or not payload.get("training_git_sha"):
         raise ValueError("Oracle requires the uncapped recipe and actual training-code provenance")

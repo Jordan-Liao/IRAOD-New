@@ -740,7 +740,12 @@ rows,324,418,544 bytes, all class/domain counts matching, zero rejects and no
 clean domain. `oracle_rsar_materialization.json` records that owner evidence
 and the consumed `ORACLE_RECONCILE_OK` event; this code delivery does not repeat
 the reconciliation or rerun the builder. Both RSAR and DIOR oracle inputs are
-ready, while ports108 still owns the GPUs and no oracle GPU work has launched.
+ready. For DIOR, the sole owner
+validated its final10-epoch adapter at2026-09-08T19:14:24Z, selected_epoch10,
+2971460 bytes, training revision0fd539a. Epoch10 loss.0250/accuracy.9922 are
+TRAIN-only, not TEST. The checkpoint remains outside Git. Existing adapter
+admission and the DIOR-only24-cell preparation interface in
+`ORACLE_TRAINING.md` do not wait for an RSAR adapter.
 
 The explicit oracle consumers are in `sfod/extensions/oracle.py`, imported
 only by `oracle_cga_*` / `oracle_cga_vlst_*` configs. They preserve the original

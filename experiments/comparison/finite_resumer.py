@@ -29,8 +29,9 @@ APPROVED = host.approved_gpus()
 PAIR_PORTS = host.pair_ports()
 EVAL_SHA = "331d2131b84651f0a2930a3d53faeefad8701531"
 FORMAL_PORT_METHODS = ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO",
-                       "B_REG", "F_text_only", "F_veto_only")
+                       "B_REG", "F_text_only", "F_veto_only", "LoRA-CGA", "LoRA-CGA+VLST")
 STUDENT_METHODS = (*tuple("BCDEF"), "IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO")
+PREREQUISITE_METHODS = ("AASFOD", "SFYOLO", "LoRA-CGA", "LoRA-CGA+VLST")
 SCRIPT = Path(__file__).resolve()
 LIBC = ctypes.CDLL(None, use_errno=True)
 LIBC.syscall.restype = ctypes.c_long
@@ -77,7 +78,8 @@ class Cell:
 
     @property
     def width(self):
-        return 2 if self.role == "ema" and self.method in ("E", "F", "F_text_only", "F_veto_only") else 1
+        return 2 if self.role == "ema" and self.method in (
+            "E", "F", "F_text_only", "F_veto_only", "LoRA-CGA+VLST") else 1
 
 
 def load_cells(train_files, eval_files):
@@ -94,6 +96,7 @@ def load_cells(train_files, eval_files):
                 cell = Cell(ds, domain, int(seed), method, fields[4] if len(fields) == 5 else "ema")
                 if (ds not in DOMAINS or domain not in DOMAINS[ds] or cell.seed not in (42, 43, 44)
                         or method not in (*tuple("ABCDEF"), *FORMAL_PORT_METHODS)
+                        or (method in ("LoRA-CGA", "LoRA-CGA+VLST") and ds != "DIOR")
                         or (training and method == "A")
                         or (method == "A" and cell.seed != 42)
                         or cell.role not in ("ema", "student")
@@ -194,7 +197,7 @@ def train_state(queue, paths, cell, check_wrap=True):
 
 
 def prerequisite_state(paths, cell):
-    if cell.role == "student" or cell.method not in ("AASFOD", "SFYOLO"):
+    if cell.role == "student" or cell.method not in PREREQUISITE_METHODS:
         return "ready", ""
     from experiments.comparison.extension_training import require_prerequisites
 
@@ -660,7 +663,7 @@ def run_finite(cells, backend, external=(), external_owners=None):
                             row["train"] = "external"
                         else:
                             row["train"] = "ready" if evidence == "pending" and requested else evidence
-                        if row["train"] == "ready" and cell.method in ("AASFOD", "SFYOLO"):
+                        if row["train"] == "ready" and cell.method in PREREQUISITE_METHODS:
                             row["train"], row["prerequisite_reason"] = backend.prerequisites(cell)
                             row["eval"] = "waiting" if row["train"] == "waiting" else "pending"
                         if row["train"] == "pending":

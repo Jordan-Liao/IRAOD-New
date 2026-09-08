@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PORT_METHODS = ("IRG", "LPLD", "SFUT")
 STUDENT_METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO")
 F_DELETIONS = ("F_text_only", "F_veto_only")
+ORACLE_METHODS = ("LoRA-CGA", "LoRA-CGA+VLST")
 METHODS = (*PORT_METHODS, "AASFOD", "SFYOLO", "B_REG", *F_DELETIONS)
 ALLOWED_GPUS = host.approved_gpus()
 PAIR_PORTS = host.pair_ports()
@@ -54,10 +55,14 @@ def target_val(dataset, domain, test_prefix):
 
 
 def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
-            eval_code, python, methods, sarclip_base=None, tam_plan=None):
+            eval_code, python, methods, sarclip_base=None, tam_plan=None,
+            oracle_adapter=None):
     """Write only a NEW metadata queue; never create the formal output root."""
-    if not methods or any(method not in METHODS for method in methods):
+    oracle = oracle_adapter is not None
+    supported = ORACLE_METHODS if oracle else METHODS
+    if not methods or any(method not in supported for method in methods):
         raise ValueError("Explicitly select a supported port or approved ablation")
+    domains_scope = {"DIOR": DOMAINS["DIOR"]} if oracle else DOMAINS
     if any(method in F_DELETIONS for method in methods) and not sarclip_base:
         raise ValueError("F deletions require the explicit frozen SARCLIP base")
     tam_fits = {}
@@ -74,7 +79,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                     or fit["outer_iterations"] != 160000):
                 raise ValueError("TAM requires a160k outer-iteration domain fit at seed42")
     methods = tuple(dict.fromkeys(methods))
-    base, report = read_json(base_plan), read_json(core_report)
+    reader = host.read_json if oracle else read_json
+    base, report = reader(base_plan), reader(core_report)
     validate_plan(base)
     if base.get("adaptation_seed", 42) != 42:
         raise ValueError("The accepted base plan must use adaptation seed42")
@@ -87,7 +93,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
     if out == artifacts or out in artifacts.parents or artifacts in out.parents:
         raise ValueError("Metadata and formal artifacts must have separate roots")
     core_paths = Path(core_paths).resolve()
-    paths = load_resolver(core_paths)
+    paths = (host.load_paths(core_paths.parent) if oracle and host.is_target_host()
+             else load_resolver(core_paths))
     lock = require_file(core_paths.parent / "with_gpu_lock.sh")
     # Inspect the shared owner's lock, not a private/generated substitute.
     if not any(line.startswith("LOCKDIR=") for line in lock.read_text().splitlines()):
@@ -102,14 +109,20 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
     require_file(ROOT / "train.py")
     require_file(eval_code / "test.py")
     sources = {(r["dataset"], r["domain"]): r for r in report["raw_results"]
-               if r["method"] == "A" and int(r["seed"]) == 42}
+               if r["method"] == "A" and int(r["seed"]) == 42
+               and r["dataset"] in domains_scope}
     references = {(r["dataset"], r["domain"]): r for r in base["runs"]
                   if r["method"] == "A"}
-    expected = {(ds, domain) for ds, domains in DOMAINS.items() for domain in domains}
+    expected = {(ds, domain) for ds, domains in domains_scope.items() for domain in domains}
     if set(sources) != expected:
-        raise ValueError("Completed core A must bind exactly the existing12 domains")
+        raise ValueError("Completed core A must bind exactly the selected existing domains")
+    oracle_specs = {}
+    if oracle:
+        from experiments.comparison.oracle_training import build_specs
+
+        oracle_specs = build_specs(paths, oracle_adapter, sarclip_base)
     cells, overlays, regression_audits, f_audits = {}, {}, {}, {}
-    for dataset, domains in DOMAINS.items():
+    for dataset, domains in domains_scope.items():
         for domain in domains:
             source, reference = sources[dataset, domain], references[dataset, domain]
             checkpoint = paths.ema_path(dataset, domain, "42", "A")
@@ -123,7 +136,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                 for method in methods:
                     root = artifacts / dataset.lower() / domain / f"seed_{seed}"
                     method_dir = root / "methods" / method
-                    world_size = 2 if method in F_DELETIONS else 1
+                    world_size = 2 if method in (*F_DELETIONS, "LoRA-CGA+VLST") else 1
                     work = method_dir / "ddp2/work" if world_size == 2 else method_dir / "work"
                     epochs = 2 if method == "SFYOLO" else 1
                     # Single-group sampler pads to32. Epoch-end save is runner.iter+1,
@@ -134,7 +147,13 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                     key = cell_key(dataset, domain, seed, method)
                     cell_code, cell_sha = str(ROOT), training_sha
                     model_environment, wrapper_environment = {}, {}
-                    if method == "B_REG":
+                    if oracle:
+                        spec = oracle_specs[method]
+                        name = f"oracle_{method.replace('+', '_')}_dior.py"
+                        overlays[name] = spec["config_text"]
+                        config = str(out / name)
+                        model_environment = spec["model_environment"]
+                    elif method == "B_REG":
                         from experiments.comparison.b_regression import build_b_regression_spec
 
                         overrides = {
@@ -191,7 +210,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                         "target_val": val, "unlabeled_epoch_size": TARGET_VAL_SIZE[dataset],
                         "training_code": cell_code, "training_code_sha": cell_sha,
                         "world_size": world_size, "samples_per_gpu": 32 // world_size,
-                        "use_bbox_reg": method not in F_DELETIONS,
+                        "use_bbox_reg": method not in (*F_DELETIONS, *ORACLE_METHODS),
                         "model_environment": model_environment,
                         "wrapper_environment": wrapper_environment,
                         "root": str(root), "method_dir": str(method_dir), "work_dir": str(work),
@@ -201,6 +220,16 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                         "terminal_status": str(work.parent / "terminal_status"),
                         "status": "prepared_not_execution_evidence",
                     }
+                    if oracle:
+                        cells[key].update(
+                            oracle_adapter=spec["oracle_adapter"],
+                            oracle_base_weights=spec["oracle_base_weights"],
+                            oracle_training_git_sha=spec["oracle_training_git_sha"],
+                            fairness_group="Target-supervised",
+                            appendix_only=True,
+                            detector_epochs=1,
+                            detector_optimizer_updates=184,
+                            final_checkpoint_iteration=185)
                     if method == "SFYOLO":
                         fit = tam_fits[f"{dataset}/{domain}"]
                         if fit["target_val"] != val:
@@ -231,7 +260,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
         "evaluation_code": str(eval_code), "evaluation_code_sha": evaluation_sha,
         "base_plan": str(Path(base_plan).resolve()), "core_report": str(Path(core_report).resolve()),
         "core_paths": str(core_paths), "artifact_root": str(artifacts),
-        "methods": methods, "seeds": SEEDS, "domains": DOMAINS,
+        "methods": methods, "seeds": SEEDS, "domains": domains_scope,
         "train_cells": len(cells), "eval_cells": len(cells),
         "source_training_cells": 0, "cells": cells,
         "allowed_gpus": list(ALLOWED_GPUS),
@@ -321,7 +350,15 @@ def load_cell(queue, dataset, domain, seed, method, role="ema"):
 
 def require_prerequisites(cell):
     """The same scientific admission boundary for producer and native worker."""
-    if cell["method"] == "AASFOD":
+    if cell["method"] in ORACLE_METHODS:
+        from experiments.comparison.oracle_adapters import inspect_oracle_adapter
+
+        if cell["dataset"] != "DIOR":
+            raise ValueError("Only DIOR oracle detector cells are approved")
+        inspect_oracle_adapter(
+            require_file(cell["oracle_adapter"]), "DIOR",
+            require_file(cell["oracle_base_weights"]))
+    elif cell["method"] == "AASFOD":
         from experiments.comparison.aasfod_protocol import validate_split
 
         validate_split(host.read_json(require_file(cell["tsd_split"])), cell)
@@ -439,10 +476,12 @@ def training_invocation(queue, runtime, cell, gpus, port, work):
     if method == "B_REG":
         env.update(CGA_SCORER="none", CGA_BACKEND="none", CGA_FILTER_MODE="none",
                    PYTHONDONTWRITEBYTECODE="1")
-    if method in F_DELETIONS:
+    if method in (*F_DELETIONS, *ORACLE_METHODS):
         env.update(cell["model_environment"])
         env.update(cell["wrapper_environment"])
-        env.update(MASTER_PORT=str(port), PYTHONDONTWRITEBYTECODE="1")
+        env.update(PYTHONDONTWRITEBYTECODE="1")
+        if port is not None:
+            env["MASTER_PORT"] = str(port)
     if method == "AASFOD":
         # The current stage helper reads mapped queues, but train.py/model imports
         # must remain the originally bound method checkout, not this executor.
@@ -482,7 +521,7 @@ def main():
         entry = commands.add_parser(action)
         for name in ("queue", "dataset", "domain"):
             entry.add_argument("--" + name, required=True)
-        entry.add_argument("--method", choices=METHODS, required=True)
+        entry.add_argument("--method", choices=(*METHODS, *ORACLE_METHODS), required=True)
         if action == "evaluate":
             entry.add_argument("--role", choices=("ema", "student"), default="ema")
         if action == "train-ddp":
