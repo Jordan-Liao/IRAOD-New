@@ -1,9 +1,9 @@
 {
   "status": "approved_extensions_incomplete",
   "preserved_core_commit": "32e325442bba54ea11f2179f6c69c6f76fbe995d",
-  "implementation_commit": "84a1aeb",
+  "implementation_commit": "36c2053",
   "remote_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908",
-  "deployed_code": "integration_code_84a1aeb",
+  "deployed_code": "integration_code_36c2053",
   "producer_policy": "Existing single IRG/LPLD/SFUT producer remains supervisor-owned; integration owner launches no GPU jobs and changes no controller or live code",
   "approval_gates_remaining": false,
   "scopes": {
@@ -64,6 +64,8 @@
     "AASFOD": {
       "train_cells": 36,
       "status": "implemented_native_CPU_accepted_TSD_and_GPU_smoke_pending",
+      "queue": "aasfod_manifests_36c2053",
+      "formal_root_created_by_preparation": false,
       "mechanisms": ["20-pass aligned posthoc-dropout TSD", "local and global target-to-target GRL", "four-image geometric FNS", "fresh optimizer and full teacher initialization at stage transition"],
       "stage_optimizer_updates": {"RSAR": [159, 106], "DIOR": [110, 74]},
       "ema": {"momentum": 0.99, "cadence": "post-optimizer every update; disclosed rescaling from author2500"},
@@ -73,17 +75,20 @@
     "oracle": {
       "adapters": 2,
       "detector_train_cells": 72,
-      "status": "TRAIN_preparation_and_real_weight_smokes_pending",
+      "status": "DIOR_TRAIN_ready_RSAR_supervisor_reconciliation_and_real_weight_smokes_pending",
       "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
       "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
       "RSAR": "1047844-row patch materialization remains compute-owner controlled; terminal reconciliation not claimed here",
-      "DIOR": "brightness/contrast TRAIN5862 each available; author-bound cloudy CPU generator implemented, materialization pending; no fog substitution or per-image atmospheric-light reset"
+      "DIOR": "5862 cloudy TRAIN images generated;97902 three-corruption patches complete and reconciled,32634/domain,20classes,zero rejects;15300 adapter optimizer updates at10epochs/batch64; no GPU launch",
+      "DIOR_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json"
     },
     "qualitative_and_new_method_consumers": {
       "status": "not_complete",
       "existing_BF_seed43_44": {"new_roi_groups": 240, "new_image_role_records": 2305120, "new_embeddings": 48},
       "five_new_ports": {"models": 180, "EMA_and_Student_eval_cells": 360, "roi_groups": 360},
-      "next": "Complete method-aware report/qualitative consumers beyond A-F assumptions and collect actual extension artifacts; Student quant-only report is not this gate"
+      "quantitative_consumer": "Implemented collect_extension_report with explicit approved methods/roles, exact native evidence, separate common/SFYOLO/oracle statistical families, CSV/LaTeX/figures/DOCX and default core compatibility",
+      "quantitative_consumer_doc": "experiments/comparison/EXTENSION_REPORT_CONSUMER.md",
+      "next": "Collect supervisor-relayed terminal extension outputs; complete generalized qualitative ROI/visualization/joint-tSNE consumers and artifacts. Quantitative-only reports do not close this gate."
     },
     "DRU": {"status": "explicitly_excluded_no_proxy"}
   },

@@ -31,10 +31,21 @@ The bounded LoRA smoke CLI is documented in `tools/ORACLE_PREPARATION.md`.
 AASFOD's actual aligned TSD, local/global GRL, four-image geometric FNS and
 stage/reset/cadence implementation are now available in `AASFOD.md`; the34-test
 native CPU mechanism/queue/cloudy gate passed. TSD and full-detector GPU smokes
-remain unrun. DIOR cloudy's author-bound stateful CPU implementation is in
-`tools/dataset/DIOR_CLOUDY.md`, with materialization pending. Generalized
-new-method report/qualitative consumers remain unfinished. Student quantitative
-collection is not completion of these scopes or full qualitative extensions.
+remain unrun. Code36c2053 is deployed as `integration_code_36c2053`, with36
+bindings at `aasfod_manifests_36c2053` and no formal root created by preparation.
+DIOR cloudy CPU materialization is complete:5862 exact TRAIN IDs and
+6,511,929,868 lossless PNG bytes. The actual97902 oracle crops are also complete:
+32634 per corruption,20classes,zero rejects, and exact metadata/physical-file
+reconciliation. The frozen10epoch/batch64 budget is15300 optimizer updates.
+Compact evidence is in `dior_cloudy_materialization.json`,
+`oracle_dior_crop_count.json` and `oracle_dior_materialization.json`.
+
+The method-aware quantitative consumer is implemented in
+`experiments/comparison/EXTENSION_REPORT_CONSUMER.md`, including separate
+common/SFYOLO/oracle statistics, CSV, LaTeX, figures and DOCX. It needs the
+supervisor's actual terminal evaluation artifacts and explicit Student
+bindings. Generalized qualitative consumers and full qualitative extensions
+remain unfinished; quantitative exports do not close the parent gate.
 
 CPU collection from the existing compatibility queue (new output directories):
 
@@ -650,8 +661,9 @@ brightness and contrast TRAIN directories now contain5862 each. The separate
 author-bound cloudy generator and CPU command are documented in
 `tools/dataset/DIOR_CLOUDY.md`; it preserves DOTA-C equations, lexicographic
 texture/image order, MATLAB-compatible resize conventions and cross-image A
-state. Materialization remains pending until its terminal summary proves5862
-TRAIN outputs. Neither VAL/TEST data nor clean images are relabeled as
+state. Its terminal summary now proves5862 TRAIN outputs, and all97902
+three-corruption oracle patches are materialized with zero rejects. Neither
+VAL/TEST data nor clean images are relabeled as
 corrupted oracle inputs, and cloudy is never substituted with fog.
 
 Both adapters are appendix-only Target-supervised resources. The detector

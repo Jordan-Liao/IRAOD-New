@@ -77,4 +77,9 @@ Generation binds only5862 `DIOR/ImageSets/train.txt` IDs using the existing
 `train_annotations`/`required_images` helpers. Resume requires matching lineage
 and exact replayed pixels; VAL/TEST data and completed brightness/contrast
 images remain untouched. Materialization is CPU preparation, not adapter
-training or oracle-result completion.
+training or oracle-result completion. Materialization is now complete:
+5862 cloudy TRAIN images and97902 actual three-corruption crops,32634/domain,
+20classes,zero rejects. The reconciled DIOR metadata is
+`/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv`.
+Its10epoch/batch64 budget is15300 optimizer updates; GPU smoke/training remain
+the parent's gated execution, not an automatic action after CPU preparation.

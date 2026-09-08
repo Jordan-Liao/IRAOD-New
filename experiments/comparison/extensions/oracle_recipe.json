@@ -59,17 +59,21 @@
       "prompt": "an aerial image of a {}",
       "prompt_basis": "existing optical-domain wording, explicitly parameterized for DIOR; no change to the LoRA algorithm",
       "output": "lora_dior.pth",
-      "actual_patch_count": null,
-      "observed_data_gap": {
+      "counted_valid_crops": 97902,
+      "expected_optimizer_updates": 15300,
+      "expected_patch_draws": 979020,
+      "crop_count_evidence": "experiments/comparison/extensions/oracle_dior_crop_count.json",
+      "resolved_train_inputs": {
         "train_ids": 5862,
-        "available_train_images_in_each_known_corruption_folder": 0,
-        "missing_train_images_in_each_known_corruption_folder": 5862,
-        "known_folders": "/mnt/shared/zechuan/iraod_data/DIOR/Corruption/JPEGImages-<domain>",
-        "dior_splits_train_folders": "absent",
-        "upstream183_check": "known00001.jpg TRAIN sample absent in each corresponding original corruption folder; not an exhaustive upstream search"
+        "available_train_images_per_corruption": 5862,
+        "folders": "/mnt/shared/zechuan/iraod_artifacts/dior_oracle_train_images/JPEGImages-<domain>",
+        "cloudy_provenance": "experiments/comparison/extensions/dior_cloudy_materialization.json",
+        "source_folders": "Original DIOR VAL/TEST corruption folders remain unchanged"
       },
-      "required_resolution": "obtain matching TRAIN corruption images or their actual generating recipe/provenance; no VAL/TEST GT, clean-source TRAIN relabeling, or arbitrary cloudy-to-fog substitution",
-      "status": "trainer/crop interfaces implemented; actual corrupted-TRAIN inputs unresolved"
+      "actual_patch_count": 97902,
+      "materialization_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json",
+      "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",
+      "status": "97902 actual TRAIN patches complete and reconciled against all class/domain counts and physical files; no GPU adapter training"
     }
   },
   "oracle_variants": ["SARCLIP-LoRA-CGA", "SARCLIP-LoRA-CGA+VLST"],

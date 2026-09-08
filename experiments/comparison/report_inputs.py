@@ -10,7 +10,7 @@ import shlex
 import numpy as np
 
 from experiments.comparison.result_completion import DOMAINS, read_json
-from experiments.comparison.report_statistics import SEEDS
+from experiments.comparison.report_statistics import SEEDS, declared_methods, method_group
 from tools.prediction_export import IMAGE_ORDER_ORIGIN, IMAGE_ORDER_SCHEMA
 from experiments.comparison.source_provenance import annotate_producer
 from experiments.comparison.labels import CLASSES
@@ -18,6 +18,7 @@ from experiments.comparison.labels import CLASSES
 
 EXPECTED_IMAGES = {"RSAR": 8538, "DIOR": 11738}
 FINAL_ITERATION = {"RSAR": 266, "DIOR": 185}
+SFYOLO_FINAL_ITERATION = {"RSAR": 531, "DIOR": 369}
 HISTORICAL_ROOT = Path(__file__).resolve().parents[2] / "results/paper_comparison"
 
 
@@ -48,12 +49,13 @@ def key(row):
     return (row["dataset"], row["domain"], row["method"], int(row["seed"]), row["role"])
 
 
-def keyed(rows):
+def keyed(rows, methods=None):
+    methods = declared_methods(methods)
     result = {}
     for row in rows:
         identity = key(row)
         ds, domain, method, seed, role = identity
-        if (ds not in DOMAINS or domain not in DOMAINS[ds] or method not in tuple("ABCDEF")
+        if (ds not in DOMAINS or domain not in DOMAINS[ds] or method not in methods
                 or seed not in SEEDS or (method == "A" and (role != "source" or seed != 42))
                 or (method != "A" and role not in ("ema", "student"))):
             raise ValueError(f"Invalid cell identity: {identity}; A is a single seed42 source")
@@ -149,7 +151,8 @@ def prediction_evidence(path, ids_path, dataset):
 def inspect_cell(cell, checkpoint, source_id):
     """A successful eval_status alone is insufficient: the script writes it early."""
     result = {**cell, "seed": int(cell["seed"]), "status": "incomplete", "mAP50": None,
-              "eval_mAP50": None, "problems": [], "n_predictions": None,
+              "eval_mAP50": None, "problems": list(cell.get("collection_problems", [])),
+              "n_predictions": None,
               "n_post_nms_detections": None}
     issues = result["problems"]
     classes, images = [], []
@@ -163,7 +166,8 @@ def inspect_cell(cell, checkpoint, source_id):
         if checkpoint.get("selection") != expected_role:
             issues.append("checkpoint_not_fixed_source_or_final")
         if cell["method"] != "A":
-            iteration = FINAL_ITERATION[cell["dataset"]]
+            iteration = (SFYOLO_FINAL_ITERATION if cell["method"] == "SFYOLO"
+                         else FINAL_ITERATION)[cell["dataset"]]
             suffix = "_ema" if cell["role"] == "ema" else ""
             if (int(checkpoint.get("iteration", -1)) != iteration
                     or Path(checkpoint["path"]).name != f"iter_{iteration}{suffix}.pth"):
@@ -175,10 +179,10 @@ def inspect_cell(cell, checkpoint, source_id):
     files = {"eval_status": out / "eval_status", "class_ap": out / "class_ap.txt",
              "predictions": out / "predictions.pkl", "pred_count": out / "pred_count.txt"}
     # Explicit eval JSON selection avoids choosing a stale successful retry by mtime.
-    files["eval_json"] = Path(cell["eval_json"])
+    files["eval_json"] = Path(cell["eval_json"]) if cell.get("eval_json") else None
     for name, path in files.items():
-        result[name] = str(path)
-        if not path.is_file() or path.stat().st_size == 0:
+        result[name] = str(path) if path is not None else None
+        if path is None or not path.is_file() or path.stat().st_size == 0:
             issues.append(f"missing_{name}")
     if "missing_eval_status" not in issues:
         matches = [line for line in files["eval_status"].read_text().splitlines()
@@ -234,6 +238,9 @@ def inspect_cell(cell, checkpoint, source_id):
             issues.append("prediction_sidecar_checkpoint_or_config_mismatch")
         result["training_code_sha"] = order["training_code_sha"]
         result["evaluation_code_sha"] = order["evaluation_code_sha"]
+        for field in ("training_code_sha", "evaluation_code_sha"):
+            if cell.get(field) and order.get(field) != cell[field]:
+                issues.append(f"prediction_sidecar_{field}_mismatch")
         result["n_predictions"] = len(images)
         result["n_post_nms_detections"] = sum(i["n_post_nms_detections"] for i in images)
     if not issues:
@@ -245,8 +252,9 @@ def collect_quantitative(manifest, prediction_sink=None):
     roles = tuple(manifest.get("roles", ["ema"]))
     if not roles or len(set(roles)) != len(roles) or set(roles) - {"ema", "student"}:
         raise ValueError("Quantitative roles must be ema and/or student; no source duplication")
-    cells = keyed(read_rows(manifest["cells"]))
-    checkpoints = keyed(read_rows(manifest["checkpoints"]))
+    methods = declared_methods(manifest.get("methods"))
+    cells = keyed(read_rows(manifest["cells"]), methods)
+    checkpoints = keyed(read_rows(manifest["checkpoints"]), methods)
     if any(k[-1] != "source" and k[-1] not in roles for k in cells):
         raise ValueError("Cell role is not in the declared quantitative roles")
     history = historical_values(historical_paths(manifest))
@@ -263,7 +271,7 @@ def collect_quantitative(manifest, prediction_sink=None):
     for ds, domains in DOMAINS.items():
         for domain in domains:
             identities = [(ds, domain, "A", 42, "source")] + [
-                (ds, domain, m, s, r) for m in "BCDEF" for s in SEEDS for r in roles]
+                (ds, domain, m, s, r) for m in methods[1:] for s in SEEDS for r in roles]
             for identity in identities:
                 base = dict(zip(("dataset", "domain", "method", "seed", "role"), identity))
                 cell = cells.get(identity)
@@ -311,5 +319,7 @@ def collect_quantitative(manifest, prediction_sink=None):
                             predictions.append(evidence)
                         else:
                             prediction_sink(evidence)
+                if "methods" in manifest:
+                    row["comparison_group"] = method_group(base["method"])
                 raw.append(row)
     return raw, per_class, predictions, roles

@@ -12,6 +12,37 @@ from tools.cga_research.statistics import (
 SEEDS = (42, 43, 44)
 METRICS = ("mPC", "delta_A", "rPC_percent", "method_clean_normalized_percent",
            "clean_mAP50", "clean_delta_A")
+EXTENSION_METHODS = ("IRG", "LPLD", "SFUT", "AASFOD", "SFYOLO",
+                     "B_REG", "F_text_only", "F_veto_only",
+                     "LoRA-CGA", "LoRA-CGA+VLST")
+
+
+def declared_methods(methods=None):
+    """The planned hypotheses come from a manifest, never completed rows."""
+    if methods is None:
+        return tuple("ABCDEF")
+    methods = tuple(methods)
+    if (not methods or methods[0] != "A" or len(set(methods)) != len(methods)
+            or set(methods) - set((*"ABCDEF", *EXTENSION_METHODS))):
+        raise ValueError("Declare distinct approved methods, starting with the single fixed A")
+    return methods
+
+
+def method_group(method):
+    if method == "A":
+        return "fixed_source"
+    if method == "SFYOLO":
+        return "extended_two_epoch_TAM"
+    if method in ("LoRA-CGA", "LoRA-CGA+VLST"):
+        return "target_supervised_appendix"
+    return "common_one_epoch"
+
+
+def comparison_groups(methods):
+    groups = {}
+    for method in declared_methods(methods)[1:]:
+        groups.setdefault(method_group(method), []).append(method)
+    return groups
 
 
 def describe(values):
@@ -27,7 +58,9 @@ def describe(values):
     return result
 
 
-def summarize(rows, roles=("ema",)):
+def summarize(rows, roles=("ema",), methods=None):
+    explicit = methods is not None
+    methods = declared_methods(methods)
     lookup = {(r["dataset"], r["domain"], r["method"], r["seed"], r["role"]): r
               for r in rows if r["status"] == "complete"}
 
@@ -46,7 +79,7 @@ def summarize(rows, roles=("ema",)):
                 "bootstrap_ci95_low": None, "bootstrap_ci95_high": None,
             })
             for role in roles:
-                for method in "BCDEF":
+                for method in methods[1:]:
                     values = [value(dataset, domain, method, seed, role) for seed in SEEDS]
                     available = [x for x in values if x is not None]
                     per_domain.append({
@@ -75,7 +108,7 @@ def summarize(rows, roles=("ema",)):
                 "seeds": "42 (one fixed source measurement)",
             })
         for role in roles:
-            for method in "BCDEF":
+            for method in methods[1:]:
                 blocks = []
                 for seed in SEEDS:
                     corrupted = [value(dataset, d, method, seed, role) for d in domains[1:]]
@@ -113,7 +146,8 @@ def summarize(rows, roles=("ema",)):
                     differences = [b[metric] for b in blocks if b[metric] is not None]
                     record = {
                         "dataset": dataset, "method": method, "role": role, "metric": metric,
-                        "family": f"{dataset}/{role}/{metric}/B-F",
+                        "family": f"{dataset}/{role}/{metric}/" + (
+                            method_group(method) if explicit else "B-F"),
                         "n": len(differences), "status": "incomplete",
                         "differences": differences, "t": None, "df": None, "t_p": None,
                         "t_na_reason": "requires seeds 42,43,44",
@@ -131,7 +165,7 @@ def summarize(rows, roles=("ema",)):
                             t = paired_t_test(differences)
                             record.update(t=t["t"], df=t["df"], t_p=t["p"], t_na_reason=None)
                     tests.append(record)
-    # Do not shrink the planned B-F family to whichever methods finished first.
+    # Do not shrink a declared family to whichever methods finished first.
     for family in sorted({t["family"] for t in tests}):
         members = [t for t in tests if t["family"] == family]
         if any(t["n"] != 3 for t in members):
@@ -162,6 +196,10 @@ def summarize(rows, roles=("ema",)):
                                if gap is not None and gap > 0 else
                                "undefined_nonpositive_or_missing_source_degradation"),
         })
+    if explicit:
+        for records in (per_seed, per_domain, summary, tests, recovery):
+            for record in records:
+                record["comparison_group"] = method_group(record["method"])
     return {"per_seed": per_seed, "per_domain": per_domain, "recovery": recovery,
             "summary": summary, "paired_statistics": tests,
             "statistical_protocol": {
@@ -172,7 +210,10 @@ def summarize(rows, roles=("ema",)):
                 "n": 3, "warning": "low power; exact two-sided sign-flip minimum p is 0.25",
                 "ci": "95% percentile bootstrap, 100000 seed-block resamples, RNG seed42; fragile at n=3",
                 "t_test": "two-sided one-sample t on seed-level paired deltas; assumes normal differences",
-                "holm": "planned five B-F tests per dataset/role/metric; no adjustment until family complete",
+                "holm": ("planned five B-F tests per dataset/role/metric; no adjustment until family complete"
+                         if not explicit else
+                         "manifest-declared methods per dataset/role/metric/comparison_group; "
+                         "no adjustment until the entire declared family is complete"),
                 "rPC": "100 * seed mPC / fixed A clean TEST",
                 "method_clean_normalized": "separate: 100 * seed mPC / same-method same-seed clean",
                 "recovery": "(method - A_corruption) / (A_clean_TEST - A_corruption); "

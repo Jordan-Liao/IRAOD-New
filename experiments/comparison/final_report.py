@@ -9,7 +9,7 @@ import subprocess
 
 from experiments.comparison.report_inputs import collect_quantitative, historical_paths, read_rows
 from experiments.comparison.report_qualitative import qualitative_evidence
-from experiments.comparison.report_statistics import summarize
+from experiments.comparison.report_statistics import comparison_groups, declared_methods, summarize
 from experiments.comparison.result_completion import read_json, write_json
 
 
@@ -33,25 +33,78 @@ def figures(report, out):
     import matplotlib.pyplot as plt
 
     saved = []
-    for ds in ("RSAR", "DIOR"):
+    groups = (comparison_groups(report["methods"]) if "methods" in report
+              else {"": list("BCDEF")})
+    for group, members in groups.items():
+        methods = ["A", *members]
+        for ds in ("RSAR", "DIOR"):
+            for role in report["roles"]:
+                rows = [r for r in report["summary"] if r["dataset"] == ds and r["metric"] == "mPC"
+                        and r["role"] in ("source", role) and r["mean"] is not None
+                        and r["method"] in methods]
+                if not rows:
+                    continue
+                fig, ax = plt.subplots(figsize=(max(5, len(methods)) if group else 5, 3))
+                for row in rows:
+                    x = methods.index(row["method"])
+                    ax.errorbar(x, row["mean"], yerr=row["sample_std"], fmt="o",
+                                capsize=3, color="black" if row["method"] == "A" else "#0072B2")
+                ax.set_xticks(range(len(methods)), methods, rotation=25 if group else 0)
+                ax.set_ylabel("mPC (AP50, 0-1)")
+                if group:
+                    ax.set_title(group + " (declared order; no cross-budget ranking)")
+                ax.spines[["top", "right"]].set_visible(False)
+                for suffix in ("png", "pdf"):
+                    name = f"{ds}_{role}{'_' + group if group else ''}_mpc.{suffix}"
+                    fig.savefig(out / name, dpi=300, bbox_inches="tight")
+                    saved.append(name)
+                plt.close(fig)
+    return saved
+
+
+def extension_tables(report, out):
+    """Booktabs exports never mix checkpoint roles, budgets or supervision groups."""
+    from experiments.comparison.publish_report import tex_escape
+
+    values = {(r["dataset"], r["method"], r["role"], r["metric"]): r
+              for r in report["summary"]}
+    saved = []
+    for group, members in comparison_groups(report["methods"]).items():
+        methods = ["A", *members]
         for role in report["roles"]:
-            rows = [r for r in report["summary"] if r["dataset"] == ds and r["metric"] == "mPC"
-                    and r["role"] in ("source", role) and r["mean"] is not None]
-            if not rows:
-                continue
-            fig, ax = plt.subplots(figsize=(5, 3))
-            for row in rows:
-                x = "ABCDEF".index(row["method"])
-                ax.errorbar(x, row["mean"], yerr=row["sample_std"], fmt="o",
-                            capsize=3, color="black" if row["method"] == "A" else "#0072B2")
-            ax.set_xticks(range(6), list("ABCDEF"))
-            ax.set_ylabel("mPC (AP50, 0-1)")
-            ax.spines[["top", "right"]].set_visible(False)
-            for suffix in ("png", "pdf"):
-                name = f"{ds}_{role}_mpc.{suffix}"
-                fig.savefig(out / name, dpi=300, bbox_inches="tight")
-                saved.append(name)
-            plt.close(fig)
+            lines = [
+                "% Requires booktabs. Missing complete seed blocks remain --.",
+                r"\begin{table*}[t]", r"\centering", r"\setlength{\tabcolsep}{4pt}",
+                r"\renewcommand{\arraystretch}{1.15}",
+                r"\caption{" + tex_escape(group + " / " + role) +
+                r". Mean $\pm$ sample standard deviation over three adaptation seeds; "
+                r"A is one fixed reference. Values in percentage points. "
+                r"No cross-budget or cross-supervision ranking.}",
+                r"\begin{tabular}{@{}lrrrrrr@{}}", r"\toprule",
+                r"Method & \multicolumn{3}{c}{RSAR} & \multicolumn{3}{c}{DIOR-R} \\",
+                r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}",
+                r" & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$"
+                r" & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\",
+                r"\midrule",
+            ]
+            for method in methods:
+                row = [tex_escape(method)]
+                selected_role = "source" if method == "A" else role
+                for dataset in ("RSAR", "DIOR"):
+                    for metric in ("clean_mAP50", "mPC", "delta_A"):
+                        entry = values[dataset, method, selected_role, metric]
+                        if entry["mean"] is None:
+                            row.append("--")
+                            continue
+                        text = f"{100 * entry['mean']:.2f}"
+                        if entry["sample_std"] is not None:
+                            text += r" \pm " + f"{100 * entry['sample_std']:.2f}"
+                        row.append("$" + text + "$")
+                lines.append(" & ".join(row) + r" \\")
+            lines.extend([r"\bottomrule", r"\end{tabular}", r"\end{table*}", ""])
+            filename = f"{group}_{role}_table.tex"
+            (Path(out) / filename).write_text("\n".join(lines))
+            saved.append(filename)
     return saved
 
 
@@ -78,6 +131,12 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
     manifest = read_json(manifest_path)
     if manifest["schema"] != SCHEMA:
         raise ValueError("Expected iraod-comparison-report-v1 input manifest")
+    methods = declared_methods(manifest.get("methods"))
+    quant_only = manifest.get("quantitative_only", False)
+    if "methods" in manifest and not quant_only:
+        raise ValueError("Explicit-method reports are quantitative-only; extension RoI/t-SNE remain pending")
+    if "comparison_groups" in manifest and manifest["comparison_groups"] != comparison_groups(methods):
+        raise ValueError("Comparison groups must preserve the declared budget/supervision boundaries")
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=False)
     prediction_fields = [
@@ -89,13 +148,24 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         writer = csv.DictWriter(stream, fieldnames=prediction_fields)
         writer.writeheader()
         raw, per_class, _, roles = collect_quantitative(manifest, writer.writerow)
-    stats = summarize(raw, roles)
+    stats = summarize(raw, roles, manifest.get("methods"))
     roi_fields = [
         "dataset", "domain", "method", "role", "seed", "checkpoint_domain", "checkpoint",
         "config", "image_id", "scope", "roi_status", "vis_status", "feature_file",
         "n_detections", "visualization_file", "evidence",
     ]
-    if manifest.get("qualitative_evidence"):
+    if quant_only:
+        embeddings = []
+        coverage = {
+            "status": "pending_not_collected", "full_test_roi": False,
+            "roi_complete": 0, "roi_expected_image_roles": None,
+            "vis_complete": 0, "vis_expected_image_roles": None,
+            "embeddings_complete": 0, "embeddings_expected": None,
+            "roi_group_index": [],
+            "scope": "Extension RoI/visualizations/t-SNE pending; core denominators do not apply",
+        }
+        write_csv(out / "roi_vis_coverage.csv", [], roi_fields)
+    elif manifest.get("qualitative_evidence"):
         _, embeddings, coverage = qualitative_evidence(manifest)
         (out / "roi_vis_coverage.csv").symlink_to(coverage["roi_image_manifest"])
     else:
@@ -104,7 +174,7 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
             writer.writeheader()
             _, embeddings, coverage = qualitative_evidence(manifest, writer.writerow)
     complete_cells = sum(r["status"] == "complete" for r in raw)
-    complete = (complete_cells == len(raw)
+    complete = (not quant_only and complete_cells == len(raw)
                 and coverage["roi_complete"] == coverage["roi_expected_image_roles"]
                 and coverage["vis_complete"] == 3520 and coverage["embeddings_complete"] == 24)
     report = {
@@ -126,6 +196,13 @@ def build_report(manifest_path, out_dir, docx_python=None, metadata_only=False):
         "source_provenance": manifest.get("source_provenance", {}),
         "checkpoints": read_rows(manifest["checkpoints"]),
     }
+    if quant_only:
+        report["quantitative_only"] = True
+        report["quantitative_status"] = "complete" if complete_cells == len(raw) else "incomplete"
+    if "methods" in manifest:
+        report["methods"] = methods
+        report["comparison_groups"] = comparison_groups(methods)
+        report["latex_tables"] = extension_tables(report, out)
     for name, rows, fields in (
         ("raw_results", raw, ("dataset", "domain", "method", "seed", "role", "mAP50", "status")),
         ("per_class", per_class, ("dataset", "domain", "method", "seed", "role", "class_name", "AP50")),
