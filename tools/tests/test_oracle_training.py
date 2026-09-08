@@ -243,9 +243,9 @@ class OracleTrainingTest(unittest.TestCase):
         cell = finite.Cell("DIOR", "clean", 42, "LoRA-CGA")
         start = Mock(side_effect=AssertionError("unadmitted oracle must not launch"))
         backend = SimpleNamespace(
-            run_dir=self.root / "finite_state", producer=lambda: nullcontext(),
+            queue=self.root, run_dir=self.root / "finite_state", producer=lambda: nullcontext(),
             evidence=lambda *args: "pending", available=lambda: {4},
-            prerequisites=lambda c: ("waiting", "adapter consumer admission pending"),
+            admission=lambda c, phase: ("waiting", "adapter consumer admission pending"),
             discover_external_owners=lambda *args: [], discover=lambda *args: [],
             start=start)
         result = finite.run_finite({cell: True}, backend)

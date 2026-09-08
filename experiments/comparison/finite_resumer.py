@@ -2,6 +2,7 @@
 
 import argparse
 from contextlib import contextmanager
+from copy import deepcopy
 import csv
 import ctypes
 from dataclasses import asdict, dataclass
@@ -187,7 +188,11 @@ def train_state(queue, paths, cell, check_wrap=True):
     student = Path(paths.student_path(*args))
     finals = all(p.is_file() and p.stat().st_size > 0 for p in (ema, student))
     if not finals:
-        return "blocked" if ema.exists() or student.exists() else "pending"
+        failed = (ema.parent.exists()
+                  or last_exit(ema.parent.parent / "terminal_status",
+                               ("tmux_wrap_exit", "launcher_exit")) is not None
+                  or check_wrap and not wrappers_complete(queue, paths, cell, "train"))
+        return "blocked" if ema.exists() or student.exists() or failed else "pending"
     terminal = ema.parent.parent / "terminal_status"
     rc = last_exit(terminal, ("tmux_wrap_exit", "launcher_exit"))
     if rc == 0 and (not check_wrap or wrappers_complete(queue, paths, cell, "train")):
@@ -205,6 +210,42 @@ def prerequisite_state(paths, cell):
         require_prerequisites(paths.binding(cell.dataset, cell.domain, str(cell.seed), cell.method))
     except (OSError, ValueError, KeyError, RuntimeError, EOFError, pickle.UnpicklingError) as error:
         return "waiting", f"{cell.method} prerequisite: {error}"
+    return "ready", ""
+
+
+def input_state(queue, paths, cell, phase):
+    """Read prepared inputs only; never load a detector or change its binding."""
+    if not host.is_target_host() and not getattr(paths, "DATA", {}).get("schema"):
+        return prerequisite_state(paths, cell) if phase == "train" else ("ready", "")
+    from experiments.comparison.extension_training import load_cell, require_file, require_prerequisites
+
+    try:
+        _, binding = load_cell(queue, cell.dataset, cell.domain, cell.seed, cell.method, cell.role)
+        if phase == "train":
+            require_file(binding["source_checkpoint"])
+            images = host.read_path(binding["target_val"])
+            if not images.is_dir():
+                raise ValueError(f"Missing target image directory: {images}")
+            # Match StrictSourceFreeDOTADataset's recursive image discovery;
+            # no annotations, sampling or image decoding belong in admission.
+            count = sum(p.is_file() and p.suffix.lower() in
+                        (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
+                        for p in images.rglob("*"))
+            if count < binding["unlabeled_epoch_size"]:
+                raise ValueError(f"Insufficient target images: {images}: "
+                                 f"{count} < {binding['unlabeled_epoch_size']}")
+            require_prerequisites(binding)
+        else:
+            require_file(binding["checkpoint"])
+            annotations = host.read_path(binding["ann_file"])
+            if cell.dataset == "DIOR":
+                require_file(annotations)
+            elif not annotations.is_dir():
+                raise ValueError(f"Missing TEST annotation directory: {annotations}")
+            if not host.read_path(binding["img_prefix"]).is_dir():
+                raise ValueError(f"Missing TEST image directory: {binding['img_prefix']}")
+    except (OSError, ValueError, KeyError, RuntimeError, EOFError, pickle.UnpicklingError) as error:
+        return "waiting", f"{phase} input: {error}"
     return "ready", ""
 
 
@@ -228,7 +269,7 @@ def eval_state(queue, paths, cell, check_wrap=True):
     pred = out / "predictions.pkl"
     sidecar = out / "predictions.pkl.image_ids.json"
     if not pred.exists() and not sidecar.exists():
-        return "pending"
+        return "blocked" if out.exists() else "pending"
     required = (pred, sidecar, out / "class_ap.txt", out / "pred_count.txt")
     if not all(p.is_file() and p.stat().st_size > 0 for p in required):
         return "blocked"
@@ -519,8 +560,48 @@ class TmuxBackend:
         return (train_state if phase == "train" else eval_state)(
             self.queue, self.paths, cell, check_wrap=check_wrap)
 
-    def prerequisites(self, cell):
-        return prerequisite_state(self.paths, cell)
+    def admission(self, cell, phase):
+        return input_state(self.queue, self.paths, cell, phase)
+
+    def archive_retry(self, cell, phase):
+        """Free only the selected failed native destination, retaining every byte."""
+        args = (cell.dataset, cell.domain, str(cell.seed), cell.method)
+        if self.evidence(cell, phase) == "complete":
+            raise Blocked(f"Cannot retry completed {cell.key}:{phase}")
+        if phase == "train":
+            if cell.method == "AASFOD":
+                raise Blocked("AASFOD staged training and its retained TSD split require owner-specific "
+                              "recovery; no automatic artifact relocation")
+            if any(Path(resolve(*args)).exists()
+                   for resolve in (self.paths.ema_path, self.paths.student_path)):
+                raise Blocked(f"Conflicting final checkpoints require owner resolution: {cell.key}")
+            destinations = [Path(self.paths.eval_full_dir(*args))]
+            if hasattr(self.paths, "eval_student_dir"):
+                destinations.append(Path(self.paths.eval_student_dir(*args)))
+            if any(p.exists() for p in destinations):
+                raise Blocked(f"Training retry would affect retained evaluations: {cell.key}")
+            output = Path(self.paths.method_dir(*args))
+        else:
+            resolve = self.paths.eval_student_dir if cell.role == "student" else self.paths.eval_full_dir
+            output = Path(resolve(*args))
+        origin = getattr(self.paths, "DATA", {}).get("source_queues", {}).get(cell.key, self.queue)
+        candidates = [output, *(Path(host.map_path(q)) / f"wrap_{cell.session(phase)}.status"
+                                for q in dict.fromkeys((str(self.queue), str(origin))))]
+        moves = []
+        for source in candidates:
+            if source.exists():
+                # Adjacent rename remains on the artifact filesystem, even when
+                # run metadata is elsewhere. Never overwrite an earlier archive.
+                destination = source.with_name(source.name + ".finite-retry-" + self.run_dir.name)
+                if destination.exists():
+                    raise Blocked(f"Retry archive already exists: {destination}")
+                moves.append({"source": str(source), "archive": str(destination)})
+        record = self.run_dir / "recovery" / (cell.session(phase) + ".json")
+        write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "planned"})
+        for move in moves:
+            Path(move["source"]).rename(move["archive"])
+        write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "archived"})
+        return moves
 
     def start(self, cell, phase, gpus):
         name = cell.session(phase)
@@ -593,19 +674,60 @@ def choose_training(ready, free):
     return None
 
 
-def run_finite(cells, backend, external=(), external_owners=None):
+def run_finite(cells, backend, external=(), external_owners=None, *,
+               previous_state=None, hold_cells=(), release_cells=(), retry_cells=()):
     external = set(external)
     external_owners = external_owners or {}
     state = {c.key: {"cell": asdict(c), "train_requested": requested,
                      "training_ownership": "external" if c in external else "producer" if requested else "eval_only",
-                     "train": "pending", "eval": "pending", "reasons": [], "adopted": []}
+                     "train": "pending", "eval": "pending", "reasons": [], "adopted": [],
+                     "held": False, "attempts": []}
              for c, requested in cells.items()}
+    controls = set(hold_cells) | set(release_cells)
+    retries = set()
+    for value in retry_cells:
+        key, phase = value.rsplit(":", 1)
+        if phase not in ("train", "eval") or key not in state:
+            raise Blocked(f"Unknown retry cell/phase: {value}")
+        retries.add((key, phase))
+    if controls - state.keys() or set(hold_cells) & set(release_cells):
+        raise Blocked("Hold/release requires distinct exact keys in the finite scope")
+    if retries and not previous_state:
+        raise Blocked("Selected retries require --previous-state; never reset a ledger")
+    if previous_state:
+        previous = json.loads(host.read_path(previous_state).read_text())
+        if "queue" in previous and not host.same_path(previous["queue"], str(backend.queue)):
+            raise Blocked("Previous state belongs to a different queue")
+        rows = {Cell(**r["cell"]).key: r for r in previous["cells"]}
+        if rows.keys() != state.keys():
+            raise Blocked("Previous state must have exactly the same finite scope")
+        for key, row in rows.items():
+            if any(row[field] != state[key][field]
+                   for field in ("train_requested", "training_ownership")):
+                raise Blocked(f"Previous ownership differs for {key}")
+            state[key].update(deepcopy(row))
+            state[key].setdefault("attempts", [])
+        for key, phase in retries:
+            row = state[key]
+            if row[phase] not in ("failed", "blocked"):
+                raise Blocked(f"Retry requires a failed/blocked phase: {key}:{phase}")
+            if phase == "train" and (not row["train_requested"] or row["cell"].get("role", "ema") != "ema"):
+                raise Blocked(f"Training retry is not producer-owned: {key}")
+            if phase == "eval" and row["train"] != "complete":
+                raise Blocked(f"Evaluation retry requires completed training: {key}")
+    for key in hold_cells:
+        state[key]["held"] = True
+    for key in release_cells:
+        state[key]["held"] = False
     active = {}
     attempted = set()
+    recovered = False
 
     def snapshot(status="running", reason=""):
         data = {"scope": "finite_input_only", "status": status, "reason": reason,
                 "producer_pid": os.getpid(),
+                "queue": str(backend.queue),
+                "previous_state": str(previous_state) if previous_state else None,
                 "cells": list(state.values()),
                 "external_reservations": {name: list(gpus) for name, gpus in external_owners.items()},
                 "active": [{"cell": asdict(h["cell"]) if h["cell"] is not None else None, "phase": h["phase"],
@@ -619,6 +741,9 @@ def run_finite(cells, backend, external=(), external_owners=None):
         if cell.key not in state:
             return  # Adopted model job; its Student dependency is checked after exit.
         state[cell.key][phase] = status
+        state[cell.key]["attempts"].append({
+            "phase": phase, "status": status, "reason": reason, "run_dir": str(backend.run_dir),
+            "spec": str(spec) if spec else None})
         if reason:
             state[cell.key]["reasons"].append(reason)
         if phase == "train" and status != "complete":
@@ -643,6 +768,38 @@ def run_finite(cells, backend, external=(), external_owners=None):
                     if phase == "eval":
                         state[cell.key]["train"] = backend.evidence(cell, "train")
                 occupied = {h["cell"].model for h in active.values() if h["cell"] is not None}
+                if not recovered:
+                    if previous_state:
+                        # Preserve the original ledger, including failures made by
+                        # old code before per-attempt history was available.
+                        write_json(backend.run_dir / "previous_state.json", previous)
+                    for key, phase in sorted(retries):
+                        cell = Cell(**state[key]["cell"])
+                        if cell.model in occupied:
+                            raise Blocked(f"Retry requires no live canonical model job: {key}")
+                        lock = take_lock(backend.lock_dir.parent / "cell_locks"
+                                         / (cell.model.session("train") + ".lock"))
+                        if lock is None:
+                            raise Blocked(f"Retry cell lock busy: {key}")
+                        try:
+                            archives = backend.archive_retry(cell, phase)
+                        finally:
+                            lock.close()
+                        row = state[key]
+                        row["attempts"].append({"phase": phase, "status": "retry_authorized",
+                                                "previous_status": row[phase], "archives": archives})
+                        row[phase] = "pending"
+                        if phase == "train":
+                            row["eval"] = "pending"
+                    for cell in cells:
+                        for phase in ("train", "eval"):
+                            row = state[cell.key]
+                            if row[phase] == "running" and cell.session(phase) not in active:
+                                row[phase] = backend.evidence(cell, phase)
+                                if row[phase] != "complete":
+                                    row[phase] = "blocked"
+                                    row["reasons"].append("previous running task has no live canonical job")
+                    recovered = True
                 for cell, requested in sorted(cells.items(), key=lambda item: item[0].role != "ema"):
                     row = state[cell.key]
                     if cell.model in occupied:
@@ -663,32 +820,36 @@ def run_finite(cells, backend, external=(), external_owners=None):
                             row["train"] = "external"
                         else:
                             row["train"] = "ready" if evidence == "pending" and requested else evidence
-                        if row["train"] == "ready" and cell.method in PREREQUISITE_METHODS:
-                            row["train"], row["prerequisite_reason"] = backend.prerequisites(cell)
-                            row["eval"] = "waiting" if row["train"] == "waiting" else "pending"
                         if row["train"] == "pending":
                             row["train"] = "blocked"
                             row["reasons"].append("eval dependency is not trained; no training authorized")
                         if row["train"] == "blocked":
                             row["eval"] = "blocked"
                             row["reasons"].append("missing/conflicting final training evidence")
+                    if row["train"] == "ready":
+                        row["train"], row["train_input_reason"] = backend.admission(cell, "train")
+                        row["eval"] = "waiting" if row["train"] == "waiting" else "pending"
                     if row["train"] == "complete" and row["eval"] in ("pending", "waiting"):
                         evidence = backend.evidence(cell, "eval")
                         row["eval"] = "ready" if evidence == "pending" else evidence
                         if evidence == "blocked":
                             row["reasons"].append("existing incomplete/conflicting native evaluation; preserve it")
+                    if row["eval"] == "ready":
+                        row["eval"], row["eval_input_reason"] = backend.admission(cell, "eval")
                 while True:
                     occupied = {h["cell"].model for h in active.values() if h["cell"] is not None}
                     free = backend.available() - {g for h in active.values() for g in h["gpus"]}
                     if any(state[c.key]["train"] not in ("complete", "failed", "blocked") for c in external):
                         free -= {g for gpus in external_owners.values() for g in gpus}
                     trains = [c for c in cells if c.model not in occupied and state[c.key]["train"] == "ready"
+                              and not state[c.key]["held"]
                               and cells[c] and c.role == "ema"
                               and (c, "train") not in attempted]
                     picked = choose_training(trains, free)
                     phase = "train"
                     if picked is None and free:
                         evaluations = [c for c in cells if c.model not in occupied
+                                       and not state[c.key]["held"]
                                        and state[c.key]["train"] == "complete"
                                        and state[c.key]["eval"] == "ready" and (c, "eval") not in attempted]
                         if evaluations:
@@ -713,7 +874,9 @@ def run_finite(cells, backend, external=(), external_owners=None):
                     if "external" in statuses:
                         return snapshot("blocked", "external training incomplete; no live canonical task or owner to await")
                     if "waiting" in statuses:
-                        return snapshot("blocked", "detector prerequisites waiting; ready independent work exhausted")
+                        return snapshot("blocked", "required inputs waiting; ready independent work exhausted")
+                    if any(r["held"] for r in state.values()):
+                        return snapshot("blocked", "selected cells held; ready independent work exhausted")
                     return snapshot("blocked", "no allocatable approved GPU group and no tracked live task")
                 snapshot()
                 for handle in backend.wait():
@@ -754,10 +917,9 @@ def worker(job_file):
         else:
             if not set(gpus).issubset(allowed_gpus(paths)) or len(gpus) != (cell.width if phase == "train" else 1):
                 raise Blocked("invalid GPU assignment")
-            if phase == "train":
-                admission, detail = prerequisite_state(paths, cell)
-                if admission != "ready":
-                    raise Blocked(detail)
+            admission, detail = input_state(queue, paths, cell, phase)
+            if admission != "ready":
+                raise Blocked(detail)
             for gpu in sorted(gpus):
                 lock = take_lock(root / f"gpu{gpu}.lock")
                 if lock is None:
@@ -809,6 +971,14 @@ def main():
         resume.add_argument("--external-owner-session", action="append", default=[],
                             help="SESSION=GPU[,GPU]: reserve cards and observe this existing owner's exit")
         resume.add_argument("--gpus", default=",".join(map(str, APPROVED)))
+        resume.add_argument("--previous-state",
+                            help="Prior state.json; carry exact scope, ownership, failures and holds forward")
+        resume.add_argument("--hold-cell", action="append", default=[],
+                            help="Exact cell key: suppress new train/eval submissions; never stop jobs")
+        resume.add_argument("--release-cell", action="append", default=[],
+                            help="Exact cell key: release a persisted hold, not a failed attempt")
+        resume.add_argument("--retry-cell", action="append", default=[],
+                            help="KEY:train|eval: archive selected failure and permit one new attempt")
         resume.add_argument("--handoff-confirmed", action="store_true",
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
     run_worker = commands.add_parser("worker")
@@ -853,7 +1023,9 @@ def main():
     signal.signal(signal.SIGTERM, stop_producer)
     try:
         cells, external, owners = load_work(args)
-        result = run_finite(cells, TmuxBackend(args.queue, args.run_dir, gpus), external, owners)
+        result = run_finite(cells, TmuxBackend(args.queue, args.run_dir, gpus), external, owners,
+                            previous_state=args.previous_state, hold_cells=args.hold_cell,
+                            release_cells=args.release_cell, retry_cells=args.retry_cell)
     except Blocked as error:
         print(f"blocked: {error}", file=sys.stderr)
         raise SystemExit(2)
