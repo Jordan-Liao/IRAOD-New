@@ -43,7 +43,7 @@ def seeded_plan(base, paths, seed, output):
     return plan
 
 
-def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
+def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python, artifact_root=None):
     base = read_json(base_plan)
     report = read_json(core_report)
     validate_plan(base)
@@ -52,6 +52,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
     paths = load_resolver(core_paths)
     out = Path(out_dir).resolve()
     out.mkdir(parents=True, exist_ok=False)
+    artifacts = Path(artifact_root).resolve() if artifact_root else out
     queue = out / "student_queue"
     queue.mkdir()
     eval_code = Path(eval_code).resolve()
@@ -76,8 +77,9 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
             "img_prefix": reference["img_prefix"],
             "training_code_sha": evidence["effective_training_code_sha"],
             "source_id": evidence["source_id"],
-            "eval_dir": str(out / "student_eval" / ds / domain / f"seed_{seed}" / method),
-            "status": "ready_not_evaluated",
+            "eval_dir": str(Path(paths.eval_full_dir(ds, domain, str(seed), method)).with_name(
+                f"eval_full_{domain}_student_ids_v1")),
+            "status": "bound_not_inspected",
         }
     if len(cells) != 180:
         raise ValueError("Student extension must contain exactly 180 B-F cells")
@@ -86,6 +88,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
         "evaluation_code": str(eval_code), "evaluation_code_sha": evaluation_sha,
         "core_report": str(Path(core_report).resolve()), "core_paths": str(Path(core_paths).resolve()),
         "core_plan": str(Path(base_plan).resolve()), "student_cells": cells,
+        "legacy_student_queue": str(artifacts),
     }
     write_json(queue / "runtime.json", runtime)
     shutil.copyfile(core_paths, queue / "core_paths_snapshot.py")
@@ -97,6 +100,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
         "CORE = load_resolver(HERE / 'core_paths_snapshot.py')\n"
         "DATA = read_json(HERE / 'runtime.json')\n"
         "EVALUATION_CODE_SHA = DATA['evaluation_code_sha']\n"
+        "LEGACY_STUDENT_QUEUE = DATA['legacy_student_queue']\n"
         "EXPECT_PRED = CORE.EXPECT_PRED\n"
         "root, method_dir = CORE.root, CORE.method_dir\n"
         "ema_path, student_path = CORE.ema_path, CORE.student_path\n"
@@ -114,7 +118,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
         f"{r['dataset']} {r['domain']} {r['seed']} {r['method']} student\n" for r in cells.values()))
     roi_jobs, embedding_jobs = [], []
     for seed in (43, 44):
-        plan = seeded_plan(base, paths, seed, out / "qualitative")
+        plan = seeded_plan(base, paths, seed, artifacts / "qualitative")
         filename = out / f"qualitative_seed{seed}.json"
         write_json(filename, plan)
         for run in plan["runs"]:
@@ -137,12 +141,12 @@ def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python):
                     "argv": [str(python), "-m", "experiments.comparison.joint_tsne",
                              "--plan", str(filename), "--dataset", dataset, "--domain", domain,
                              "--comparison", role, "--out-dir",
-                             str(out / "qualitative" / f"seed_{seed}" / "tsne" / dataset / domain / role)],
+                             str(artifacts / "qualitative" / f"seed_{seed}" / "tsne" / dataset / domain / role)],
                 })
     write_json(out / "roi_jobs.json", roi_jobs)
     write_json(out / "embedding_jobs.json", embedding_jobs)
     write_json(out / "extension_scope.json", {
-        "status": "prepared_not_executed", "student_evaluations": 180,
+        "status": "prepared_not_execution_evidence", "student_evaluations": 180,
         "new_roi_groups": 240, "reused_source_groups": 12,
         "new_roi_image_roles": sum(len(r["image_ids"]) for r in base["runs"] if r["method"] != "A") * 2,
         "new_visualizations": 6400, "new_embeddings": 48,
@@ -205,6 +209,8 @@ def main():
     prepare_parser = commands.add_parser("prepare")
     for name in ("base-plan", "core-report", "core-paths", "out-dir", "eval-code", "python"):
         prepare_parser.add_argument("--" + name, required=True)
+    prepare_parser.add_argument("--artifact-root",
+                                help="Existing compute-owned extension root; metadata uses a NEW out-dir")
     evaluate_parser = commands.add_parser("evaluate")
     for name in ("queue", "dataset", "domain", "method", "role"):
         evaluate_parser.add_argument("--" + name, required=True)

@@ -54,6 +54,12 @@ class StudentFiniteTest(unittest.TestCase):
             self.assertEqual(command[-1], "student")
             actual = pane_job(cell.session("eval"), {"command": " ".join(command)}, root)
             self.assertEqual(actual[0], cell)
+            legacy = Path(root) / "owner"
+            legacy.mkdir()
+            (Path(root) / "paths.py").write_text(f"LEGACY_STUDENT_QUEUE = {str(legacy)!r}\n")
+            old_command = f"bash {legacy}/run_eval_student.sh 5 RSAR clean 43 F"
+            actual = pane_job("xafS-RSAR-clean-43-F", {"command": old_command}, root)
+            self.assertEqual(actual[0], cell)
             with self.assertRaisesRegex(ValueError, "evaluation-only"):
                 runner_command(root, cell, "train", (4, 5))
 
@@ -70,7 +76,9 @@ class SeededQualitativeTest(unittest.TestCase):
             "def student_path(ds, domain, seed, method):\n"
             "    return f'{ROOT}/{ds}/{domain}/{seed}/{method}/iter_final.pth'\n"
             "def ema_path(ds, domain, seed, method):\n"
-            "    return student_path(ds, domain, seed, method).replace('.pth','_ema.pth')\n")
+            "    return student_path(ds, domain, seed, method).replace('.pth','_ema.pth')\n"
+            "def eval_full_dir(ds, domain, seed, method):\n"
+            "    return f'{ROOT}/{ds}/{domain}/{seed}/{method}/eval_full_{domain}_ids_v1'\n")
         raw = []
         for run in fixture.plan["runs"]:
             if run["role"] != "ema":
@@ -89,14 +97,19 @@ class SeededQualitativeTest(unittest.TestCase):
         base.write_text(json.dumps(fixture.plan))
         report.write_text(json.dumps({"status": "declared_scopes_complete",
                                      "quantitative_complete_cells": 192, "raw_results": raw}))
+        artifacts = fixture.root / "existing_owner_root"
+        artifacts.mkdir()
         out = prepare(base, report, source, fixture.root / "extension",
-                      Path(__file__).resolve().parents[2], sys.executable)
+                      Path(__file__).resolve().parents[2], sys.executable, artifacts)
         runtime = json.loads((out / "student_queue/runtime.json").read_text())
         self.assertEqual(len(runtime["student_cells"]), 180)
+        self.assertTrue(all(r["eval_dir"].endswith(f"eval_full_{r['domain']}_student_ids_v1")
+                            for r in runtime["student_cells"].values()))
         self.assertEqual(len((out / "student_queue/student.list").read_text().splitlines()), 180)
         jobs = json.loads((out / "roi_jobs.json").read_text())
         self.assertEqual(len(jobs), 240)
         self.assertFalse(any("/A/" in j["run_id"] for j in jobs))
+        self.assertTrue(all(j["out_dir"].startswith(str(artifacts / "qualitative")) for j in jobs))
         self.assertEqual(len(json.loads((out / "embedding_jobs.json").read_text())), 48)
         subprocess.run(["bash", "-n", str(out / "student_queue/run_eval_full.sh")], check=True)
 

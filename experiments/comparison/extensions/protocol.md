@@ -29,35 +29,47 @@ the existing scientific Python. Preparation is CPU metadata-only:
 ```bash
 ART=/mnt/shared/zechuan/iraod_artifacts/comparison
 PY=/home/zechuan/miniforge3/envs/iraod/bin/python
-EXT=/absolute/new/extension-root
+EXT=/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908
+META="$EXT/repo_manifests_NEW_COMMIT"
 "$PY" -m experiments.comparison.extension_manifest prepare \
   --base-plan "$ART/full_test_roi_v3_331d213/completion-plan.json" \
   --core-report "$ART/final_delivery_20260908_4a6bc50/report/report.json" \
   --core-paths "$ART/xaf_s424344/paths.py" \
-  --out-dir "$EXT" \
+  --out-dir "$META" --artifact-root "$EXT" \
   --eval-code /mnt/SSD2_8TB/zechuan/IRAOD-New-rc331d213 \
   --python "$PY"
 ```
 
 This binds actual retained Student files to the completed EMA identities.
+The compute-owned root already exists; only the new metadata directory is
+created. Student outputs follow the live owner's mapping: replace the EMA
+directory basename `eval_full_<domain>_ids_v1` with
+`eval_full_<domain>_student_ids_v1`, retaining DDP2/preflight topology parents.
+These are separate directories; no completed EMA output is overwritten.
 It creates `student_queue/{runtime.json,paths.py,student.list,run_eval_full.sh}`,
 two seeded qualitative plans, `roi_jobs.json`, `embedding_jobs.json`, and
 `extension_scope.json`. Nothing is written to the core queue or source trees.
 
-The compute owner first executes a scientific smoke, then releases the finite
-Student list using the new runner checkout:
+The sole live Student producer is owned by the compute supervisor:
+`xaf-student-producer`, with `xafS-DS-domain-seed-method` jobs running the
+existing `run_eval_student.sh GPU DS DOMAIN SEED METHOD`. Do not replace or
+duplicate it. The command below is ONLY a future coordinated cutover/recovery
+entry after the owner authorizes it; it is not a request to launch now:
 
 ```bash
 "$PY" -m experiments.comparison.finite_resumer launch \
-  --queue "$EXT/student_queue" --run-dir "$EXT/finite_student_attempt1" \
-  --eval-list "$EXT/student_queue/student.list" --gpus 4,5,6,7 \
+  --queue "$META/student_queue" --run-dir "$EXT/finite_student_NEW_ATTEMPT" \
+  --eval-list "$META/student_queue/student.list" --gpus 4,5,6,7 \
   --handoff-confirmed
 ```
 
 The optional fifth list field is `student`; it is evaluation-only. Session and
-receipt identities include `-student`, and evidence validation selects
+receipt identities use `xafS` for Student evaluations, and evidence validation selects
 `student_path` / `eval_student_dir`. Original four-field EMA lists and native
-331d evidence remain supported. The new wrapper invokes unchanged `test.py` in
+331d evidence remain supported. The known legacy Student wrapper/session
+can be adopted from the declared compute-owned extension root without renaming
+jobs. Native `role=student student=<path>` status is supported directly.
+The new wrapper invokes unchanged `test.py` in
 the recorded evaluation checkout; it does not pretend its orchestration SHA is
 the inference SHA. Shared GPU locks and actual occupancy checks remain active.
 Do not stop foreign applications.

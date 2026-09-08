@@ -57,7 +57,7 @@ else:
 gpus=[int(x) for x in gpu.split(",")]
 phase="eval" if kind=="eval" else "train"
 name=("xafE" if phase=="eval" else "xaf")+"-"+ds+"-"+domain+"-"+seed+"-"+method
-if role=="student": name+="-student"
+if role=="student": name="xafS-"+ds+"-"+domain+"-"+seed+"-"+method
 held=[]
 for g in gpus:
     f=(q/"gpu_locks"/("gpu"+str(g)+".lock")).open("a+")

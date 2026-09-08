@@ -193,7 +193,13 @@ def inspect_cell(cell, checkpoint, source_id):
                       if "=" in token) if matches else {}
         wanted = {"eval_exit": "0", "name": cell["method"], "domain": cell["domain"],
                   "seed": str(cell["seed"])}
-        if "ema" in fields:
+        if "student" in fields:
+            wanted["student"] = result.get("checkpoint")
+            wanted["role"] = cell["role"]
+        elif "checkpoint" in fields:
+            wanted["checkpoint"] = result.get("checkpoint")
+            wanted["role"] = cell["role"]
+        elif "ema" in fields:
             wanted["ema"] = result.get("checkpoint")
         elif "sidecar" in fields and cell.get("prediction_image_ids"):
             # The native wrapper records the sidecar; its checkpoint is checked below.

@@ -197,6 +197,23 @@ class ArtifactConsumerTest(unittest.TestCase):
         self.assertEqual(result["status"], "complete")
         self.assertEqual(result["mAP50"], .2446555644273758)
 
+    def test_student_wrapper_identity_without_ema_or_sidecar_status_token(self):
+        self.cell["role"] = self.checkpoint["role"] = "student"
+        self.manifest["roles"] = ["student"]
+        self.checkpoint["path"] = self.checkpoint["path"].replace("_ema.pth", ".pth")
+        order_path = Path(self.cell["prediction_image_ids"])
+        order = json.loads(order_path.read_text())
+        order["checkpoint"] = self.checkpoint["path"]
+        write_json(order_path, order)
+        (self.eval / "eval_status").write_text(
+            "eval_exit=0 name=B domain=clean seed=42 role=student "
+            f"student={self.checkpoint['path']}\n")
+        raw, _, _, roles = collect_quantitative(self.manifest)
+        result = next(r for r in raw if r.get("eval_dir"))
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["role"], "student")
+        self.assertEqual(roles, ("student",))
+
     def test_last_failed_retry_missing_image_order_and_class_placeholder(self):
         with (self.eval / "eval_status").open("a") as stream:
             stream.write("eval_exit=1 retry\n")

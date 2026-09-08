@@ -61,6 +61,8 @@ class Cell:
         return f"{self.dataset}/{self.domain}/{self.seed}/{self.method}{suffix}"
 
     def session(self, phase):
+        if self.role == "student" and phase == "eval":
+            return f"xafS-{self.dataset}-{self.domain}-{self.seed}-{self.method}"
         suffix = "-student" if self.role == "student" else ""
         return f"{'xaf' if phase == 'train' else 'xafE'}-{self.dataset}-{self.domain}-{self.seed}-{self.method}{suffix}"
 
@@ -301,19 +303,27 @@ def pane_job(name, pane, queue):
                 raise Blocked(f"Canonical job identity mismatch: {name}")
             return cell, job["phase"], tuple(job["gpus"]), Path(tokens[i + 2])
         filename = Path(token).name
-        if filename in ("run_train_1gpu.sh", "run_train_2gpu.sh", "run_eval_full.sh"):
+        if filename in ("run_train_1gpu.sh", "run_train_2gpu.sh",
+                        "run_eval_full.sh", "run_eval_student.sh"):
             start = i + (3 if filename == "run_train_2gpu.sh" else 2)
             ds, domain, seed, method = tokens[start:start + 4]
-            phase = "eval" if filename == "run_eval_full.sh" else "train"
-            role = ("student" if phase == "eval" and tokens[start + 4:start + 5] == ["student"]
+            phase = "eval" if filename in ("run_eval_full.sh", "run_eval_student.sh") else "train"
+            role = ("student" if filename == "run_eval_student.sh"
+                    or phase == "eval" and tokens[start + 4:start + 5] == ["student"]
                     else "ema")
             cell = Cell(ds, domain, int(seed), method, role)
-            if cell.session(phase) != name or Path(token).parent != Path(queue):
+            parent = Path(token).parent
+            allowed_parent = parent == Path(queue)
+            if not allowed_parent and filename == "run_eval_student.sh":
+                legacy = getattr(load_paths(queue), "LEGACY_STUDENT_QUEUE", None)
+                allowed_parent = legacy is not None and parent == Path(legacy)
+            if cell.session(phase) != name or not allowed_parent:
                 raise Blocked(f"Canonical runner identity mismatch: {name}")
             return cell, phase, tuple(int(g) for g in tokens[i + 1].split(",")), None
     # A bash -c wrapper is one token containing its inner command.
     for token in tokens:
-        if "run_train_" in token or "run_eval_full.sh" in token or SCRIPT.name in token:
+        if ("run_train_" in token or "run_eval_full.sh" in token
+                or "run_eval_student.sh" in token or SCRIPT.name in token):
             if token != pane["command"] and " " in token:
                 return pane_job(name, {**pane, "command": token}, queue)
     raise Blocked(f"Cannot identify the actual runner/GPU assignment for {name}")
