@@ -115,11 +115,16 @@ class OracleLoraTrainTests(unittest.TestCase):
         ensure.assert_not_called()
 
     def test_selected_host_maps_copied_patch_rows_without_rewriting_csv(self):
+        for hostname in (host_binding.TARGET_HOST, host_binding.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_copied_patch_rows(hostname)
+
+    def check_copied_patch_rows(self, hostname):
         original_root = "/mnt/shared/zechuan/iraod_artifacts"
         self.write_rows([self.row("DIOR", patch_path=original_root + "/patch.png")])
         before = self.metadata.read_bytes()
         with mock.patch.object(host_binding.socket, "gethostname",
-                               return_value=host_binding.TARGET_HOST), \
+                               return_value=hostname), \
                 mock.patch.object(host_binding, "PREFIXES", ((original_root, str(self.root)),)):
             rows = trainer.load_metadata(self.metadata, "aabb", "DIOR")
         self.assertEqual(rows[0]["patch_path"], str(self.patch))
@@ -169,8 +174,13 @@ class OracleLoraTrainTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_target_cli_paths_runtime_and_code_cache_preserve_recipe(self):
+        for hostname in (host_binding.TARGET_HOST, host_binding.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_target_cli_paths(hostname)
+
+    def check_target_cli_paths(self, hostname):
         with mock.patch.object(host_binding.socket, "gethostname",
-                               return_value=host_binding.TARGET_HOST):
+                               return_value=hostname):
             args = trainer.parse_args([
                 "--dataset", "DIOR",
                 "--metadata", "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",

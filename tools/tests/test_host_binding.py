@@ -26,8 +26,8 @@ PYTHON = "/home/zechuan/miniforge3/envs/iraod/bin/python"
 ART = "/mnt/shared/zechuan/iraod_artifacts"
 
 
-def target(stack):
-    stack.enter_context(patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST))
+def target(stack, hostname=host.TARGET_HOST):
+    stack.enter_context(patch.object(host.socket, "gethostname", return_value=hostname))
     for module, name in ((training, "ALLOWED_GPUS"), (finite, "APPROVED"),
                          (mixed_queue, "ALLOWED_GPUS")):
         stack.enter_context(patch.object(module, name, host.approved_gpus()))
@@ -126,7 +126,61 @@ class HostBindingTest(unittest.TestCase):
             cwd=training.ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_cold_134_imports_use_only_physical_4_to_7(self):
+        bootstrap = """
+import os, socket
+from unittest.mock import patch
+socket.gethostname = lambda: '73F3-8x4090-134'
+from experiments.comparison import host_binding as host
+from experiments.comparison import extension_training as training, finite_resumer as finite
+from experiments.comparison import mixed_queue, train_tam
+assert host.is_target_host()
+for actual in (host.approved_gpus(), training.ALLOWED_GPUS, finite.APPROVED,
+               mixed_queue.ALLOWED_GPUS, train_tam.GPUS):
+    assert actual == (4, 5, 6, 7), actual
+for actual in (host.pair_ports(), training.PAIR_PORTS, finite.PAIR_PORTS,
+               mixed_queue.PAIR_PORTS):
+    assert actual == {(4, 5): 29804, (6, 7): 29806}, actual
+with patch.object(training, '_train', return_value='routed'):
+    for gpu in range(8):
+        if gpu >= 4:
+            assert training.train('q', gpu, 'DIOR', 'clean', 42, 'B_REG') == 'routed'
+            with patch.dict(os.environ, {'IRAOD_GPU_LOCKED': '1'}):
+                train_tam.configure_gpu(gpu)
+                assert os.environ['CUDA_VISIBLE_DEVICES'] == str(gpu)
+        else:
+            for invoke in (lambda: training.train('q', gpu, 'DIOR', 'clean', 42, 'B_REG'),
+                           lambda: training.evaluate('q', gpu, 'DIOR', 'clean', 42, 'B_REG'),
+                           lambda: train_tam.configure_gpu(gpu)):
+                try:
+                    invoke()
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError(f'foreign GPU {gpu} admitted')
+    for pair, port in (('4,5', 29804), ('6,7', 29806)):
+        assert training.train_ddp('q', pair, port, 'DIOR', 'clean', 42, 'F_text_only') == 'routed'
+    for pair, port in (('0,1', 29804), ('2,3', 29806), ('4,6', 29804),
+                       ('5,4', 29804), ('4,5', 29806), ('6,7', 29804)):
+        try:
+            training.train_ddp('q', pair, port, 'DIOR', 'clean', 42, 'F_text_only')
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'invalid pair/port {pair}/{port} admitted')
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", bootstrap], cwd=training.ROOT,
+            env={**os.environ, "PYTHONNOUSERSITE": "1", "CUDA_VISIBLE_DEVICES": ""},
+            text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_cold_native_entry_retains_frozen_imports_and_maps_config(self):
+        for hostname in (host.TARGET_HOST, host.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_cold_native_entry(hostname)
+
+    def check_cold_native_entry(self, hostname):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             frozen = root / "frozen"
@@ -151,25 +205,33 @@ class HostBindingTest(unittest.TestCase):
                 "assert cfg.model.source == '/home/zechuan/iraod_artifacts/source.pth'\n"
                 "assert cfg.data.samples_per_gpu == 16 and cfg.optimizer.lr == .02\n"
                 "print('NATIVE_PATH_OVERLAY_OK')\n")
-            bootstrap = (
-                "import runpy,socket,sys; "
-                f"socket.gethostname=lambda:{host.TARGET_HOST!r}; "
-                f"sys.argv={[str(Path(host.__file__).absolute()), 'native', str(entry), str(config)]!r}; "
-                f"runpy.run_path({str(Path(host.__file__).absolute())!r},run_name='__main__')")
-            result = subprocess.run(
-                [sys.executable, "-c", bootstrap], cwd=root,
-                env={**os.environ, "PYTHONPATH": str(training.ROOT),
-                     "PYTHONDONTWRITEBYTECODE": "1", "CUDA_VISIBLE_DEVICES": "",
-                     "IRAOD_RUNTIME_READY": "0", "CONDA_PREFIX": "/not-the-selected-env"},
-                text=True, capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("NATIVE_PATH_OVERLAY_OK", result.stdout)
+            for invocation in (
+                    f"runpy.run_path({str(Path(host.__file__).absolute())!r},run_name='__main__')",
+                    "runpy.run_module('experiments.comparison.host_binding',run_name='__main__',alter_sys=True)"):
+                bootstrap = (
+                    "import runpy,socket,sys; "
+                    f"socket.gethostname=lambda:{hostname!r}; "
+                    f"sys.argv={[str(Path(host.__file__).absolute()), 'native', str(entry), str(config)]!r}; "
+                    + invocation)
+                result = subprocess.run(
+                    [sys.executable, "-c", bootstrap], cwd=root,
+                    env={**os.environ, "PYTHONPATH": str(training.ROOT),
+                         "PYTHONDONTWRITEBYTECODE": "1", "CUDA_VISIBLE_DEVICES": "",
+                         "IRAOD_RUNTIME_READY": "0", "CONDA_PREFIX": "/not-the-selected-env"},
+                    text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("NATIVE_PATH_OVERLAY_OK", result.stdout)
             self.assertEqual(config.read_bytes(), before)
 
     def test_exact_host_prefixes_and_scientific_values(self):
+        for hostname in (host.TARGET_HOST, host.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_exact_host_prefixes(hostname)
+
+    def check_exact_host_prefixes(self, hostname):
         raw = json.loads(FIXTURE.read_text())
         original = copy.deepcopy(raw)
-        with patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST):
+        with patch.object(host.socket, "gethostname", return_value=hostname):
             self.assertTrue(host.is_target_host())
             mapped = host.map_data(raw)
             self.assertEqual(mapped["training_code"], "/home/zechuan/IRAOD-New-strict-af")
@@ -192,11 +254,19 @@ class HostBindingTest(unittest.TestCase):
             for key in ("lr", "batch", "world_sizes", "budgets", "notes", "other"):
                 self.assertEqual(view[key], data[key])
         self.assertEqual(raw, original)
-        for name in ("old.67", host.TARGET_HOST.lower(), host.TARGET_HOST + ".domain"):
+        for name in ("7T83-8xA100-67", "unknown", hostname.lower(), hostname + ".domain"):
             with patch.object(host.socket, "gethostname", return_value=name):
                 self.assertFalse(host.is_target_host())
                 self.assertEqual(host.map_data(raw), raw)
                 self.assertEqual(host.approved_gpus(), (4, 5, 6, 7))
+                self.assertEqual(host.pair_ports(), {(4, 5): 29804, (6, 7): 29806})
+                command = [PYTHON, "/frozen/train.py", ART + "/config.py"]
+                self.assertEqual(host.native_command(command, command[1]), command)
+                self.assertEqual(host.read_path(ART + "/config.py"), Path(ART + "/config.py"))
+                self.assertFalse(host.same_data(
+                    ART + "/source.pth", "/home/zechuan/iraod_artifacts/source.pth"))
+                with self.assertRaisesRegex(ValueError, "selected target host"):
+                    host.locked_command((4,), ["never-invoked"])
 
     def test_selected_host_path_identity_handles_actual_symlink_without_changing_python(self):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
@@ -298,8 +368,13 @@ class HostBindingTest(unittest.TestCase):
                         training.train_ddp("q", pair, port, "DIOR", "clean", 42, "F_text_only")
 
     def test_copied_symlink_resolver_and_original_runtime_are_read_only(self):
+        for hostname in (host.TARGET_HOST, host.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_copied_symlink_resolver(hostname)
+
+    def check_copied_symlink_resolver(self, hostname):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
-            target(stack)
+            target(stack, hostname)
             root = Path(directory)
             stack.enter_context(patch.object(host, "PREFIXES", (
                 ("/old-owner", str(root)), *host.PREFIXES)))
@@ -332,9 +407,14 @@ class HostBindingTest(unittest.TestCase):
             self.assertEqual(finite.lock_root(queue), Path(host.SHARED_LOCK_ROOT))
 
     def test_native_config_base_environment_and_numeric_values_unchanged(self):
+        for hostname in (host.TARGET_HOST, host.TARGET_HOST_134):
+            with self.subTest(hostname=hostname):
+                self.check_native_config_paths(hostname)
+
+    def check_native_config_paths(self, hostname):
         from mmcv import Config
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
-            target(stack)
+            target(stack, hostname)
             stack.enter_context(patch.dict(os.environ))
             root = Path(directory)
             stack.enter_context(patch.object(host, "PREFIXES", (
@@ -442,6 +522,66 @@ class HostBindingTest(unittest.TestCase):
                                            "train-ddp"])
             self.assertIn("/home/zechuan/iraod_artifacts/Q", command)
             self.assertEqual(command[-4:], ["--gpu-pair", "0,1", "--port", "29804"])
+
+    def test_134_outer_locks_native_commands_and_wrappers(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            target(stack, host.TARGET_HOST_134)
+            root = Path(directory)
+            self.assertEqual(finite.lock_root("/copied_Q"), Path(
+                "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks"))
+            stack.enter_context(patch.object(host, "SHARED_LOCK_ROOT", str(root / "gpu_locks")))
+            idle = stack.enter_context(patch.object(finite, "idle_devices", return_value={4, 5, 6, 7}))
+            stack.enter_context(patch.object(training, "load_cell", return_value=({"python": PYTHON}, {})))
+            self.assertEqual(finite.allowed_gpus(SimpleNamespace(
+                DATA={"allowed_gpus": [0, 1, 2, 3, 4]})), (4, 5, 6, 7))
+            for gpus in ((4,), (5,), (6,), (7,), (4, 5), (6, 7)):
+                def launched(command, env):
+                    self.assertEqual(command, ["owned-command"])
+                    self.assertEqual(env["CUDA_VISIBLE_DEVICES"], ",".join(map(str, gpus)))
+                    self.assertEqual(env["CUDA_DEVICE_ORDER"], "PCI_BUS_ID")
+                    self.assertEqual(env["IRAOD_GPU_LOCKED"], "1")
+                    self.assertEqual(env["CONDA_PREFIX"], host.PYTHON_PREFIX)
+                    for gpu in gpus:
+                        self.assertIsNone(finite.take_lock(
+                            finite.lock_root("/copied_Q") / f"gpu{gpu}.lock"))
+                    return 7
+                with patch("subprocess.call", side_effect=launched):
+                    self.assertEqual(host.locked_command(gpus, ["owned-command"]), 7)
+                for gpu in gpus:
+                    with finite.take_lock(root / f"gpu_locks/gpu{gpu}.lock"):
+                        pass
+                cell = finite.Cell("DIOR", "clean", 42, "F_text_only" if len(gpus) == 2 else "B_REG")
+                command = finite.runner_command(ART + "/Q", cell, "train", gpus)
+                self.assertEqual(command[:2], [
+                    PYTHON, str(finite.SCRIPT.with_name("extension_training.py"))])
+                self.assertIn("/home/zechuan/iraod_artifacts/Q", command)
+                if len(gpus) == 2:
+                    self.assertEqual(command[-4:], [
+                        "--gpu-pair", ",".join(map(str, gpus)), "--port", str(host.pair_ports()[gpus])])
+                else:
+                    self.assertEqual(command[-2:], ["--gpu", str(gpus[0])])
+            with patch("subprocess.call") as launch:
+                for gpus in ((), (0,), (1,), (2,), (3,), (0, 1), (2, 3),
+                             (4, 6), (5, 4), (4, 4), (4, 5, 6, 7)):
+                    with self.assertRaisesRegex(ValueError, "approved host single/pair"):
+                        host.locked_command(gpus, ["never-invoked"])
+                with finite.take_lock(root / "gpu_locks/gpu5.lock"):
+                    with self.assertRaisesRegex(RuntimeError, "Shared GPU lock busy"):
+                        host.locked_command((4, 5), ["never-invoked"])
+                with finite.take_lock(root / "gpu_locks/gpu4.lock"):
+                    pass
+                idle.return_value = {4}
+                with self.assertRaisesRegex(RuntimeError, "Assigned GPU occupied"):
+                    host.locked_command((4, 5), ["never-invoked"])
+                launch.assert_not_called()
+            queue = root / "fresh_Q"
+            queue.mkdir()
+            training.write_runners(queue, PYTHON, Path("/copied_Q/with_gpu_lock.sh"))
+            wrapper = queue / "with_gpu_lock.sh"
+            self.assertFalse(wrapper.is_symlink())
+            self.assertIn(f"LOCKDIR={host.SHARED_LOCK_ROOT}", wrapper.read_text())
+            self.assertIn(f"{PYTHON} -m experiments.comparison.host_binding lock", wrapper.read_text())
+            self.assertNotIn("/copied_Q", wrapper.read_text())
 
     def test_aasfod_helper_is_current_but_model_checkout_stays_bound(self):
         raw = json.loads(FIXTURE.read_text())

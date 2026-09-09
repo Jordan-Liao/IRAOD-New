@@ -6,6 +6,11 @@ pair ports29804/29806 bound to0,1 and2,3, and the single mapped shared lock
 directory. The supervisor alone deploys and executes; this is not a new
 scheduler or a change to scientific1x32/2x16 budgets.
 
+The newly authorized `73F3-8x4090-134` (SSH20134) uses the same home-path overlay
+but **only physical GPUs4-7**, pairs4,5/29804 and6,7/29806. See
+`HOST_BINDING.md` for entry instructions and host-local lock semantics.
+Owner15be partitions unstarted approved work; never duplicate221 jobs/full-Q.
+
 ## Preserved .67 execution bindings
 
 Current future code: `ROOT/integration_code_752a139`.

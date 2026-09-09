@@ -277,6 +277,10 @@ automatic model retry or new scheduling service.
   owner-authorized subset; host support does not authorize use of every card.
   Native mode invokes `extension_training.py` with the bound runtime and paths,
   not the copied legacy shell wrappers. Frozen cell settings remain unchanged.
+- Native host `73F3-8x4090-134` uses the same mapped runtime/lock entry, but only
+  physical GPUs4-7 and pairs4,5/29804,6,7/29806. The shared lock root is local
+  to each host; owner15be must assign disjoint unstarted approved work, not
+  duplicate a full-Q producer across hosts. See `HOST_BINDING.md`.
 - Each independent worker holds the existing GPU lock files and an additional
   cell-wide lock (shared by train/eval and independent of GPU assignment).
   It sets `IRAOD_GPU_LOCKED=1` only while holding those actual locks, preventing

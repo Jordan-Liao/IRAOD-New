@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 
@@ -19,7 +20,7 @@ def require_owned_gpu(run):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("ROI extraction requires the existing owner's actual GPU lock")
     if os.environ.get("CUDA_VISIBLE_DEVICES") not in tuple(map(str, host.approved_gpus())):
-        raise ValueError("ROI extraction requires one bound physical target GPU0-4")
+        raise ValueError("ROI extraction requires one approved physical GPU on this host")
 
 
 def load_module(name, filename):
@@ -84,7 +85,7 @@ def export(jobs_path, seed, run_id):
         raise ValueError("Frozen export output differs from its preserved job identity")
     index["run"] = run
     index["host_binding"] = {
-        "host": host.TARGET_HOST, "wrapper_code_sha": wrapper_sha,
+        "host": socket.gethostname(), "wrapper_code_sha": wrapper_sha,
         "wrapper_worktree_modified": wrapper_modified,
         "export_code_sha": export_sha, "export_code": str(code),
         "jobs": str(jobs_path), "export_argv": argv,
