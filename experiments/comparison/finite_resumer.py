@@ -97,7 +97,6 @@ def load_cells(train_files, eval_files):
                 cell = Cell(ds, domain, int(seed), method, fields[4] if len(fields) == 5 else "ema")
                 if (ds not in DOMAINS or domain not in DOMAINS[ds] or cell.seed not in (42, 43, 44)
                         or method not in (*tuple("ABCDEF"), *FORMAL_PORT_METHODS)
-                        or (method in ("LoRA-CGA", "LoRA-CGA+VLST") and ds != "DIOR")
                         or (training and method == "A")
                         or (method == "A" and cell.seed != 42)
                         or cell.role not in ("ema", "student")

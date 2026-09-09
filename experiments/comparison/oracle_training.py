@@ -1,4 +1,4 @@
-"""CPU preparation of the approved DIOR-only 2 methods x 4 domains x 3 seeds."""
+"""CPU preparation of one dataset's approved oracle grid: DIOR24 or RSAR48."""
 
 import argparse
 from contextlib import contextmanager
@@ -32,16 +32,18 @@ def model_environment(base):
         os.environ.update(previous)
 
 
-def build_specs(paths, adapter, base_weights):
-    """Read DIOR D/F only; keep their algorithm and detector architecture intact."""
+def build_specs(paths, adapter, base_weights, dataset="DIOR"):
+    """Read the selected D/F recipes; retain their detector architecture."""
     adapter = training.require_file(adapter)
     base = training.require_file(base_weights)
-    evidence = inspect_oracle_adapter(adapter, "DIOR", base)
+    evidence = inspect_oracle_adapter(adapter, dataset, base)
+    classes = CLASSES[dataset]
+    source_config = paths.rsar_cfg if dataset == "RSAR" else paths.dior_cfg
     specs = {}
     for method, baseline, model_type in (
             ("LoRA-CGA", "D", "OracleCGAStudent"),
             ("LoRA-CGA+VLST", "F", "OracleCGAVLSTStudent")):
-        reference = training.require_file(paths.dior_cfg(baseline))
+        reference = training.require_file(source_config(baseline))
         with model_environment(base):
             original = Config.fromfile(str(reference), import_custom_modules=False)
             environment = {
@@ -60,12 +62,13 @@ def build_specs(paths, adapter, base_weights):
                 or cfg.get("momentum", .998) != .998
                 or original.runner.max_epochs != 1
                 or original.data.train.type != "StrictSourceFreeDOTADataset"
-                or list(original.data.train.classes) != list(CLASSES["DIOR"])
-                or original.model.roi_head.bbox_head.num_classes != 20):
-            raise ValueError("Oracle requires the original image-only DIOR D/F one-epoch recipe")
+                or list(original.data.train.classes) != list(classes)
+                or original.model.roi_head.bbox_head.num_classes != len(classes)):
+            raise ValueError(f"Oracle requires the original image-only {dataset} D/F one-epoch recipe")
         if (teacher.model.type not in ("OrientedRCNN", "OrientedRCNN_CGA")
-                or teacher.model.roi_head.bbox_head.num_classes != 20):
-            raise ValueError("Oracle requires the matching 20-class DIOR OrientedRCNN source teacher")
+                or teacher.model.roi_head.bbox_head.num_classes != len(classes)):
+            raise ValueError(
+                f"Oracle requires the matching {len(classes)}-class {dataset} OrientedRCNN source teacher")
         if (baseline == "F" and (
                 cfg.vlst_enabled is not True or cfg.vlst_strict is not True
                 or cfg.vlst_lora_path is not None)):
@@ -81,7 +84,7 @@ def build_specs(paths, adapter, base_weights):
             imports=list(dict.fromkeys([*imports, "sfod.extensions.oracle"])),
             allow_failed_imports=False)
         candidate.model.cfg.update(
-            oracle_dataset="DIOR", oracle_adapter=str(adapter),
+            oracle_dataset=dataset, oracle_adapter=str(adapter),
             oracle_base_weights=str(base))
         if baseline == "F":
             candidate.model.cfg.vlst_pretrained = str(base)
@@ -99,18 +102,19 @@ def build_specs(paths, adapter, base_weights):
 
 
 def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
-            eval_code, python, adapter, sarclip_base):
-    """Publish metadata only after the actual DIOR payload passes admission."""
+            eval_code, python, adapter, sarclip_base, dataset="DIOR"):
+    """Publish metadata only after the selected dataset's payload passes admission."""
     return training.prepare(
         **{key: host.map_path(value) for key, value in dict(
             base_plan=base_plan, core_report=core_report, core_paths=core_paths,
             out_dir=out_dir, artifact_root=artifact_root, eval_code=eval_code,
             python=python, oracle_adapter=adapter, sarclip_base=sarclip_base).items()},
-        methods=training.ORACLE_METHODS)
+        methods=training.ORACLE_METHODS, oracle_dataset=dataset)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset", choices=("DIOR", "RSAR"), default="DIOR")
     for name in ("base-plan", "core-report", "core-paths", "out-dir",
                  "artifact-root", "eval-code", "python", "adapter", "sarclip-base"):
         parser.add_argument("--" + name, required=True)

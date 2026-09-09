@@ -1,4 +1,10 @@
-# DIOR oracle24: CPU preparation, then owner-controlled execution
+# Oracle DIOR24 or RSAR48: CPU preparation, then owner-controlled execution
+
+The existing preparer selects one dataset per invocation: `--dataset RSAR`
+produces48 cells; `--dataset DIOR` (also the unchanged default) produces24.
+Each selection reads only its own dataset's adapter, source and image inputs.
+Both use generated `train.list`/`eval.list`; no second runner or RSAR static
+selection layer is needed.
 
 This appendix-only **Target-supervised** queue contains exactly `LoRA-CGA` and
 `LoRA-CGA+VLST`, DIOR `clean/brightness/cloudy/contrast`, seeds `42/43/44`.
@@ -90,9 +96,10 @@ handoff. No launch, remote check, adapter copy or data write was performed here.
 
 ### Actual remaining input boundary
 
-The accepted `d58ee86` code already implements these consumers; this delivery
-does not change admission, finite recovery, model code, source configs, dataset
-splits or native evaluation. The completed adapter's2971460-byte/final10 record
+The accepted `d58ee86` code already implements these DIOR consumers; the DIOR
+delivery117f607 reused its admission and routing. The RSAR extension below
+changes dataset selection, not finite recovery, model code, source configs,
+dataset splits or native evaluation. The completed adapter's2971460-byte/final10 record
 is owner evidence, not a substitute for `inspect_oracle_adapter` reading it.
 The payload and frozen target inputs are not mounted in this local checkout,
 so no production `runtime.json` or actual admission pass is claimed.
@@ -142,12 +149,99 @@ only**: CPU preparation does not stop, replace, union or launch anything in live
 Q752. Producer handoff and any finite `launch/resume --handoff-confirmed` remain
 the supervisor's explicit action, preserving existing jobs and ownership.
 
+## RSAR48 actual-input handoff
+
+The owner reported the RSAR fit terminal at2026-09-09T00:47:49Z:
+PID3521295 wait exit0, ten CSV epochs and the final file present. This is not
+local payload admission or detector compatibility evidence. The same existing
+`inspect_oracle_adapter` must read the actual final RSAR payload, including its
+six classes, seven corrupted TRAIN domains, final10 selection, rank8/alpha16/
+dropout0 and declared SARCLIP initialization. No DIOR adapter is an input.
+
+From the owner's deployed checkout of this delivery on221, the exact CPU
+preparation is:
+
+```bash
+CODE="$PWD"
+ART=/home/zechuan/iraod_artifacts
+ROOT="$ART/comparison/xaf_student_quant_20260908"
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+BASE_PLAN="$ART/comparison/full_test_roi_v3_331d213/completion-plan.json"
+CORE_REPORT="$ART/comparison/final_delivery_20260908_4a6bc50/report/report.json"
+CORE_PATHS="$ART/comparison/xaf_s424344/paths.py"
+EVAL_CODE=/home/zechuan/IRAOD-New-rc331d213
+SARCLIP_BASE=/home/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors
+ADAPTER="$ART/FORMAL_RSAR_LoRA_adapter_788a61a_20138_20260908T195742Z/lora_rsar.pth"
+QUEUE="$ROOT/oracle_rsar48_manifests_20260909"
+ARTIFACT_ROOT="$ROOT/oracle_rsar48_20260909"
+export PYTHONPATH="$CODE"
+PYTHONNOUSERSITE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  "$PY" -m experiments.comparison.oracle_training --dataset RSAR \
+  --base-plan "$BASE_PLAN" --core-report "$CORE_REPORT" \
+  --core-paths "$CORE_PATHS" --eval-code "$EVAL_CODE" --python "$PY" \
+  --adapter "$ADAPTER" --sarclip-base "$SARCLIP_BASE" \
+  --out-dir "$QUEUE" --artifact-root "$ARTIFACT_ROOT"
+```
+
+Both output roots must be new and non-nested. Only `QUEUE` is created, with
+the existing runtime/config/resolver/wrapper outputs and **48 rows in each
+generated list**. The native selection is exactly `LoRA-CGA`/`LoRA-CGA+VLST`
+x seeds42/43/44 x the original domain order:
+`clean/chaff/gaussian_white_noise/point_target/noise_suppression/am_noise_horizontal/smart_suppression/am_noise_vertical`.
+Both lists default to EMA role; the Student is retained, not evaluated.
+
+Frozen inputs are the paths above, the core resolver's `rsar_cfg("D")` and
+`rsar_cfg("F")` plus their inherited configs and matching six-class source
+teacher, and adjacent shared `with_gpu_lock.sh`. All eight A references must
+bind the original source42 checkpoint:
+`$ART/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`.
+Retain the actual plan's eight `img_prefix` TEST paths ending in
+`test/images`, their corresponding sibling `val/images`, and each native
+`ann_file` directory with its original TEST annotations. Do not replace those
+with oracle TRAIN crops or rewrite the plan. The finite gate requires8467
+supported VAL images/domain; native TEST uses8538 images/domain. The original
+evaluation checkout stays at331d2131b84651f0a2930a3d53faeefad8701531.
+These are input requirements, not a new claim that target restoration passed.
+
+After actual preparation and the owner's later single-producer boundary,
+the exact native launch uses the **generated** lists, with no new static list:
+
+```bash
+PYTHONNOUSERSITE=1 PYTHONPATH="$CODE" "$PY" \
+  -m experiments.comparison.finite_resumer launch \
+  --queue "$QUEUE" --run-dir "$ROOT/finite_runs/oracle-rsar48-20260909" \
+  --train-list "$QUEUE/train.list" --eval-list "$QUEUE/eval.list" \
+  --gpus 0,1,2,3 --handoff-confirmed
+```
+
+Topology remains LoRA-CGA1x32 and LoRA-CGA+VLST2x16 (pairs0,1/29804 and
+2,3/29806), global32, SGD LR.02, one epoch/**265 updates**, final filename
+label266, iteration-start EMA.998, image-only VAL, unchanged D/F controls.
+Only final `iter_266_ema.pth` native quant is queued; `iter_266.pth` is retained.
+No extra Student eval, ROI, visualization or source training is authorized here.
+
+**RSAR1x32 detector compatibility with48GB is still unresolved.** The completed
+LoRA fit does not prove it fits; original54601-54691MiB peaks exceed A6000
+49140MiB capacity. A real detector OOM remains an owner-reported blocker,
+not permission to shrink batch, change topology, budget or numerics.
+
+CPU preparation does not acquire the producer lock or interfere with ongoing
+144-phase recovery. The launch body does acquire the shared
+`$ART/comparison/xaf_s424344/finite_resumer.producer.lock` and uses canonical
+tmux session `xaf-finite-producer`, plus the existing GPU/cell locks.
+**Do not run a second producer or interrupt/redeploy the live recovery for
+this queue.** Hold the prepared selection until the sole runtime owner90fc
+authorizes its clean boundary. Do not attach the144/Q752 `--previous-state`
+to this different finite scope. This delivery performs no launch, remote access,
+input restoration or actual payload validation; parent controls deployment and
+supervisor90fcacd0-c8ef-4604-b206-ed5e6f6d749e controls execution.
+
 ## Local evidence boundary
 
 `tools.tests.test_oracle_training` uses actual MMCV fixture-config resolution,
 synthetic CPU LoRA payload admission, native command construction and mocked
 evaluation dispatch. It checks exact grid counts, science/source preservation,
-type-only wrapping, no RSAR artifact prerequisite, adapter failures, host aliases
+type-only wrapping, no opposite-dataset artifact prerequisite, adapter failures, host aliases
 and original-runtime routing through `mixed_queue`.
 
 ```bash
@@ -155,7 +249,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_oracle_training
 ```
 
-The exact-grid test also compares the checked-in finite selection byte-for-byte
+The DIOR exact-grid test also compares the checked-in finite selection byte-for-byte
 with both generated lists and parses it with the native finite consumer. The
 one narrow delivery check is:
 
@@ -164,6 +258,12 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   /tmp/iraod-int-venv/bin/python -m unittest \
   tools.tests.test_oracle_training.OracleTrainingTest.test_exact24_executable_configs_preserve_science_and_source
 ```
+
+The RSAR follow-on's narrow gate is the same module command above: its RSAR
+tests check the generated48 selection, actual synthetic payload admission,
+source/config preservation,265/266 budget bindings, native rank commands and
+original-runtime EMA routing through `mixed_queue`; the DIOR tests protect the
+existing default24 behavior. No real detector or remote payload is used.
 
 The local environment has no native `mmrotate` stack;
 `tools.tests.test_oracle_isolation` cannot import there. Native detector/model
