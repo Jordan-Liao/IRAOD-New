@@ -108,6 +108,13 @@ class OracleTrainingTest(unittest.TestCase):
         self.assertEqual(runtime["source_training_cells"], 0)
         self.assertNotIn("student_cells", runtime)
         self.assertFalse(self.artifacts.exists())
+        scope = training.ROOT / "experiments/comparison/dior_oracle24.list"
+        for phase in ("train", "eval"):
+            self.assertEqual(scope.read_bytes(), (self.queue / f"{phase}.list").read_bytes())
+        selected = finite.load_cells([scope], [scope])
+        self.assertEqual({cell.key for cell in selected}, set(runtime["cells"]))
+        self.assertTrue(all(selected.values()))
+        self.assertTrue(all(cell.role == "ema" for cell in selected))
         cells = runtime["cells"].values()
         self.assertEqual(Counter(c["method"] for c in cells),
                          {"LoRA-CGA": 12, "LoRA-CGA+VLST": 12})

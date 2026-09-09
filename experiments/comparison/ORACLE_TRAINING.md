@@ -1,7 +1,7 @@
 # DIOR oracle24: CPU preparation, then owner-controlled execution
 
 This appendix-only **Target-supervised** queue contains exactly `LoRA-CGA` and
-`LoRA-CGA+VLST`, DIOR `clean/brightness/contrast/cloudy`, seeds `42/43/44`.
+`LoRA-CGA+VLST`, DIOR `clean/brightness/cloudy/contrast`, seeds `42/43/44`.
 It does not depend on an RSAR adapter, read RSAR images/weights, train a source,
 or modify Q752, original queues, source configs, adapters or report aggregates.
 Inherited D/F Python recipes may retain RSAR names; these are code, not RSAR
@@ -25,14 +25,26 @@ must identify that payload's base initialization, not a replacement checkpoint.
 Existing host-binding aliases are accepted; a genuinely different base, partial
 adapter, wrong dataset, invalid factors or wrong recipe fails admission.
 
-Set `BASE_PLAN`, `CORE_REPORT`, `CORE_PATHS`, `EVAL_CODE`, and `SARCLIP_BASE`
-to those existing inputs. Set `QUEUE` and `ARTIFACT_ROOT` to **new, separate,
-non-nested directories** under `/home/zechuan/iraod_artifacts`; neither may
-already exist. These are the complete arguments:
+The following bindings reuse the original paths recorded in
+`extensions/protocol.md`, mapped by `HOST_BINDING.md`; they are not newly
+generated source data or reports. Run from the owner's deployed checkout of
+this delivery. `QUEUE` and `ARTIFACT_ROOT` are **new, separate, non-nested
+directories**; neither may already exist. These are the complete arguments:
 
 ```bash
+CODE="$PWD"
+ART=/home/zechuan/iraod_artifacts
+ROOT="$ART/comparison/xaf_student_quant_20260908"
 PY=/home/zechuan/miniforge3/envs/iraod/bin/python
-ADAPTER=/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/lora_dior.pth
+BASE_PLAN="$ART/comparison/full_test_roi_v3_331d213/completion-plan.json"
+CORE_REPORT="$ART/comparison/final_delivery_20260908_4a6bc50/report/report.json"
+CORE_PATHS="$ART/comparison/xaf_s424344/paths.py"
+EVAL_CODE=/home/zechuan/IRAOD-New-rc331d213
+SARCLIP_BASE=/home/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors
+ADAPTER="$ART/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/lora_dior.pth"
+QUEUE="$ROOT/oracle_dior24_manifests_20260909"
+ARTIFACT_ROOT="$ROOT/oracle_dior24_20260909"
+export PYTHONPATH="$CODE"
 PYTHONNOUSERSITE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   "$PY" -m experiments.comparison.oracle_training \
   --base-plan "$BASE_PLAN" --core-report "$CORE_REPORT" \
@@ -45,6 +57,58 @@ Only the new metadata directory is written: `runtime.json`, `cells.json`,
 two executable resolved configs, `paths.py`, `train.list`, `eval.list` and
 existing-pipeline runner/lock wrappers. Each list has 24 rows. The formal
 artifact root remains absent. No GPU process is launched.
+
+`dior_oracle24.list` is the checked-in native finite scope: exactly24 training
+cells and the same24 final-EMA evaluation cells. Its four-column rows use the
+existing default EMA role, not Student training/evaluation. Its ordering matches
+the existing generator (cloudy before contrast); no original queue is reordered.
+It is a ready consumer **selection**, not an admitted `runtime.json`.
+
+### Owner-only launch handoff
+
+After the CPU command succeeds and the sole compute owner confirms the clean
+producer boundary, the existing finite entry point consumes this exact list:
+
+```bash
+SCOPE="$CODE/experiments/comparison/dior_oracle24.list"
+PYTHONNOUSERSITE=1 PYTHONPATH="$CODE" "$PY" \
+  -m experiments.comparison.finite_resumer launch \
+  --queue "$QUEUE" --run-dir "$ROOT/finite_runs/oracle-dior24-20260909" \
+  --train-list "$SCOPE" --eval-list "$SCOPE" \
+  --gpus 0,1,2,3 --handoff-confirmed
+```
+
+This is an exact **new DIOR-only scope**, not recovery of Q752. Do not pass
+Q752's `--previous-state`: that interface requires an identical finite scope.
+Do not launch this producer alongside a release/recovery producer. If the owner
+has resumed another producer, retain this queue for its next authorized boundary
+instead of starting a competitor. GPU4 is excluded to preserve the independent
+RSAR adapter job; DIOR does not wait for that adapter. Parent controls deployment
+and launches; only native experiment-supervisor
+`90fcacd0-c8ef-4604-b206-ed5e6f6d749e` owns remote systems/restoration for this
+handoff. No launch, remote check, adapter copy or data write was performed here.
+
+### Actual remaining input boundary
+
+The accepted `d58ee86` code already implements these consumers; this delivery
+does not change admission, finite recovery, model code, source configs, dataset
+splits or native evaluation. The completed adapter's2971460-byte/final10 record
+is owner evidence, not a substitute for `inspect_oracle_adapter` reading it.
+The payload and frozen target inputs are not mounted in this local checkout,
+so no production `runtime.json` or actual admission pass is claimed.
+
+The owner-side CPU command needs the exact base plan, completed192-cell report,
+core resolver and adjacent shared lock wrapper above; the resolver's original
+DIOR D/F configs and source teacher; the source42 checkpoint bound by all four
+A references; SARCLIP base and final DIOR adapter; unchanged331d evaluator;
+and all four original DIOR VAL/TEST directories. No RSAR adapter is an input.
+Preparation validates payload/config/source identities, but does not certify
+full datasets. The finite input gate additionally requires5863 supported VAL
+images per domain and the native TEST list. Last inherited evidence reported
+incomplete brightness VAL and missing
+`/home/zechuan/iraod_data/DIOR/ImageSets/test.txt`; restoration and full referenced
+TEST image/annotation readiness remain the named compute owner's responsibility.
+Preparation must fail on unavailable bindings, not synthesize replacements.
 
 ## Preserved science and routing
 
@@ -91,8 +155,18 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_oracle_training
 ```
 
+The exact-grid test also compares the checked-in finite selection byte-for-byte
+with both generated lists and parses it with the native finite consumer. The
+one narrow delivery check is:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest \
+  tools.tests.test_oracle_training.OracleTrainingTest.test_exact24_executable_configs_preserve_science_and_source
+```
+
 The local environment has no native `mmrotate` stack;
 `tools.tests.test_oracle_isolation` cannot import there. Native detector/model
 construction and actual target CPU preparation remain owner-side acceptance,
-not a local pass or a claimed experiment result. Parent owns commit/push/PR;
-the supervisor owns target execution.
+not a local pass or a claimed experiment result. The code worker owns this
+commit/push delivery; the supervisor owns target execution.
