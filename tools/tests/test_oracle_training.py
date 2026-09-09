@@ -1,4 +1,4 @@
-"""DIOR24 CPU preparation through actual config/admission/queue consumer seams."""
+"""Dataset-specific oracle CPU preparation through config/admission/consumer seams."""
 
 from collections import Counter
 from contextlib import nullcontext
@@ -23,7 +23,9 @@ from experiments.comparison.result_completion import DOMAINS
 from tools.tests import test_extension_training, test_oracle_adapters
 
 
-class OracleTrainingTest(unittest.TestCase):
+class OracleTrainingFixture:
+    dataset = "DIOR"
+
     def setUp(self):
         test_extension_training.ExtensionTrainingTest.setUp(self)
         adapter_fixture = test_oracle_adapters.OracleAdapterTest()
@@ -33,24 +35,27 @@ class OracleTrainingTest(unittest.TestCase):
         self.weights = adapter_fixture.base
         self.weights.write_bytes(b"synthetic base; no native model loading")
         self.payload = deepcopy(adapter_fixture.payload)
+        dataset = self.dataset
+        count = len(DOMAINS[dataset]) - 1
         self.payload.update(
-            dataset="DIOR", classes=list(CLASSES["DIOR"]),
-            templates=[ORACLE_TRAINING_TEMPLATES["DIOR"]],
-            metadata_row_count=3,
-            class_counts={name: 3 if i == 0 else 0
-                          for i, name in enumerate(CLASSES["DIOR"])},
-            crop_modes={"aabb": 3}, crop_expansions={"0.4": 3},
-            corruptions={domain: 1 for domain in DOMAINS["DIOR"][1:]},
+            dataset=dataset, classes=list(CLASSES[dataset]),
+            templates=[ORACLE_TRAINING_TEMPLATES[dataset]],
+            metadata_row_count=count,
+            class_counts={name: count if i == 0 else 0
+                          for i, name in enumerate(CLASSES[dataset])},
+            crop_modes={"aabb": count}, crop_expansions={"0.4": count},
+            corruptions={domain: 1 for domain in DOMAINS[dataset][1:]},
             sampler=dict(type="inverse_class_weighted", replacement=True,
-                         num_samples=3, seed=42))
+                         num_samples=count, seed=42))
         torch.save(self.payload, self.adapter)
-        self.teacher = self.core / "dior_source_config.py"
+        self.teacher = self.core / f"{dataset.lower()}_source_config.py"
+        classes = CLASSES[dataset]
         self.teacher.write_text(
             "model = dict(type='OrientedRCNN', backbone=dict(type='OrthoNet', depth=50),\n"
-            "    roi_head=dict(bbox_head=dict(num_classes=20)), test_cfg=dict(rcnn=dict(score_thr=.05)))\n")
+            f"    roi_head=dict(bbox_head=dict(num_classes={len(classes)})), test_cfg=dict(rcnn=dict(score_thr=.05)))\n")
         self.originals = {}
         for baseline in ("D", "F"):
-            config = self.core / f"dior_{baseline}.py"
+            config = self.core / f"{dataset.lower()}_{baseline}.py"
             cfg = dict(strict_source_free=True, weight_l=0., weight_u=1.,
                        score_thr=.7, use_bbox_reg=False)
             if baseline == "F":
@@ -62,8 +67,8 @@ class OracleTrainingTest(unittest.TestCase):
             config.write_text(
                 "import os\n"
                 "custom_imports = dict(imports=['sfod', 'mmdet_extension'], allow_failed_imports=False)\n"
-                f"model = {dict(type='UnbiasedTeacher' if baseline == 'D' else 'UnbiasedTeacherVLST', ema_config=str(self.teacher), cfg=cfg, roi_head=dict(bbox_head=dict(num_classes=20)))!r}\n"
-                f"data = {dict(samples_per_gpu=32, train=dict(type='StrictSourceFreeDOTADataset', classes=CLASSES['DIOR'], unlabeled_epoch_size=5863, unlabeled_subset_seed=42))!r}\n"
+                f"model = {dict(type='UnbiasedTeacher' if baseline == 'D' else 'UnbiasedTeacherVLST', ema_config=str(self.teacher), cfg=cfg, roi_head=dict(bbox_head=dict(num_classes=len(classes))))!r}\n"
+                f"data = {dict(samples_per_gpu=32, train=dict(type='StrictSourceFreeDOTADataset', classes=classes, unlabeled_epoch_size=training.TARGET_VAL_SIZE[dataset], unlabeled_subset_seed=42))!r}\n"
                 "optimizer = dict(type='SGD', lr=.02, momentum=.9)\n"
                 "runner = dict(type='SemiEpochBasedRunner', max_epochs=1)\n"
                 "checkpoint_config = dict(interval=1)\n"
@@ -74,18 +79,22 @@ class OracleTrainingTest(unittest.TestCase):
                 + ("os.environ['VLST_BACKEND'] = 'sarclip'\n" if baseline == "F" else ""))
             self.originals[baseline] = config
         with self.paths.open("a") as stream:
+            other = "RSAR" if dataset == "DIOR" else "DIOR"
             stream.write(
-                "def dior_cfg(method): return f'{ROOT}/dior_{method}.py'\n"
-                "def rsar_cfg(method): raise AssertionError('RSAR must not be requested')\n")
+                f"def {dataset.lower()}_cfg(method): return f'{{ROOT}}/{dataset.lower()}_{{method}}.py'\n"
+                f"def {other.lower()}_cfg(method): raise AssertionError('{other} must not be requested')\n")
 
     def prepare(self):
         return oracle.prepare(
             self.base, self.report, self.paths, self.queue, self.artifacts,
-            self.eval_code, self.python, self.adapter, self.weights)
+            self.eval_code, self.python, self.adapter, self.weights,
+            **({"dataset": self.dataset} if self.dataset != "DIOR" else {}))
 
     def runtime(self):
         return json.loads((self.queue / "runtime.json").read_text())
 
+
+class OracleTrainingTest(OracleTrainingFixture, unittest.TestCase):
     def test_exact24_executable_configs_preserve_science_and_source(self):
         before = {p: p.read_bytes() for p in (
             self.base, self.report, self.paths, self.teacher, self.adapter,
@@ -108,6 +117,13 @@ class OracleTrainingTest(unittest.TestCase):
         self.assertEqual(runtime["source_training_cells"], 0)
         self.assertNotIn("student_cells", runtime)
         self.assertFalse(self.artifacts.exists())
+        scope = training.ROOT / "experiments/comparison/dior_oracle24.list"
+        for phase in ("train", "eval"):
+            self.assertEqual(scope.read_bytes(), (self.queue / f"{phase}.list").read_bytes())
+        selected = finite.load_cells([scope], [scope])
+        self.assertEqual({cell.key for cell in selected}, set(runtime["cells"]))
+        self.assertTrue(all(selected.values()))
+        self.assertTrue(all(cell.role == "ema" for cell in selected))
         cells = runtime["cells"].values()
         self.assertEqual(Counter(c["method"] for c in cells),
                          {"LoRA-CGA": 12, "LoRA-CGA+VLST": 12})
@@ -226,7 +242,7 @@ class OracleTrainingTest(unittest.TestCase):
             self.prepare()
         self.assertFalse(self.queue.exists())
         self.assertFalse(self.artifacts.exists())
-        for row in ("RSAR clean 42 LoRA-CGA", "DIOR clean 45 LoRA-CGA",
+        for row in ("OTHER clean 42 LoRA-CGA", "DIOR clean 45 LoRA-CGA",
                     "DIOR clean 42 LoRA-CGA student"):
             listing = self.root / "invalid.list"
             listing.write_text(row + "\n")
@@ -253,6 +269,118 @@ class OracleTrainingTest(unittest.TestCase):
         self.assertEqual(result["cells"][0]["train"], "waiting")
         self.assertEqual(result["cells"][0]["eval"], "waiting")
         start.assert_not_called()
+
+
+class RSAROracleTrainingTest(OracleTrainingFixture, unittest.TestCase):
+    dataset = "RSAR"
+
+    def test_generated48_native_bindings_preserve_source_budget_and_routing(self):
+        before = {p: p.read_bytes() for p in (
+            self.base, self.report, self.paths, self.teacher, self.adapter,
+            self.core / "RSAR_source.pth", *self.originals.values())}
+        require_file = training.require_file
+
+        def rsar_only(path):
+            self.assertNotIn("DIOR", str(path))
+            return require_file(path)
+
+        with patch.object(training, "require_file", side_effect=rsar_only):
+            self.prepare()
+        runtime = self.runtime()
+        self.assertEqual((runtime["train_cells"], runtime["eval_cells"]), (48, 48))
+        self.assertEqual(runtime["domains"], {"RSAR": list(DOMAINS["RSAR"])})
+        self.assertEqual(runtime["source_training_cells"], 0)
+        self.assertNotIn("student_cells", runtime)
+        self.assertFalse(self.artifacts.exists())
+        scope = finite.load_cells([self.queue / "train.list"], [self.queue / "eval.list"])
+        expected = {finite.Cell("RSAR", domain, seed, method)
+                    for domain in DOMAINS["RSAR"] for seed in (42, 43, 44)
+                    for method in training.ORACLE_METHODS}
+        self.assertEqual(set(scope), expected)
+        self.assertTrue(all(scope.values()))
+        self.assertEqual((self.queue / "train.list").read_bytes(),
+                         (self.queue / "eval.list").read_bytes())
+        for method, baseline in zip(training.ORACLE_METHODS, ("D", "F")):
+            cell = runtime["cells"][finite.Cell("RSAR", "clean", 42, method).key]
+            with oracle.model_environment(self.weights):
+                old = Config.fromfile(str(self.originals[baseline]), import_custom_modules=False)
+                new = Config.fromfile(cell["config"], import_custom_modules=False)
+                teacher = Config.fromfile(str(self.teacher), import_custom_modules=False)
+            self.assertEqual(new.model.cfg.oracle_dataset, "RSAR")
+            self.assertEqual(new.model.roi_head.bbox_head.num_classes, 6)
+            self.assertEqual(config_diff(teacher.model, new.model.ema_config["model"]),
+                             [dict(path="type", before="OrientedRCNN", after="OrientedRCNN_CGA")])
+            allowed = {"model.type", "model.ema_config", "custom_imports.imports",
+                       "model.cfg.oracle_dataset", "model.cfg.oracle_adapter",
+                       "model.cfg.oracle_base_weights", "model.cfg.vlst_pretrained",
+                       "model.cfg.vlst_cache_dir"}
+            self.assertFalse({d["path"] for d in config_diff(old, new)} - allowed)
+        mixed = self.root / "mixed"
+        mixed_queue.prepare([self.queue], mixed)
+        paths = finite.load_paths(mixed)
+        for selected in scope:
+            origin, cell = training.load_cell(
+                mixed, selected.dataset, selected.domain, selected.seed, selected.method)
+            self.assertEqual(origin["artifact_root"], str(self.artifacts))
+            self.assertEqual(finite.prerequisite_state(paths, selected), ("ready", ""))
+            self.assertEqual((cell["world_size"], cell["samples_per_gpu"]),
+                             (selected.width, 32 // selected.width))
+            self.assertEqual((cell["detector_epochs"], cell["detector_optimizer_updates"],
+                              cell["final_checkpoint_iteration"]), (1, 265, 266))
+            self.assertEqual(cell["unlabeled_epoch_size"], 8467)
+            self.assertTrue(cell["checkpoint"].endswith("/iter_266_ema.pth"))
+            self.assertTrue(cell["student_checkpoint"].endswith("/iter_266.pth"))
+            self.assertTrue(cell["target_val"].endswith(f"{selected.domain}/val/images"))
+            self.assertEqual(cell["source_checkpoint"], str(self.core / "RSAR_source.pth"))
+            self.assertEqual(cell["eval_config"], str(self.eval_code / "RSAR_source.py"))
+            self.assertEqual(cell["fairness_group"], "Target-supervised")
+            self.assertTrue(cell["appendix_only"])
+            gpus = (0, 1) if selected.width == 2 else (0,)
+            with patch.object(host, "is_target_host", return_value=True), patch.dict(
+                    os.environ, {"SARCLIP_LORA": "/poison.pth"}):
+                dispatch = finite.runner_command(mixed, selected, "train", gpus)
+                self.assertIn("train-ddp" if selected.width == 2 else "train", dispatch)
+                _, _, command, env = training.training_invocation(
+                    mixed, origin, cell, gpus, 29804 if selected.width == 2 else None,
+                    Path(cell["work_dir"]))
+            for option in ("optimizer.lr=0.02", "model.cfg.use_bbox_reg=False",
+                           "data.train.unlabeled_epoch_size=8467",
+                           f"data.samples_per_gpu={32 // selected.width}",
+                           "load_from=" + cell["source_checkpoint"], "--no-validate"):
+                self.assertIn(option, command)
+            self.assertNotIn("SARCLIP_LORA", env)
+            self.assertEqual(env["SARCLIP_PRETRAINED"], str(self.weights))
+            self.assertIn("native", command)
+            if selected.width == 2:
+                self.assertIn("--nproc_per_node=2", command)
+                self.assertEqual(env["MASTER_PORT"], "29804")
+            with patch.object(training, "evaluate_binding") as evaluate, patch.object(
+                    host, "read_json", wraps=host.read_json) as read:
+                execution = Path(cell["method_dir"]) / "execution.json"
+                read.side_effect = lambda path: (
+                    dict(training_code_sha="producer", training_code=str(training.ROOT))
+                    if Path(path) == execution else read._mock_wraps(path))
+                training.evaluate(
+                    mixed, 4, selected.dataset, selected.domain, selected.seed, selected.method)
+            eval_cell, eval_runtime, _ = evaluate.call_args.args
+            self.assertEqual(eval_cell["checkpoint"], cell["checkpoint"])
+            self.assertEqual(eval_cell["config"], cell["eval_config"])
+            self.assertEqual(eval_runtime["evaluation_code"], str(self.eval_code))
+        for path, data in before.items():
+            self.assertEqual(path.read_bytes(), data)
+
+    def test_wrong_dataset_adapter_and_student_scope_are_rejected(self):
+        self.payload["dataset"] = "DIOR"
+        torch.save(self.payload, self.adapter)
+        with self.assertRaisesRegex(ValueError, "frozen dataset/TRAIN/final-epoch"):
+            self.prepare()
+        self.assertFalse(self.queue.exists())
+        self.assertFalse(self.artifacts.exists())
+        for row in ("RSAR clean 45 LoRA-CGA", "RSAR clean 42 LoRA-CGA student"):
+            listing = self.root / "invalid.list"
+            listing.write_text(row + "\n")
+            with self.assertRaisesRegex(ValueError, "outside the approved"):
+                finite.load_cells([], [listing])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,13 @@
+{
+  "actual_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "actual_tree": "b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8",
+  "canonical_checkout": "/home/zechuan/IRAOD-New-rc331d213",
+  "completed_at": "2026-09-09T01:28:41Z",
+  "expected_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "expected_tree": "b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8",
+  "new_git_metadata": "directory",
+  "old_git_pointer": "gitdir: /mnt/SSD2_8TB/zechuan/IRAOD-New/.git/worktrees/IRAOD-New-rc331d213",
+  "preserved_invalid_checkout": "/home/zechuan/IRAOD-New-rc331d213.invalid-worktree-pointer-20260909T012841Z",
+  "source_bundle": "/home/zechuan/iraod-frozen-eval-331d213-complete.bundle",
+  "status": "complete"
+}

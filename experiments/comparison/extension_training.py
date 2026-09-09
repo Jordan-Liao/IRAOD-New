@@ -56,13 +56,13 @@ def target_val(dataset, domain, test_prefix):
 
 def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
             eval_code, python, methods, sarclip_base=None, tam_plan=None,
-            oracle_adapter=None):
+            oracle_adapter=None, oracle_dataset="DIOR"):
     """Write only a NEW metadata queue; never create the formal output root."""
     oracle = oracle_adapter is not None
     supported = ORACLE_METHODS if oracle else METHODS
     if not methods or any(method not in supported for method in methods):
         raise ValueError("Explicitly select a supported port or approved ablation")
-    domains_scope = {"DIOR": DOMAINS["DIOR"]} if oracle else DOMAINS
+    domains_scope = {oracle_dataset: DOMAINS[oracle_dataset]} if oracle else DOMAINS
     if any(method in F_DELETIONS for method in methods) and not sarclip_base:
         raise ValueError("F deletions require the explicit frozen SARCLIP base")
     tam_fits = {}
@@ -120,7 +120,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
     if oracle:
         from experiments.comparison.oracle_training import build_specs
 
-        oracle_specs = build_specs(paths, oracle_adapter, sarclip_base)
+        oracle_specs = build_specs(paths, oracle_adapter, sarclip_base, oracle_dataset)
     cells, overlays, regression_audits, f_audits = {}, {}, {}, {}
     for dataset, domains in domains_scope.items():
         for domain in domains:
@@ -149,7 +149,7 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                     model_environment, wrapper_environment = {}, {}
                     if oracle:
                         spec = oracle_specs[method]
-                        name = f"oracle_{method.replace('+', '_')}_dior.py"
+                        name = f"oracle_{method.replace('+', '_')}_{dataset.lower()}.py"
                         overlays[name] = spec["config_text"]
                         config = str(out / name)
                         model_environment = spec["model_environment"]
@@ -228,8 +228,8 @@ def prepare(base_plan, core_report, core_paths, out_dir, artifact_root,
                             fairness_group="Target-supervised",
                             appendix_only=True,
                             detector_epochs=1,
-                            detector_optimizer_updates=184,
-                            final_checkpoint_iteration=185)
+                            detector_optimizer_updates=iterations_per_epoch,
+                            final_checkpoint_iteration=iteration)
                     if method == "SFYOLO":
                         fit = tam_fits[f"{dataset}/{domain}"]
                         if fit["target_val"] != val:
@@ -353,10 +353,10 @@ def require_prerequisites(cell):
     if cell["method"] in ORACLE_METHODS:
         from experiments.comparison.oracle_adapters import inspect_oracle_adapter
 
-        if cell["dataset"] != "DIOR":
-            raise ValueError("Only DIOR oracle detector cells are approved")
+        if cell["dataset"] not in DOMAINS:
+            raise ValueError("Only RSAR and DIOR oracle detector cells are approved")
         inspect_oracle_adapter(
-            require_file(cell["oracle_adapter"]), "DIOR",
+            require_file(cell["oracle_adapter"]), cell["dataset"],
             require_file(cell["oracle_base_weights"]))
     elif cell["method"] == "AASFOD":
         from experiments.comparison.aasfod_protocol import validate_split

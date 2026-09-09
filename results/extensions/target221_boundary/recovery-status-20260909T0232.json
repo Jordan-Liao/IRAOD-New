@@ -1,0 +1,275 @@
+{
+  "utc": "2026-09-09T02:33:03.328124+00:00",
+  "producer": {
+    "pid": 3620449,
+    "status": "running",
+    "alive": true
+  },
+  "source_state": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/state.json",
+  "train_requested_total": 180,
+  "actual_train_by_method_role": {
+    "B_REG/ema": {
+      "current_failed": 1,
+      "policy_held": 23,
+      "complete": 12
+    },
+    "F_text_only/ema": {
+      "ready": 21,
+      "complete": 13,
+      "current_failed": 2
+    },
+    "F_veto_only/ema": {
+      "ready": 21,
+      "complete": 13,
+      "current_failed": 1,
+      "running": 1
+    },
+    "AASFOD/ema": {
+      "waiting": 36
+    },
+    "SFYOLO/ema": {
+      "waiting": 36
+    }
+  },
+  "eval_by_role": {
+    "ema": {
+      "blocked": 27,
+      "complete": 25,
+      "pending": 43,
+      "running": 3,
+      "ready": 10,
+      "waiting": 72
+    },
+    "student": {
+      "blocked": 72,
+      "ready": 36,
+      "waiting": 72
+    }
+  },
+  "eval_by_method_role": {
+    "B_REG/ema": {
+      "blocked": 24,
+      "complete": 12
+    },
+    "F_text_only/ema": {
+      "pending": 21,
+      "complete": 7,
+      "blocked": 2,
+      "running": 1,
+      "ready": 5
+    },
+    "F_veto_only/ema": {
+      "pending": 22,
+      "complete": 6,
+      "blocked": 1,
+      "running": 2,
+      "ready": 5
+    },
+    "AASFOD/ema": {
+      "waiting": 36
+    },
+    "SFYOLO/ema": {
+      "waiting": 36
+    },
+    "IRG/student": {
+      "blocked": 24,
+      "ready": 12
+    },
+    "LPLD/student": {
+      "blocked": 24,
+      "ready": 12
+    },
+    "SFUT/student": {
+      "blocked": 24,
+      "ready": 12
+    },
+    "AASFOD/student": {
+      "waiting": 36
+    },
+    "SFYOLO/student": {
+      "waiting": 36
+    }
+  },
+  "current_failures": [
+    {
+      "key": "RSAR/clean/42/B_REG:train",
+      "role": "ema",
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-clean-42-B_REG.json",
+      "log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_42/methods/B_REG/train.log",
+      "oom": [
+        {
+          "line": 1486,
+          "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 512.00 MiB (GPU 0; 47.40 GiB total capacity; 41.82 GiB already allocated; 194.31 MiB free; 46.84 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+        }
+      ]
+    },
+    {
+      "key": "RSAR/am_noise_horizontal/43/F_text_only:train",
+      "role": "ema",
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-am_noise_horizontal-43-F_text_only.json",
+      "log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_text_only/train.log",
+      "oom": [
+        {
+          "line": 1618,
+          "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1024.00 MiB (GPU 0; 47.40 GiB total capacity; 41.01 GiB already allocated; 892.31 MiB free; 46.05 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+        }
+      ]
+    },
+    {
+      "key": "RSAR/am_noise_horizontal/43/F_veto_only:train",
+      "role": "ema",
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-am_noise_horizontal-43-F_veto_only.json",
+      "log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_veto_only/train.log",
+      "oom": [
+        {
+          "line": 1614,
+          "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1024.00 MiB (GPU 0; 47.40 GiB total capacity; 41.01 GiB already allocated; 886.31 MiB free; 46.05 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+        }
+      ]
+    },
+    {
+      "key": "RSAR/am_noise_horizontal/44/F_text_only:train",
+      "role": "ema",
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-am_noise_horizontal-44-F_text_only.json",
+      "log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_44/methods/F_text_only/train.log",
+      "oom": [
+        {
+          "line": 1646,
+          "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1024.00 MiB (GPU 1; 47.40 GiB total capacity; 41.01 GiB already allocated; 884.31 MiB free; 46.06 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+        }
+      ]
+    }
+  ],
+  "historical_failed_not_readmitted": [
+    "RSAR/clean/43/B_REG:train",
+    "RSAR/clean/44/B_REG:train",
+    "RSAR/chaff/42/B_REG:train",
+    "RSAR/chaff/43/B_REG:train",
+    "RSAR/chaff/44/B_REG:train",
+    "RSAR/gaussian_white_noise/42/B_REG:train",
+    "RSAR/gaussian_white_noise/43/B_REG:train",
+    "RSAR/gaussian_white_noise/44/B_REG:train",
+    "RSAR/point_target/42/B_REG:train",
+    "RSAR/point_target/43/B_REG:train",
+    "RSAR/point_target/44/B_REG:train",
+    "RSAR/noise_suppression/42/B_REG:train",
+    "RSAR/noise_suppression/43/B_REG:train",
+    "RSAR/noise_suppression/44/B_REG:train",
+    "RSAR/am_noise_horizontal/42/B_REG:train",
+    "RSAR/am_noise_horizontal/43/B_REG:train",
+    "RSAR/am_noise_horizontal/44/B_REG:train",
+    "RSAR/smart_suppression/42/B_REG:train",
+    "RSAR/smart_suppression/43/B_REG:train",
+    "RSAR/smart_suppression/44/B_REG:train",
+    "RSAR/am_noise_vertical/42/B_REG:train",
+    "RSAR/am_noise_vertical/43/B_REG:train",
+    "RSAR/am_noise_vertical/44/B_REG:train"
+  ],
+  "requested_eval_terminal_outcomes": [
+    {
+      "key": "DIOR/clean/44/F_veto_only:eval",
+      "ledger_status": "complete",
+      "current_attempts": [
+        {
+          "phase": "eval",
+          "status": "complete",
+          "reason": "",
+          "run_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z",
+          "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xafE-DIOR-clean-44-F_veto_only.json"
+        }
+      ],
+      "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_44/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+      "eval_status": "eval_exit=0 2026-09-09T02:20:24.601670+00:00 name=F_veto_only domain=clean seed=44 role=ema checkpoint=/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_44/methods/F_veto_only/ddp2/work/iter_185_ema.pth sidecar=predictions.pkl.image_ids.json\n",
+      "output_bytes": {
+        "execution.json": 4150,
+        "predictions.pkl": 25043041,
+        "predictions.pkl.image_ids.json": 1938253
+      }
+    },
+    {
+      "key": "DIOR/brightness/42/F_veto_only:eval",
+      "ledger_status": "complete",
+      "current_attempts": [
+        {
+          "phase": "eval",
+          "status": "complete",
+          "reason": "",
+          "run_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z",
+          "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xafE-DIOR-brightness-42-F_veto_only.json"
+        }
+      ],
+      "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_42/methods/F_veto_only/ddp2/eval_full_brightness_ids_v1",
+      "eval_status": "eval_exit=0 2026-09-09T02:23:01.055172+00:00 name=F_veto_only domain=brightness seed=42 role=ema checkpoint=/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_42/methods/F_veto_only/ddp2/work/iter_185_ema.pth sidecar=predictions.pkl.image_ids.json\n",
+      "output_bytes": {
+        "execution.json": 4235,
+        "predictions.pkl": 24902730,
+        "predictions.pkl.image_ids.json": 1996953
+      }
+    }
+  ],
+  "active": [
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "F_veto_only",
+        "role": "ema"
+      },
+      "phase": "train",
+      "gpus": [
+        0,
+        1
+      ],
+      "pid": 3640559,
+      "external_owner": null
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "F_veto_only",
+        "role": "ema"
+      },
+      "phase": "eval",
+      "gpus": [
+        4
+      ],
+      "pid": 3641045,
+      "external_owner": null
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "F_text_only",
+        "role": "ema"
+      },
+      "phase": "eval",
+      "gpus": [
+        2
+      ],
+      "pid": 3641261,
+      "external_owner": null
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "F_veto_only",
+        "role": "ema"
+      },
+      "phase": "eval",
+      "gpus": [
+        3
+      ],
+      "pid": 3641880,
+      "external_owner": null
+    }
+  ],
+  "gpu_usage": "not reprobed for this read-only status request",
+  "ROI_actual_transfer_progress": "pending measured transfer-owner receipt; launch plan178.83GiB/808 missing entries is not completion evidence"
+}
