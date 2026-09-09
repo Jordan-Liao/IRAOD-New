@@ -130,7 +130,69 @@ aggregate budget, commands and completed status; final file renaming does not
 claim an additional update. Final evaluation remains the unchanged331d native
 evaluator and final teacher role, with student diagnostic artifact retained.
 
+### Resolved stage config import and retained-failure recovery
+
+MMCV 1.x `Config.dump()` writes instantiated transforms as bare
+`ColorJitter(...)` constructors without retaining their source imports.
+The original inherited AASFOD config loads successfully, but native
+`Config.fromfile(work/alignment.py)` then raises
+`NameError: name 'ColorJitter' is not defined`. `train_aasfod` now writes the
+same resolved text with an explicit `torchvision.transforms.ColorJitter`
+import and deletes the imported name afterward so it is not a config field.
+Both alignment and FNS preserve the real operator class, parameter ranges,
+pipelines and all resolved stage settings. No frozen config, model checkout,
+host-binding function or training protocol is changed.
+
+After integration, select the delivered orchestration checkout's
+`experiments/comparison/train_aasfod.py` entry, while keeping `training_code`
+bound to `integration_code_36c2053` and the existing cell config/source/TSD
+bindings. Do not execute the old helper from the frozen checkout or reuse its
+already-generated `alignment.py`. Hostname/path binding for a different host
+is a separate integration concern; this correction adds no host authorization.
+
+For the runtime owner's observed pre-training import failure, inspect and
+retain the actual failed layout before retrying. Generic finite
+`archive_retry` deliberately refuses AASFOD; it remains unchanged.
+The outer `extension_training._train` requires `cell.work_dir` not to exist.
+The inner `train_aasfod.run` allows the work root but refuses an existing
+`work/alignment` or `work/fns`; it otherwise rewrites stage configs and
+`stages.json`. The outer entry rewrites `execution.json` and `train.log` and
+appends `terminal_status`. Finite wrapper status can also retain the failure
+in the mixed and originating queue.
+
+Owner-specific preserved retry therefore needs the exact cell's failed work,
+execution/log/terminal and wrapper evidence retained without overwriting it,
+a fresh native work destination, and reconciliation of that cell's finite
+failure state. Confirm there are no successful alignment/FNS checkpoints,
+final teacher/student checkpoints or retained evaluations before treating it
+as a pre-training retry; if any exist, do not restart from this recipe.
+Keep the valid `tsd.json` at its existing binding, unchanged (including the
+RSAR 8467-image, 1693/6774 partition and completed 20-pass evidence).
+Do not archive the whole method directory if that would move the split, refit
+TSD, clear global finite state, delete logs or weaken retry guards.
+This is a recovery contract for the runtime owner, not a recovery command or
+authorization to launch. Exact remote layout inspection and recovery are not
+performed by the code fix.
+
 ## Narrow CPU validation
+
+The stage import regression is a non-skipping CPU gate:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest -v \
+  tools.tests.test_aasfod_config_import
+```
+
+It reproduces the exact NameError from plain MMCV dumping, then exercises the
+actual two-stage entry with real recursive config loads and generated-Python
+imports for RSAR/DIOR, with and without `native_config_paths`. Full resolved
+config comparisons and real torchvision class/range assertions cover both
+stages. Custom detector registration is disabled; only subprocess training is
+replaced with CPU config reloads and explicitly synthetic checkpoint files.
+Partial TSD, native failure and existing-stage refusal remain covered.
+These tests establish config/import correctness, not full-detector imports,
+formal GPU training completion or new TSD results.
 
 ```bash
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m unittest \
