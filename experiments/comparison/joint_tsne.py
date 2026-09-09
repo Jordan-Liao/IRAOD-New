@@ -5,6 +5,7 @@ import csv
 import heapq
 from pathlib import Path
 
+from experiments.comparison import host_binding as host
 from experiments.comparison.result_completion import (
     load_export, read_json, write_json, SCHEMA, comparison_runs, plan_methods, FEATURE_VERSION)
 
@@ -23,7 +24,7 @@ def joint_tsne(plan, dataset, domain, comparison, out_dir, cap=1000, perplexity=
     adaptation_seed = plan.get("adaptation_seed", 42)
     if len({r["checkpoint_domain"] for r in selected if r["method"] != "A"}) != 1:
         raise ValueError("Methods must share one adaptation domain within a comparison")
-    out = Path(out_dir)
+    out = host.read_path(out_dir)
     if out.exists():
         raise FileExistsError(out)
     reservoirs, stats = [], []

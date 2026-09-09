@@ -127,6 +127,16 @@ but Oracle72 actual training remains pending. These facts do not establish
 aggregate completion or additional authorization. Execution remains exclusively
 with Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`.
 
+## Frozen ROI extraction on target221
+
+Preserved BF43/44 ROI240 and port ROI360 use the single-job
+`roi_host_binding` operational overlay, with the original native331/b87
+exporter and model roots. It maps the old physical prefixes and actual GPU0-4
+ownership without changing stored plans, argv, ROI arithmetic or native
+identity checks. Current CPU visualization/embedding/collection readers share
+that boundary. See [exact owner-only recipes](GENERALIZED_QUALITATIVE.md#selected221-host-preserved-frozen-exports-and-current-cpu-readers).
+This is code delivery, not restored-input or actual ROI completion evidence.
+
 ## Staging dependencies and parent integration
 
 The compute owner, not this patch, stages:

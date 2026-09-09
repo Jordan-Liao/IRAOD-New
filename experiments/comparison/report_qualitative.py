@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
+from experiments.comparison import host_binding as host
 from experiments.comparison.report_inputs import read_rows
 from experiments.comparison.result_completion import (
     DOMAINS, ROLES, SCHEMA, EXPECTED_TEST_IMAGES, collect, iter_export_records,
@@ -60,7 +61,7 @@ def validate_plan(plan):
 
 
 def inspect_embedding(entry, plan):
-    root = Path(entry["directory"])
+    root = host.read_path(entry["directory"])
     ds, domain, role = entry["dataset"], entry["domain"], entry["comparison"]
     runs = comparison_runs(plan, ds, domain, role)
     files = ["protocol.json", "embedding.npz", "points.csv", "predicted_class_legend.pdf"]
@@ -70,7 +71,7 @@ def inspect_embedding(entry, plan):
     if missing:
         return {"status": "incomplete", "problems": missing, "n_points": None}
     protocol = read_json(root / "protocol.json")
-    if (protocol["schema"] != SCHEMA or protocol["runs"] != runs
+    if (protocol["schema"] != SCHEMA or not host.same_data(protocol["runs"], runs)
             or protocol["dataset"] != ds or protocol["domain"] != domain
             or protocol["comparison"] != role):
         raise ValueError("Embedding identity differs from the current qualitative plan")
@@ -105,11 +106,12 @@ def inspect_embedding(entry, plan):
             point = points[j]
             feature_file = Path(point["feature_file"])
             if (point["method"] != run["method"] or point["role"] != run["role"]
-                    or point["checkpoint"] != run["checkpoint"]
+                    or not host.same_data(point["checkpoint"], run["checkpoint"])
                     or point["dataset"] != ds or point["domain"] != domain
-                    or int(point["seed"]) != run["seed"] or point["config"] != run["config"]
+                    or int(point["seed"]) != run["seed"]
+                    or not host.same_data(point["config"], run["config"])
                     or point["checkpoint_domain"] != run["checkpoint_domain"]
-                    or feature_file.parent != Path(run["out_dir"])
+                    or not host.same_data(str(feature_file.parent), run["out_dir"])
                     or int(point["point_index"]) != j):
                 raise ValueError("Embedding point provenance differs from its export")
             row = int(point["feature_row"])
@@ -239,7 +241,7 @@ def reuse_completed_evidence(manifest):
     """Reuse the accepted streaming audit; read indices, never feature NPZs."""
     if manifest.get("inspect_roi_run_ids") is not None:
         raise ValueError("Completed qualitative reuse cannot be combined with scoped inspection")
-    root = Path(manifest["qualitative_evidence"])
+    root = host.read_path(manifest["qualitative_evidence"])
     summary = read_json(root / "qualitative_summary.json")
     fragment = read_json(root / "report_input_fragment.json")
     plan = read_json(manifest["qualitative_plan"])
@@ -247,15 +249,15 @@ def reuse_completed_evidence(manifest):
     if (summary["schema"] != "iraod-qualitative-completion-summary-v1"
             or summary["qualitative_status"] != "complete"
             or summary["full_test_roi"] != "complete"
-            or read_json(summary["plan"]) != plan
-            or read_json(fragment["qualitative_plan"]) != plan):
+            or not host.same_data(read_json(summary["plan"]), plan)
+            or not host.same_data(read_json(fragment["qualitative_plan"]), plan)):
         raise ValueError("Accepted qualitative evidence does not bind this full-test plan")
     for field, name in (("roi_image_manifest", "roi_vis_coverage.csv"),
                         ("roi_group_summary", "roi_group_summary.csv"),
                         ("embedding_index", "embedding_index.csv"),
                         ("report_input_fragment", "report_input_fragment.json")):
         path = root / name
-        if Path(summary[field]).resolve() != path.resolve() or not path.stat().st_size:
+        if host.read_path(summary[field]).resolve() != path.resolve() or not path.stat().st_size:
             raise ValueError(f"Missing or mismatched accepted qualitative artifact: {field}")
     groups = read_rows(root / "roi_group_summary.csv")
     by_id = {g["run_id"]: g for g in groups}
@@ -268,7 +270,7 @@ def reuse_completed_evidence(manifest):
                       "visualizations_complete"):
             group[field] = int(group[field])
         if (group["status"] != "complete" or group["scope"] != "full_test"
-                or group["inspected"] != "True" or group["out_dir"] != run["out_dir"]
+                or group["inspected"] != "True" or not host.same_data(group["out_dir"], run["out_dir"])
                 or group["expected_images"] != len(run["image_ids"])
                 or group["validated_images"] != len(run["image_ids"])
                 or group["visualizations_complete"] != len(run["visualization_image_ids"])):
@@ -279,13 +281,15 @@ def reuse_completed_evidence(manifest):
                                                     "role", "checkpoint")}
             expected_binding["budget_group"] = run.get(
                 "budget_group", "source" if run["method"] == "A" else "common_one_epoch")
-            if any(str(group[k]) != str(value) for k, value in expected_binding.items()):
+            if any(not host.same_data(str(group[k]), str(value))
+                   for k, value in expected_binding.items()):
                 raise ValueError("Accepted group method/seed/role/budget binding mismatch")
         index, _ = load_export(run)  # The returned NPZ iterator is deliberately not consumed.
         if sum(r["n_detections"] for r in index["records"]) != group["detection_rows"]:
             raise ValueError("Accepted detection count differs from export index")
         vis = read_json(Path(run["out_dir"]) / "visualizations/index.json")
-        if (vis["schema"] != SCHEMA or vis["status"] != "complete" or vis["run"] != run
+        if (vis["schema"] != SCHEMA or vis["status"] != "complete"
+                or not host.same_data(vis["run"], run)
                 or [r["image_id"] for r in vis["images"]] != run["visualization_image_ids"]):
             raise ValueError("Accepted visualization binding differs from the frozen selection")
         for image in vis["images"]:
@@ -293,8 +297,8 @@ def reuse_completed_evidence(manifest):
                 **{k: run[k] for k in ("dataset", "domain", "method", "role", "seed",
                                        "checkpoint", "checkpoint_domain", "config")},
                 "corruption": run["domain"], "image": image["image_id"],
-                "show_dir": str(Path(run["out_dir"]) / "visualizations"),
-                "visualization_file": str(Path(run["out_dir"]) / "visualizations" / image["file"]),
+                "show_dir": str(host.read_path(run["out_dir"]) / "visualizations"),
+                "visualization_file": str(host.read_path(run["out_dir"]) / "visualizations" / image["file"]),
                 "status": "complete", "evidence": str(root / "qualitative_summary.json"),
             })
     embeddings = read_rows(root / "embedding_index.csv")
@@ -304,8 +308,9 @@ def reuse_completed_evidence(manifest):
     if len(embeddings) != 24 or {identity(e) for e in embeddings} != expected:
         raise ValueError("Accepted embeddings differ from the 24-comparison matrix")
     provided = manifest.get("embeddings") or fragment["embeddings"]
-    if (len(provided) != 24 or {identity(e): e["directory"] for e in provided}
-            != {identity(e): e["directory"] for e in fragment["embeddings"]}):
+    if (len(provided) != 24 or not host.same_data(
+            {identity(e): e["directory"] for e in provided},
+            {identity(e): e["directory"] for e in fragment["embeddings"]})):
         raise ValueError("Requested embeddings differ from the accepted collector")
     for entry in embeddings:
         entry["n_points"] = int(entry["n_points"])
@@ -313,12 +318,12 @@ def reuse_completed_evidence(manifest):
         protocol = read_json(Path(entry["directory"]) / "protocol.json")
         runs = comparison_runs(plan, entry["dataset"], entry["domain"], entry["comparison"])
         if (entry["status"] != "complete" or protocol["schema"] != SCHEMA
-                or protocol["runs"] != runs or protocol["sampling_seed"] != 42
+                or not host.same_data(protocol["runs"], runs) or protocol["sampling_seed"] != 42
                 or protocol["tsne_parameters"]["random_state"] != 42
                 or entry["n_points"] != len(runs) * protocol["points_per_method"]
                 or not 0 < protocol["points_per_method"] <= 1000
-                or entry["directory"] != next(e["directory"] for e in provided
-                                              if identity(e) == identity(entry))):
+                or not host.same_data(entry["directory"], next(
+                    e["directory"] for e in provided if identity(e) == identity(entry)))):
             raise ValueError("Accepted embedding binding/count mismatch")
     totals = {
         "roi_expected_image_roles": sum(g["expected_images"] for g in groups),
@@ -335,7 +340,7 @@ def reuse_completed_evidence(manifest):
     coverage = {
         **totals, "roi_scope": "full_test", "full_test_roi": "complete",
         "roi_group_index": groups, "visualization_index": visualizations,
-        "roi_image_manifest": summary["roi_image_manifest"],
+        "roi_image_manifest": str(host.read_path(summary["roi_image_manifest"])),
         "evidence_reuse": str(root / "qualitative_summary.json"),
         "validation_scope": "accepted streaming NPZ audit reused; current plan/index bindings and counts",
     }
