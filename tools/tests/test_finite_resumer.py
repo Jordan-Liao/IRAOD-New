@@ -85,6 +85,9 @@ if phase=="train":
     if rc==0:
         pathlib.Path(paths.ema_path(ds,domain,seed,method)).write_bytes(b"CPU fixture final EMA")
         pathlib.Path(paths.student_path(ds,domain,seed,method)).write_bytes(b"CPU fixture final student")
+        if (q/"runtime.json").exists():
+            (paths.method_dir(ds,domain,seed,method)/"execution.json").write_text(json.dumps({
+                "training_code":"/cpu-fixture/training","training_code_sha":"cpu-fixture-executed"}))
 else:
     resolve=paths.eval_student_dir if role=="student" else paths.eval_full_dir
     out=pathlib.Path(resolve(ds,domain,seed,method)); out.mkdir(parents=True,exist_ok=True)
@@ -380,6 +383,7 @@ else: raise SystemExit(2)
                 **cell.__dict__, "source_checkpoint": str(source), "target_val": str(images),
                 "unlabeled_epoch_size": 2, "checkpoint": paths.ema_path(*args),
                 "student_checkpoint": paths.student_path(*args),
+                "method_dir": str(paths.method_dir(*args)),
                 "ann_file": str(annotations), "img_prefix": str(images),
             }
             origin = self.q / ("formal_ports_manifests_a39c832-" + cell.method)
@@ -797,6 +801,11 @@ else: raise SystemExit(2)
         (work / f"iter_{iteration}.pth").write_bytes(b"existing final Student")
         terminal = work.parent / "terminal_status"
         terminal.write_text("tmux_wrap_exit=0\n")
+        if (self.q / "runtime.json").exists():
+            method_dir = Path(finite.load_paths(self.q).method_dir(
+                cell.dataset, cell.domain, str(cell.seed), cell.method))
+            finite.write_json(method_dir / "execution.json", {
+                "training_code": "/cpu-fixture/training", "training_code_sha": "cpu-fixture-executed"})
         return work, terminal
 
     def blocked_student_dependency(self):

@@ -492,13 +492,26 @@ def training_invocation(queue, runtime, cell, gpus, port, work):
     return code, producer_sha, command, env
 
 
+def require_native_execution(cell):
+    """Read the actual training identity required by native EMA/Student eval."""
+    path = Path(cell["method_dir"]) / "execution.json"
+    execution = host.read_json(path)
+    if not isinstance(execution, dict):
+        raise ValueError(f"Required native training execution must be an object: {path}")
+    for field in ("training_code", "training_code_sha"):
+        value = execution.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Required native training execution {field} must be a nonempty string: {path}")
+    return execution
+
+
 def evaluate(queue, gpu, dataset, domain, seed, method, role="ema"):
     if gpu not in ALLOWED_GPUS:
         raise ValueError("Evaluation requires a host-approved GPU" + ",".join(map(str, ALLOWED_GPUS)))
     if role not in ("ema", "student") or role == "student" and method not in STUDENT_METHODS:
         raise ValueError("Student native evaluations are limited to the five approved ports")
     runtime, cell = load_cell(queue, dataset, domain, seed, method, role)
-    execution = host.read_json(Path(cell["method_dir"]) / "execution.json")
+    execution = require_native_execution(cell)
     binding = {
         **cell, "role": role, "checkpoint": cell["checkpoint"],
         "config": cell["eval_config"], "training_code_sha": execution["training_code_sha"],

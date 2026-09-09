@@ -216,7 +216,8 @@ def input_state(queue, paths, cell, phase):
     """Read prepared inputs only; never load a detector or change its binding."""
     if not host.is_target_host() and not getattr(paths, "DATA", {}).get("schema"):
         return prerequisite_state(paths, cell) if phase == "train" else ("ready", "")
-    from experiments.comparison.extension_training import load_cell, require_file, require_prerequisites
+    from experiments.comparison.extension_training import (
+        load_cell, require_file, require_native_execution, require_prerequisites)
 
     try:
         _, binding = load_cell(queue, cell.dataset, cell.domain, cell.seed, cell.method, cell.role)
@@ -235,6 +236,7 @@ def input_state(queue, paths, cell, phase):
                                  f"{count} < {binding['unlabeled_epoch_size']}")
             require_prerequisites(binding)
         else:
+            require_native_execution(binding)
             require_file(binding["checkpoint"])
             annotations = host.read_path(binding["ann_file"])
             if cell.dataset == "DIOR":
@@ -847,20 +849,22 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
                         row["eval"], row["eval_input_reason"] = backend.admission(cell, "eval")
                 while True:
                     occupied = {h["cell"].model for h in active.values() if h["cell"] is not None}
-                    free = backend.available() - {g for h in active.values() for g in h["gpus"]}
-                    if any(state[c.key]["train"] not in ("complete", "failed", "blocked") for c in external):
-                        free -= {g for gpus in external_owners.values() for g in gpus}
                     trains = [c for c in cells if c.model not in occupied and state[c.key]["train"] == "ready"
                               and not state[c.key]["held"]
                               and cells[c] and c.role == "ema"
                               and (c, "train") not in attempted]
+                    evaluations = [c for c in cells if c.model not in occupied
+                                   and not state[c.key]["held"]
+                                   and state[c.key]["train"] == "complete"
+                                   and state[c.key]["eval"] == "ready" and (c, "eval") not in attempted]
+                    if not trains and not evaluations:
+                        break
+                    free = backend.available() - {g for h in active.values() for g in h["gpus"]}
+                    if any(state[c.key]["train"] not in ("complete", "failed", "blocked") for c in external):
+                        free -= {g for gpus in external_owners.values() for g in gpus}
                     picked = choose_training(trains, free)
                     phase = "train"
                     if picked is None and free:
-                        evaluations = [c for c in cells if c.model not in occupied
-                                       and not state[c.key]["held"]
-                                       and state[c.key]["train"] == "complete"
-                                       and state[c.key]["eval"] == "ready" and (c, "eval") not in attempted]
                         if evaluations:
                             phase, picked = "eval", (evaluations[0], (min(free),))
                     if picked is None:

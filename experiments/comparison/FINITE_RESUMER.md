@@ -12,7 +12,18 @@ Prepared target/mixed queues now resolve each cell through the existing
 checkpoint, target image directory and at least the frozen `unlabeled_epoch_size`
 supported images, plus existing AASFOD/SFYOLO/oracle prerequisites. Evaluation
 requires its bound final checkpoint, DIOR TEST list (or RSAR annotation
-directory), and TEST image directory. This detects missing inputs such as RSAR
+directory), TEST image directory, and the original
+`method_dir/execution.json`. Admission and native evaluation share
+`extension_training.require_native_execution(cell)`: the file must be a JSON
+object with nonempty string `training_code` and `training_code_sha` fields.
+These record the actually executed training version; neither the prepared
+queue identity nor a final checkpoint substitutes for missing metadata.
+Absent or malformed required identity yields an explicit `eval_input_reason`
+and `waiting`, before any evaluation attempt or output creation, for both
+EMA and Student. Valid identity is passed unchanged to the native binding
+(with the existing host path mapping); no checkout/SHA is inferred or certified.
+The runtime owner restores original metadata independently of this code fix.
+This detects missing inputs such as RSAR
 `train/epoch_100.pth`, DIOR `ImageSets/test.txt`, and
 `formal_ports_manifests_a39c832/runtime.json` omissions before an attempt.
 It does not decode images, restore data, change sample IDs, reduce epoch size,
@@ -26,6 +37,9 @@ and resolves the correct queue route and checkpoint for **both** eval roles.
 Missing inputs produce `waiting` and `train_input_reason` / `eval_input_reason`,
 not a failed attempt. Admission is reconsidered at startup and tracked job/owner
 exit events. The worker checks again before GPU probing/locks or runner invocation.
+The producer does not probe GPUs or acquire GPU locks when no unheld work is
+ready. Worker rechecks retain the existing model-serialization lock and blocked
+receipt/notification, but invoke no GPU runner and create no native eval output.
 Independent ready work still proceeds. With no active event source, the finite
 producer terminates blocked; it does not poll for restored files. Start a new
 invocation at the authorized boundary to reconsider those inputs.
