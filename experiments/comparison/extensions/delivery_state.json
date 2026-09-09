@@ -7,7 +7,7 @@
   "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
   "selected_target_host_binding": {
-    "status": "owner_validated_DIOR_adapter_terminal_detectors_pending",
+    "status": "formal_RSAR_clean42_B_REG_OOM_23_held_next_stage_GPU_work_pending",
     "hostname": "73F3-5xA6000-221",
     "endpoint": "zechuan@1.14.177.180:20138",
     "root": "/home/zechuan/iraod_artifacts",
@@ -38,8 +38,23 @@
       "reported_pane": 3513810,
       "code_owner_restarted_or_retested": false
     },
-    "detector_dependencies": "Supervisor stages frozen0f98/331d and a39/36/84 snapshots, source queues/base plans, datasets and source weights",
-    "memory_risk": "Prior RSAR1x32 allocated-memory logs54601-54691MiB exceed target49140MiB nominal; actual owner-run smoke decides, no batch reduction or numerical workaround",
+    "detector_dependencies": "Owner receipt reports next-stage original inputs present; native331d exact HEAD/tree complete clone repaired. TSD0/36 and TAM0/12 remain pending, not detector-ready outputs.",
+    "memory_risk": "Actual full-protocol RSAR clean42 B_REG 1x32/global32/LR.02/e508 failed CUDA OOM on49140MiB A6000; supersedes historical-memory-only risk. Other23 B_REG held, not individually failed. No new smoke or batch/world/budget reduction.",
+    "execution_boundary": {
+      "runtime_owner": "Herdr w6:pG session98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9",
+      "receipts": [
+        "results/extensions/target221_boundary/RSAR_BREG_COMPATIBILITY_RESULT_20260909T014021Z.json",
+        "results/extensions/target221_boundary/FROZEN_EVAL_CHECKOUT_REPAIR_20260909T012841Z.json",
+        "results/extensions/target221_boundary/NEXT_STAGE_INPUT_READINESS_20260909T014005Z.json"
+      ],
+      "release_train_preserved": {"completed": 36, "earlier": 31, "brightness": 5, "replayed": false},
+      "release_train_evidence": "Parent-accepted execution-boundary statement; not inferred from the three owner receipts",
+      "frozen_eval_head": "331d2131b84651f0a2930a3d53faeefad8701531",
+      "frozen_eval_tree": "b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8",
+      "post_repair_eval_success": "not_established_by_these_receipts",
+      "aggregate_completion_claimed": false,
+      "additional_authorization": false
+    },
     "five_NaN_runs": "Read-only diagnosis preserved; no automatic retraining or altered zeros"
   },
   "scopes": {
@@ -72,7 +87,7 @@
     "B_REG": {
       "train_cells": 36,
       "queue": "b_reg_manifests_0e5f8f7",
-      "status": "prepared_not_execution_evidence"
+      "status": "RSAR_clean42_formal_train_failed_CUDA_OOM_other23_RSAR_held_not_individually_failed"
     },
     "F_deletions": {
       "train_cells": 72,
@@ -98,8 +113,8 @@
       "encoder_tensors": 16,
       "encoder_parameters": 2915648,
       "queue": "tam_manifests_84a1aeb",
-      "status": "actual_encoder_bound_cpu_prepared_no_formal_root_created",
-      "next": "GPU owner real-weight smoke and approved domain fits"
+      "status": "original_inputs_ready_checkpoints0_of12_formal_fits_pending",
+      "next": "Runtime owner handles already-approved formal domain fits; no new smoke and no all12 release barrier"
     },
     "SFYOLO": {
       "train_cells": 36,
@@ -108,11 +123,11 @@
       "final_checkpoint_labels": {"RSAR": 531, "DIOR": 369},
       "optimizer_updates": {"RSAR": 530, "DIOR": 368},
       "ranking": "separate_extended_budget_not_common_one_epoch",
-      "status": "prepared_pending_completed_domain_TAM_and_GPU_smoke"
+      "status": "original_inputs_ready_pending_per_completed_domain_TAM_checkpoints0_of12"
     },
     "AASFOD": {
       "train_cells": 36,
-      "status": "implemented_native_CPU_accepted_TSD_and_GPU_smoke_pending",
+      "status": "original_inputs_ready_formal_TSD_splits0_of36_pending_no_new_smoke",
       "queue": "aasfod_manifests_36c2053",
       "formal_root_created_by_preparation": false,
       "mechanisms": ["20-pass aligned posthoc-dropout TSD", "local and global target-to-target GRL", "four-image geometric FNS", "fresh optimizer and full teacher initialization at stage transition"],
@@ -124,7 +139,7 @@
     "oracle": {
       "adapters": 2,
       "detector_train_cells": 72,
-      "status": "DIOR_adapter_complete_owner_validated_DIOR_detector24_preparation_ready_RSAR_adapter_pending",
+      "status": "both_adapters_complete_Oracle72_actual_training_pending_no_refits",
       "smoke_interface": "tools/train_sarclip_lora_rsar.py --smoke-steps 2",
       "smoke_evidence": ["NON_RESULT", "actual LoRALinear types", "up/down factor counts", "base frozen and unchanged", "finite nonzero factor delta", "no adapter published"],
       "RSAR": "Parent-accepted compute-owner terminal reconciliation:1047844 metadata rows,324418544bytes,149692 per perturbation domain,no clean,all6class counts match,zero rejects; builder157722 exited; no GPU launch",

@@ -137,11 +137,12 @@ A references; SARCLIP base and final DIOR adapter; unchanged331d evaluator;
 and all four original DIOR VAL/TEST directories. No RSAR adapter is an input.
 Preparation validates payload/config/source identities, but does not certify
 full datasets. The finite input gate additionally requires5863 supported VAL
-images per domain and the native TEST list. Last inherited evidence reported
-incomplete brightness VAL and missing
-`/home/zechuan/iraod_data/DIOR/ImageSets/test.txt`; restoration and full referenced
-TEST image/annotation readiness remain the named compute owner's responsibility.
-Preparation must fail on unavailable bindings, not synthesize replacements.
+images per domain and the native TEST list. The accepted target221 boundary now
+reports next-stage original inputs present; its readiness receipt records5863
+VAL images in each DIOR domain, including brightness, and no missing original
+inputs. This supersedes the earlier incomplete-input status, but is not an
+Oracle payload-admission or completed-training claim. Actual preparation must
+still use those bindings, never synthesize replacements.
 
 ## Preserved science and routing
 
@@ -246,10 +247,22 @@ label266, iteration-start EMA.998, image-only VAL, unchanged D/F controls.
 Only final `iter_266_ema.pth` native quant is queued; `iter_266.pth` is retained.
 No extra Student eval, ROI, visualization or source training is authorized here.
 
-**RSAR1x32 detector compatibility with48GB is still unresolved.** The completed
-LoRA fit does not prove it fits; original54601-54691MiB peaks exceed A6000
-49140MiB capacity. A real detector OOM remains an owner-reported blocker,
-not permission to shrink batch, change topology, budget or numerics.
+**Actual formal RSAR clean42 B_REG failed CUDA OOM on the49140MiB A6000.**
+The accepted owner receipt records executor `e5089cc`, 1x32/global32, LR.02
+and the full one-epoch/265-update protocol, not a surrogate smoke. This replaces
+the historical-memory-only risk assessment. The other23 RSAR B_REG cells are
+held, not individually proven failed. This result is not an Oracle run:
+Oracle72 actual training remains pending, and neither adapter completion nor
+the B_REG result certifies Oracle detector compatibility.
+
+The [target221 boundary](HOST_BINDING.md#verified-target221-execution-boundary)
+links the preserved receipts. Native331d now has a genuine complete clone at
+the exact frozen HEAD/tree; that environment repair proves no post-repair EVAL
+success. The36 completed release TRAIN cells (31 earlier plus5 brightness)
+are preserved without replay. Original next-stage inputs are present, while
+TSD0/36 and TAM0/12 remain pending. No aggregate completion, refit, new smoke,
+batch/world/budget reduction, extra Student evaluation or qualitative work
+is authorized by this documentation.
 
 CPU preparation does not acquire the producer lock or interfere with ongoing
 144-phase recovery. The launch body does acquire the shared
@@ -264,20 +277,22 @@ Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`, controls executio
 
 ## Integration pre-push secrets gate
 
-Before committing the integration, check whitespace and scan the staged net
-delivery from the common accepted base. This local credential-pattern scan
+Before committing a branch update, check whitespace and scan the staged net
+delivery from HEAD. The original integration used common accepted base
+`d58ee869b52359bd528c2b0767f9fe441f6fa489`; subsequent updates use HEAD to
+check only the new delivery. This local credential-pattern scan
 prints no matching content; any finding blocks the push for owner resolution.
 It is not a claim that pattern matching detects every possible secret.
 
 ```bash
-git diff --cached d58ee869b52359bd528c2b0767f9fe441f6fa489 --check
+git diff --cached HEAD --check
 python3 - <<'PY'
 import re
 import subprocess
 
 diff = subprocess.check_output([
     "git", "diff", "--cached",
-    "d58ee869b52359bd528c2b0767f9fe441f6fa489", "--",
+    "HEAD", "--",
 ], text=True)
 patterns = (
     r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",

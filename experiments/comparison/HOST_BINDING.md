@@ -91,15 +91,41 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   tools.tests.test_host_binding.HostBindingTest.test_nested_rsar_ema_config_resolves_original_relative_base
 ```
 
-This code-only repair does not establish GPU compatibility. The user's
-2026-09-09T01:12:17 withdrawal forbids any new GPU detector smoke or two-update
-retry. The failed NON_RESULT trace remains regression evidence only. After
-acceptance, runtime verification is the one already-planned formal
-RSAR/clean/42/B_REG run at the next natural boundary, using frozen0f98,
-1x32/global32, LR.02 and the unchanged full one-epoch budget. The sole runtime
-owner applies existing flags to hold only the remaining23 B_REG cells, not
-the48 F2x16 cells or DIOR work. No new runtime guard, producer replacement,
-LoRA/DIOR repeat or batch change is part of this fix.
+The earlier NON_RESULT config failure remains regression evidence only.
+The owner subsequently ran the already-planned formal RSAR/clean/42/B_REG
+with executor `e5089cc8ea34dfb8e8695798503aadbb66c4b1db`, frozen0f98,
+1x32/global32, LR.02 and the full one-epoch/265-update budget. It failed
+with actual CUDA OOM, not a new smoke or a completed epoch. The remaining23
+RSAR B_REG cells are held, not individually proven failed. The hold does not
+establish a failure of the48 F2x16 cells, DIOR or the distinct Oracle methods.
+No new smoke, batch/world/budget reduction, numerical workaround or replay
+is authorized by this evidence.
+
+### Verified target221 execution boundary
+
+The unchanged owner receipts are versioned in
+[`results/extensions/target221_boundary`](../../results/extensions/target221_boundary):
+`RSAR_BREG_COMPATIBILITY_RESULT_20260909T014021Z.json`,
+`FROZEN_EVAL_CHECKOUT_REPAIR_20260909T012841Z.json` and
+`NEXT_STAGE_INPUT_READINESS_20260909T014005Z.json`. The B_REG receipt's
+embedded event time is `2026-09-09T01:41:11Z`; its supplied filename is retained.
+Remote paths are provenance references, not locally verified artifact copies.
+
+The evaluator at `/home/zechuan/IRAOD-New-rc331d213` is now a genuine complete
+clone with HEAD `331d2131b84651f0a2930a3d53faeefad8701531` and tree
+`b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8`. Its broken worktree-pointer
+checkout was preserved separately. This is environment repair only: these
+receipts do not prove any post-repair EVAL succeeded.
+
+The accepted owner boundary preserves36 completed release TRAIN cells
+(31 earlier plus5 brightness), with no replay; this count is the parent's
+accepted statement, not a result inferred from the three receipts.
+Next-stage original inputs are present, including all12 domain VAL counts.
+Formal TSD splits remain0/36 and TAM checkpoints0/12; SFYOLO releases per
+completed TAM domain, not behind an all12 barrier. Both adapters are complete,
+but Oracle72 actual training remains pending. These facts do not establish
+aggregate completion or additional authorization. Execution remains exclusively
+with Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`.
 
 ## Staging dependencies and parent integration
 
@@ -153,7 +179,7 @@ settings remain unchanged. Runtime bootstrap uses the selected existing
 and tokenizer/model cache directory is the current orchestration checkout,
 as selected by the owner. No pypkgs are added to GPU `PYTHONPATH`.
 
-From the newly deployed integration checkout, the owner can use:
+Historical DIOR fit command (already completed; do not rerun):
 
 ```bash
 ART=/home/zechuan/iraod_artifacts
@@ -172,11 +198,10 @@ cd "$CODE"
   --lora-r 8 --lora-alpha 16 --lora-dropout 0
 ```
 
-This requires the copied environment, integration code, SARCLIP weights and
+That fit required the copied environment, integration code, SARCLIP weights and
 DIOR patches, not the detector checkouts/datasets. The outer lock entry is the
-single GPU-lock owner for LoRA. A requested NON_RESULT smoke uses a separate
-fresh output, `--smoke-steps 2` and `--num-workers 0`; it never publishes an
-adapter. The code owner does not launch or transfer anything.
+single GPU-lock owner for LoRA. Both adapters are now complete; no refit or new
+NON_RESULT smoke is authorized here. The code owner does not launch anything.
 
 For detectors, use the copied Q752 with the current executor and explicit
 `--gpus 0,1,2,3,4`. Initially passing only `--train-list "$Q/train.list"`
@@ -186,9 +211,11 @@ must respect the known five NaN-checkpoint diagnosis and preserve its artifacts,
 not assume filesize proves numerical health or automatically retrain those
 cells. No exclusion or replay is implemented by this host-only patch.
 
-The existing RSAR1x32 logs showed roughly54601-54691MiB peak memory. A6000
-49140MiB may expose a real OOM at smoke time; no batch/world-size reduction,
-activation-checkpoint change or numerical workaround is introduced here.
+The historical54601-54691MiB risk estimate is superseded by the actual formal
+RSAR clean42 B_REG OOM on the49140MiB A6000 target. The failed allocation was
+512MiB, with194.31MiB free and46.84GiB reserved. Preserve that failure and
+the23 held cells; do not reduce batch/world/budget, add activation checkpointing
+or substitute a smoke.
 
 ## Ready DIOR F2x16 and native evaluation contract
 
