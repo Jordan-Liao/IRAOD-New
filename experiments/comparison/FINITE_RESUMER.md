@@ -64,6 +64,8 @@ ledger, before archive movement. Generated worker specs contain only execution
 fields (`cell`, `phase`, `gpus`, `queue`, `receipt`, `tmux`), not producer ownership.
 Mixed queues declare Student evaluation bindings in `runtime.json.student_cells`:
 an exposed `eval_student_dir` function alone does not mean every model has one.
+Likewise, a model's `student_checkpoint` is a training output, not a declaration
+of a Student evaluation role.
 Training retry checks Student outputs only for declared bindings; a missing
 mapping remains an error, never an implicit empty ownership set. Legacy resolvers
 without runtime metadata retain their existing Student-path checks.

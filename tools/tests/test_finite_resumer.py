@@ -672,24 +672,31 @@ else: raise SystemExit(2)
                     self.assertEqual(path.read_bytes(), content)
         self.assertEqual(self.events, [])
 
-    def generated_retry_queue(self, cell, include_student=False):
+    def generated_retry_queue(self, cell, student_cell=None):
         from experiments.comparison import mixed_queue
 
-        runtime = self.prepared_inputs([cell])
+        models = list(dict.fromkeys([cell, *([student_cell.model] if student_cell else [])]))
+        runtime = self.prepared_inputs(models)
         paths = finite.load_paths(self.q)
-        args = (cell.dataset, cell.domain, str(cell.seed), cell.method)
+        for model in models:
+            args = (model.dataset, model.domain, str(model.seed), model.method)
+            runtime["cells"][model.key].update(
+                method_dir=str(paths.method_dir(*args)), eval_dir=paths.eval_full_dir(*args))
         binding = runtime["cells"][cell.key]
-        binding.update(method_dir=str(paths.method_dir(*args)), eval_dir=paths.eval_full_dir(*args))
         runtime.update(evaluation_code_sha=EVAL_SHA, python=sys.executable, student_cells={})
-        if include_student:
-            runtime["student_cells"][cell.key] = {
-                **binding, "role": "student", "checkpoint": binding["student_checkpoint"],
+        student_row = ""
+        if student_cell:
+            args = (student_cell.dataset, student_cell.domain, str(student_cell.seed), student_cell.method)
+            student_binding = runtime["cells"][student_cell.model.key]
+            runtime["student_cells"][student_cell.model.key] = {
+                **student_binding, "role": "student", "checkpoint": student_binding["student_checkpoint"],
                 "eval_dir": paths.eval_student_dir(*args)}
+            student_row = " ".join(args) + " student\n"
         finite.write_json(self.q / "runtime.json", runtime)
         for phase in ("train", "eval"):
             row = f"{cell.dataset} {cell.domain} {cell.seed} {cell.method}"
             (self.q / (phase + ".list")).write_text(
-                row + "\n" + (row + " student\n" if phase == "eval" and include_student else ""))
+                row + "\n" + (student_row if phase == "eval" else ""))
         queue = mixed_queue.prepare([self.q], self.root / "generated-mixed-queue")
         # Retain the real generated resolver/runtime and worker launch/receipt
         # contract; replace only the GPU executables with this suite's CPU runner.
@@ -699,8 +706,9 @@ else: raise SystemExit(2)
 
     def test_generated_worker_spec_retry_without_a_student_evaluation_binding(self):
         cell = Cell("DIOR", "brightness", 42, "B_REG")
-        queue, binding = self.generated_retry_queue(cell)
-        process, directory = self.start([cell], queue=queue)
+        reference = Cell("DIOR", "brightness", 42, "IRG", "student")
+        queue, binding = self.generated_retry_queue(cell, student_cell=reference)
+        process, directory = self.start([cell], queue=queue, eval_cells=(reference,))
         self.assertEqual(self.next_start()["name"], cell.session("train"))
         job_file = directory / "jobs" / (cell.session("train") + ".json")
         job = json.loads(job_file.read_text())
@@ -714,14 +722,18 @@ else: raise SystemExit(2)
         old_receipt = Path(job["receipt"]).read_bytes()
         self.assertEqual(json.loads(old_receipt)["status"], "failed")
         paths = finite.load_paths(job["queue"])
-        self.assertEqual(paths.DATA["student_cells"], {})
+        self.assertEqual(set(paths.DATA["cells"]), {cell.key, reference.model.key})
+        self.assertIn("student_checkpoint", paths.DATA["cells"][cell.key])
+        self.assertEqual(set(paths.DATA["student_cells"]), {reference.model.key})
+        self.assertEqual(set(paths.DATA["source_queues"]), {cell.key, reference.model.key, reference.key})
         with self.assertRaises(KeyError) as missing:
             paths.eval_student_dir(cell.dataset, cell.domain, str(cell.seed), cell.method)
         self.assertEqual(missing.exception.args, ("DIOR/brightness/42/B_REG",))
 
         self.released.remove(cell.session("train"))
-        retry, retry_dir = self.start([cell], "generated-retry", queue=queue, controls=(
-            "--previous-state", str(directory / "state.json"), "--retry-cell", cell.key + ":train"))
+        retry, retry_dir = self.start(
+            [cell], "generated-retry", queue=queue, eval_cells=(reference,), controls=(
+                "--previous-state", str(directory / "state.json"), "--retry-cell", cell.key + ":train"))
         fd = open_pidfd(retry.pid)
         try:
             ready, _, _ = select.select([self.events_fd, fd], [], [], 8)
@@ -732,8 +744,15 @@ else: raise SystemExit(2)
         self.assertEqual(self.next_start()["name"], cell.session("train"))
         self.release(cell.session("train"), rc=9)
         self.assertEqual(retry.wait(timeout=8), 1)  # Intentional second CPU runner failure, not archive failure.
-        row = json.loads((retry_dir / "state.json").read_text())["cells"][0]
+        rows = {Cell(**r["cell"]): r for r in json.loads((retry_dir / "state.json").read_text())["cells"]}
+        row = rows[cell]
         self.assertEqual([a["status"] for a in row["attempts"]], ["failed", "retry_authorized", "failed"])
+        self.assertFalse(rows[reference]["train_requested"])
+        self.assertEqual(rows[reference]["training_ownership"], "eval_only")
+        self.assertEqual(rows[reference]["attempts"], [])
+        for run in (directory, retry_dir):
+            for phase in ("train", "eval"):
+                self.assertFalse((run / "jobs" / (reference.session(phase) + ".json")).exists())
         self.assertEqual((directory / "state.json").read_bytes(), old_state)
         self.assertEqual(job_file.read_bytes(), old_job)
         self.assertEqual(Path(job["receipt"]).read_bytes(), old_receipt)
@@ -742,7 +761,8 @@ else: raise SystemExit(2)
 
     def test_generated_retry_preserves_student_outputs_and_requires_explicit_binding_metadata(self):
         cell = Cell("DIOR", "clean", 43, "IRG")
-        queue, binding = self.generated_retry_queue(cell, include_student=True)
+        queue, binding = self.generated_retry_queue(
+            cell, student_cell=Cell("DIOR", "clean", 43, "IRG", "student"))
         backend = TmuxBackend(queue, self.root / "protected-retry")
         self.addCleanup(backend.selector.close)
         output = Path(backend.paths.eval_student_dir("DIOR", "clean", "43", "IRG"))
@@ -753,6 +773,12 @@ else: raise SystemExit(2)
             backend.archive_retry(cell, "train")
         self.assertEqual(retained.read_bytes(), b"retained reference Student evaluation")
         runtime = json.loads((queue / "runtime.json").read_text())
+        del runtime["student_cells"][cell.key]["eval_dir"]
+        finite.write_json(queue / "runtime.json", runtime)
+        backend.paths = finite.load_paths(queue)
+        with self.assertRaisesRegex(KeyError, "eval_dir"):
+            backend.archive_retry(cell, "train")
+        self.assertEqual(retained.read_bytes(), b"retained reference Student evaluation")
         del runtime["student_cells"]
         finite.write_json(queue / "runtime.json", runtime)
         backend.paths = finite.load_paths(queue)
