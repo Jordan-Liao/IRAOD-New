@@ -11,6 +11,12 @@ from experiments.comparison.result_completion import write_json
 from experiments.comparison import host_binding as host
 
 
+def _no_flip_metadata(results):
+    """Supply Collect's geometry metadata without flipping or consuming RNG."""
+    results.update(flip=False, flip_direction=None)
+    return results
+
+
 def run(queue, dataset, domain, seed, smoke_images=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("TSD must run under the existing owner's shared GPU lock")
@@ -49,7 +55,7 @@ def run(queue, dataset, domain, seed, smoke_images=None):
         data.pop(key)
     data.update(img_prefix=cell["target_val"],
                 unlabeled_epoch_size=cell["unlabeled_epoch_size"],
-                pipeline_share=[dict(type="LoadImageFromFile")],
+                pipeline_share=[dict(type="LoadImageFromFile"), _no_flip_metadata],
                 pipeline_strong=[])
     target = StrictSourceFreeDOTADataset(**data)
     scores = {}
