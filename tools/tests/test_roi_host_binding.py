@@ -140,14 +140,14 @@ class ROIHostBindingTest(unittest.TestCase):
                     overlay.require_owned_gpu(run)
             for device in ("5", "6", "7", "0,1", ""):
                 with patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": device}):
-                    with self.assertRaisesRegex(ValueError, "bound physical"):
+                    with self.assertRaisesRegex(ValueError, "approved physical GPU"):
                         overlay.require_owned_gpu(run)
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "0", "CUDA_VISIBLE_DEVICES": "0"}):
             with self.assertRaisesRegex(RuntimeError, "actual GPU lock"):
                 overlay.require_owned_gpu(run)
         self.assertEqual(run, {"allowed_gpus": [4, 5, 6]})
 
-    def frozen_export(self, sha, port):
+    def frozen_export(self, sha, port, gpu=0):
         import torch
 
         code = self.fixture.root / ("frozen-port" if port else "frozen-bf")
@@ -278,7 +278,7 @@ class ROIHostBindingTest(unittest.TestCase):
             stack.enter_context(patch.object(sys, "argv", []))
             stack.enter_context(patch.dict(sys.modules, modules))
             stack.enter_context(patch.dict(os.environ, {
-                "IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "0"}))
+                "IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": str(gpu)}))
             completion.write_json(jobs_file, [{**job, "export_code_sha": "0" * 40}])
             with self.assertRaisesRegex(ValueError, "recorded export code SHA"):
                 overlay.export(self.original_paths(str(jobs_file)), run["seed"], run["run_id"])
@@ -303,7 +303,8 @@ class ROIHostBindingTest(unittest.TestCase):
         self.assertEqual(index["host_binding"]["wrapper_code_sha"], subprocess.check_output(
             ["git", "-C", str(overlay.ROOT), "rev-parse", "HEAD"], text=True).strip())
         self.assertEqual(index["host_binding"]["export_argv"], argv)
-        self.assertEqual(index["host_binding"]["physical_gpu"], 0)
+        self.assertEqual(index["host_binding"]["physical_gpu"], gpu)
+        self.assertEqual(index["host_binding"]["host"], host.socket.gethostname())
         self.assertIsInstance(index["host_binding"]["wrapper_worktree_modified"], bool)
         self.assertTrue(all(path.read_bytes() == content for path, content in before.items()))
         def render(filename, boxes, labels, **kwargs):
@@ -323,6 +324,16 @@ class ROIHostBindingTest(unittest.TestCase):
                 ("b87f34ef06eb85589cbc7dd4d385666c37696083", True)):
             with self.subTest(port=port):
                 self.frozen_export(sha, port)
+
+    def test_134_frozen_export_records_actual_host_and_physical_gpu(self):
+        with patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST_134):
+            with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}):
+                for gpu in range(4):
+                    with patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": str(gpu)}):
+                        with self.assertRaisesRegex(ValueError, "approved physical GPU"):
+                            overlay.require_owned_gpu(self.run)
+            self.frozen_export("331d2131b84651f0a2930a3d53faeefad8701531", False, gpu=4)
+            self.frozen_export("b87f34ef06eb85589cbc7dd4d385666c37696083", True, gpu=7)
 
     def test_migrated_joint_embedding_output_and_point_identity(self):
         for run in completion.comparison_runs(self.plan, "DIOR", "brightness", "ema"):

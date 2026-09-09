@@ -215,7 +215,7 @@ class OracleTrainingTest(OracleTrainingFixture, unittest.TestCase):
         old_base = "/mnt/shared/zechuan/iraod_weights/base.safetensors"
         self.payload["sarclip_pretrained"] = old_base
         torch.save(self.payload, self.adapter)
-        with patch.object(host, "is_target_host", return_value=True), patch.object(
+        with patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST), patch.object(
                 host, "PREFIXES", ((old_base, str(self.weights)),)):
             training.require_prerequisites(self.runtime()["cells"][cell.key])
             command = finite.runner_command(self.queue, cell, "train", (0, 1))
@@ -336,7 +336,7 @@ class RSAROracleTrainingTest(OracleTrainingFixture, unittest.TestCase):
             self.assertEqual(cell["fairness_group"], "Target-supervised")
             self.assertTrue(cell["appendix_only"])
             gpus = (0, 1) if selected.width == 2 else (0,)
-            with patch.object(host, "is_target_host", return_value=True), patch.dict(
+            with patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST), patch.dict(
                     os.environ, {"SARCLIP_LORA": "/poison.pth"}):
                 dispatch = finite.runner_command(mixed, selected, "train", gpus)
                 self.assertIn("train-ddp" if selected.width == 2 else "train", dispatch)

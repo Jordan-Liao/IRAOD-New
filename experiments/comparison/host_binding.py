@@ -1,4 +1,4 @@
-"""Operational bindings for the selected five-A6000 host, not a scheduler.
+"""Operational bindings for the selected221 and134 hosts, not a scheduler.
 
 Importing this module requires only stdlib (including from standalone LoRA).
 Copied metadata and model checkouts are never rewritten.
@@ -21,6 +21,7 @@ from types import ModuleType
 
 
 TARGET_HOST = "73F3-5xA6000-221"
+TARGET_HOST_134 = "73F3-8x4090-134"
 PREFIXES = (
     ("/mnt/shared/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
     ("/mnt/shared/zechuan/iraod_data", "/home/zechuan/iraod_data"),
@@ -34,7 +35,7 @@ PYTHON_PREFIX = "/home/zechuan/miniforge3/envs/iraod"
 
 
 def is_target_host():
-    return socket.gethostname() == TARGET_HOST
+    return socket.gethostname() in (TARGET_HOST, TARGET_HOST_134)
 
 
 def map_path(value):
@@ -83,11 +84,11 @@ def same_data(first, second):
 
 
 def approved_gpus():
-    return (0, 1, 2, 3, 4) if is_target_host() else (4, 5, 6, 7)
+    return (0, 1, 2, 3, 4) if socket.gethostname() == TARGET_HOST else (4, 5, 6, 7)
 
 
 def pair_ports():
-    return ({(0, 1): 29804, (2, 3): 29806} if is_target_host()
+    return ({(0, 1): 29804, (2, 3): 29806} if socket.gethostname() == TARGET_HOST
             else {(4, 5): 29804, (6, 7): 29806})
 
 

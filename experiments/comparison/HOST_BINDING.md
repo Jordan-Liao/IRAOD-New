@@ -1,7 +1,7 @@
 # Selected target execution binding
 
-This is an operational overlay for exact hostname `73F3-5xA6000-221`
-(owner's endpoint `20138`), not a fleet scheduler.
+This is an operational overlay for exact hostnames `73F3-5xA6000-221`
+(owner's endpoint `20138`) and `73F3-8x4090-134` (SSH `20134`), not a fleet scheduler.
 
 ## Interfaces
 
@@ -12,10 +12,12 @@ This is an operational overlay for exact hostname `73F3-5xA6000-221`
   strings. Keys, source SHAs, tensors, numeric settings and budgets are unchanged.
 - `same_path(a, b)`: compares native artifact identities through the mapped
   filesystem aliases on the target, without resolving the interpreter prefix.
-- `is_target_host()`: exact hostname comparison, no environment override.
-- `approved_gpus()` / `pair_ports()`: target singles `0..4`, pairs
-  `0,1:29804` and `2,3:29806`; historical defaults remain singles `4..7`,
-  pairs `4,5:29804` and `6,7:29806`. GPU4 is the target's remaining single.
+- `is_target_host()`: exact hostname membership, no environment override.
+- `approved_gpus()` / `pair_ports()`:221 singles `0..4`, pairs
+  `0,1:29804` and `2,3:29806`;134 singles **physical4..7 only**, pairs
+  **`4,5:29804` and `6,7:29806`**.134 never inherits221 GPU0-3 or its pairs.
+  Unknown hosts retain historical singles `4..7` and pairs `4,5:29804`,
+  `6,7:29806`, without enabling the overlay or granting new authorization.
 - `finite_resumer.lock_root(queue)` returns the target's one shared directory:
   `/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks`.
 - `native_command(argv, entry)` inserts the path-only native shim around
@@ -42,8 +44,9 @@ Outer LoRA, TAM and TSD ownership uses:
 python -m experiments.comparison.host_binding lock 4 -- COMMAND ARGUMENTS
 ```
 
-Use the exact venv executable in place of `python`. A two-card command uses
-`lock 0,1` or `lock 2,3`. This entry uses the existing nonblocking `take_lock`
+Use the exact venv executable in place of `python`. On221 a two-card command uses
+`lock 0,1` or `lock 2,3`; on134 use `lock 4,5` or `lock 6,7`.
+This entry uses the existing nonblocking `take_lock`
 and GPU-idle check and exports `IRAOD_GPU_LOCKED=1` only while holding locks.
 New queue wrappers expose the same `LOCKDIR` and call this entry. Never execute
 the old copied lock script on the target.
@@ -51,6 +54,55 @@ the old copied lock script on the target.
 **Smoke is different:** invoke `smoke_frozen_training` directly, without an
 outer lock. It acquires both cell and GPU locks itself and does not treat an
 inherited `IRAOD_GPU_LOCKED=1` as permission to bypass a holder.
+
+### Newly authorized134: runtime-owner handoff
+
+Authorization at2026-09-09 21:04:43Z adds only134 physical GPUs4,5,6,7
+(reported RTX4090D48GB each). CPU binding evidence is not GPU execution,
+filesystem readiness, or proof that a48GB OOM is solved.
+
+Runtime owner15be alone rechecks capacity, deploys, and assigns **unstarted,
+nonoverlapping already-approved** TAM/TSD/other work. Do not restart221's running
+TAM RSAR clean42, repeat its completed TSD RSAR clean42, or run the same full-Q
+producer on both hosts. The identical logical lock directory above is
+**host-local**, not a cross-host job lock; global job partitioning stays with15be.
+No new use of .67 GPU0/1/3, experiment, source, seed, or budget is authorized.
+
+On134 the selected physical layout is `/home/zechuan/iraod_artifacts`,
+`/home/zechuan/iraod_data`, `/home/zechuan/iraod_weights`, and the exact venv
+above. Keep `/mnt/shared/zechuan/...` and `/mnt/SSD2_8TB/zechuan/...` in original
+plans/configs/metadata. The overlay maps reads and temporary config views;
+**do not create a privileged `/mnt/shared` alias or rewrite frozen inputs**.
+The owner must place inputs and recorded code checkouts at their mapped home
+paths before launch; missing files/environment remain blockers, not permission
+to guess alternate paths.
+
+From the deployed current integration checkout (not a frozen source checkout),
+set `PYTHONPATH` to that checkout and use the following existing entry pattern,
+substituting only the owner's assigned physical GPU and approved command:
+
+```bash
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+export PYTHONPATH="$PWD"
+"$PY" -m experiments.comparison.host_binding lock "$GPU" -- \
+  "$PY" -m experiments.comparison.aasfod_tsd \
+  --queue "$QUEUE" --dataset "$DATASET" --domain "$DOMAIN" --seed "$SEED"
+```
+
+`GPU` must be one of4,5,6,7; all variables come from15be's assigned unstarted
+roster, not an automatically reused221 queue. For TAM
+use its existing `train_tam` entry and matching `--gpu`. Do not manually export
+`IRAOD_GPU_LOCKED=1` as a substitute for the outer lock. Native train/test
+commands use the current `host_binding.py native` shim (also available through
+`-m experiments.comparison.host_binding native`), which retains frozen imports.
+Standalone LoRA's `tools.oracle_runtime_paths` recognizes both exact hosts
+without importing detector dependencies. ROI receipts record the actual host
+and physical GPU, not a constant221 label.
+
+CPU regressions patch `socket.gethostname` to the real hostnames, including
+cold imports and native script/module entry. They cover path/config/runtime
+immutability, GPU admission and pair ports, lock exclusion/occupancy rejection,
+and unchanged221/unknown-host behavior. No remote/GPU probe is part of this gate.
 
 The native shim loads literal-path-only temporary config views, including
 absolute/relative `_base_` files and frozen F environment assignments.
