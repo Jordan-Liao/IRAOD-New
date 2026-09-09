@@ -576,7 +576,10 @@ class TmuxBackend:
                    for resolve in (self.paths.ema_path, self.paths.student_path)):
                 raise Blocked(f"Conflicting final checkpoints require owner resolution: {cell.key}")
             destinations = [Path(self.paths.eval_full_dir(*args))]
-            if hasattr(self.paths, "eval_student_dir"):
+            # Mixed resolvers expose this function even for EMA-only bindings.
+            if hasattr(self.paths, "eval_student_dir") and (
+                    not hasattr(self.paths, "DATA")
+                    or cell.model.key in self.paths.DATA["student_cells"]):
                 destinations.append(Path(self.paths.eval_student_dir(*args)))
             if any(p.exists() for p in destinations):
                 raise Blocked(f"Training retry would affect retained evaluations: {cell.key}")
