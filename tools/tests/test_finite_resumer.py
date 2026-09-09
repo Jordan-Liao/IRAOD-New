@@ -698,7 +698,7 @@ else: raise SystemExit(2)
         return queue, binding
 
     def test_generated_worker_spec_retry_without_a_student_evaluation_binding(self):
-        cell = Cell("DIOR", "clean", 43, "B_REG")
+        cell = Cell("DIOR", "brightness", 42, "B_REG")
         queue, binding = self.generated_retry_queue(cell)
         process, directory = self.start([cell], queue=queue)
         self.assertEqual(self.next_start()["name"], cell.session("train"))
@@ -713,7 +713,11 @@ else: raise SystemExit(2)
         old_job = job_file.read_bytes()
         old_receipt = Path(job["receipt"]).read_bytes()
         self.assertEqual(json.loads(old_receipt)["status"], "failed")
-        self.assertEqual(finite.load_paths(job["queue"]).DATA["student_cells"], {})
+        paths = finite.load_paths(job["queue"])
+        self.assertEqual(paths.DATA["student_cells"], {})
+        with self.assertRaises(KeyError) as missing:
+            paths.eval_student_dir(cell.dataset, cell.domain, str(cell.seed), cell.method)
+        self.assertEqual(missing.exception.args, ("DIOR/brightness/42/B_REG",))
 
         self.released.remove(cell.session("train"))
         retry, retry_dir = self.start([cell], "generated-retry", queue=queue, controls=(
