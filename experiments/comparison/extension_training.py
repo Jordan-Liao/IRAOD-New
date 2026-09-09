@@ -39,8 +39,8 @@ def require_file(path):
     return path
 
 
-def target_val(dataset, domain, test_prefix):
-    """Only the accepted datasets' TEST-to-VAL image layout, never annotations."""
+def resolve_target_val(dataset, domain, test_prefix):
+    """Resolve the accepted TEST-to-VAL layout without accessing either directory."""
     test = Path(test_prefix)
     if dataset == "RSAR" and test.parts[-2:] == ("test", "images"):
         val = test.parent.parent / "val" / "images"
@@ -48,6 +48,13 @@ def target_val(dataset, domain, test_prefix):
         val = test.with_name("val")
     else:
         raise ValueError(f"Unsupported {dataset} TEST image layout: {test}")
+    return str(val)
+
+
+def target_val(dataset, domain, test_prefix):
+    """Resolve target VAL and require both image directories for prepared methods."""
+    test = Path(test_prefix)
+    val = Path(resolve_target_val(dataset, domain, test_prefix))
     for directory in (test, val):
         if not directory.is_dir():
             raise ValueError(f"Missing image directory: {directory}")

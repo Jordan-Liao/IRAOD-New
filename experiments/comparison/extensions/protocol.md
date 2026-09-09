@@ -627,7 +627,28 @@ export PYTHONNOUSERSITE=1
 
 Formal fitting omits `--smoke-steps` and has fixed160k iterations. It reads only
 the exact domain's VAL image directory, with no annotations, source images or
-GT filtering. New output contains image/training manifests, flushed loss CSV,
+GT filtering. `--base-plan` remains the complete frozen full-TEST
+`completion-plan.json` used by CPU preparation, not TAM `runtime.json` or a
+reduced/regenerated plan. Discovery validates that full plan and selects exactly
+the requested dataset/domain's A/source42 run. Its `img_prefix` is only a layout
+anchor: RSAR `test/images` resolves to sibling `val/images`; DIOR
+`<domain>/test` resolves to `<domain>/val`. The selected VAL directory must
+actually exist and contain all8467 RSAR or5863 DIOR supported image files with
+unique stems. Missing/empty/partial VAL, duplicate stems and unrecognized layouts
+remain errors. Counts and uniqueness are the existing discovery contract, not
+certification of original dataset contents or image decodability.
+
+For an already prepared fit, keep the frozen plan, existing legacy/221/134 path
+overlays and command arguments unchanged; use the updated trainer. No TEST
+directory, TEST image or GT read is needed for TAM discovery/loading, and no
+empty TEST placeholder should be created. Sorted IDs, the VAL image manifest,
+sampling and all scientific settings are unchanged when TEST is present.
+The shared `resolve_target_val` is layout-only; `target_val` still requires
+**both** TEST and VAL directories for its existing callers, including
+`prepare_tam` and detector preparation. This change does not relax their input
+requirements or authorize new preparation, deployment or execution.
+
+New output contains image/training manifests, flushed loss CSV,
 terminal state and atomic `tam.pth`. Failed/nonfinite or smoke-only runs cannot
 pass the detector's exact dataset/domain/fit-seed42/160k admission. Formal
 artifacts from the previous encoder/normalization contract are not reusable.

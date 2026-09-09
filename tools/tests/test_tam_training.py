@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image
 import torch
 
-from experiments.comparison import result_completion
+from experiments.comparison import extension_training, result_completion
 from experiments.comparison import train_tam as training
 from experiments.comparison.tam_artifacts import load_completed_tam
 
@@ -132,6 +132,177 @@ class SamplingAndLoopTest(unittest.TestCase):
         for steps in (0, -1, 160001):
             with self.assertRaises(ValueError):
                 training.train_loop(FakeTAM(), [], [], steps, "cpu", io.StringIO())
+
+
+class FrozenTargetDiscoveryTest(unittest.TestCase):
+    """Full-size completion-plan contract, real tiny VAL files, no model or GPU."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory(prefix="tam full VAL ")
+        cls.addClassCleanup(cls.temp.cleanup)
+        cls.root = Path(cls.temp.name)
+        cls.vals = {}
+        cls.tests = {}
+        runs = []
+        for dataset, domains in training.DOMAINS.items():
+            count = result_completion.EXPECTED_TEST_IMAGES[dataset]
+            ids = ([str(i) for i in range(11726, 11726 + count)] if dataset == "DIOR"
+                   else [f"rsar_{i}" for i in range(count)])
+            for domain in domains:
+                directory = cls.root / dataset / domain
+                test = directory / ("test/images" if dataset == "RSAR" else "test")
+                val = directory / ("val/images" if dataset == "RSAR" else "val")
+                cls.tests[dataset, domain] = test
+                cls.vals[dataset, domain] = val
+                for method, role in result_completion.ROLES:
+                    runs.append({
+                        "run_id": f"{dataset}/{domain}/{method}/{role}",
+                        "dataset": dataset, "domain": domain,
+                        "method": method, "role": role, "seed": 42,
+                        "scope": "full_test", "image_ids": ids,
+                        "visualization_image_ids": ids[:32 if dataset == "RSAR" else 16],
+                        "show_score_thr": 0.3,
+                        "checkpoint_domain": "source" if method == "A" else domain,
+                        "checkpoint": str(directory / f"{method}_{role}.pth"),
+                        "config": str(cls.root / f"{dataset}.py"),
+                        "img_prefix": str(test if method == "A" else directory / "unused"),
+                        "ann_file": str(directory / "GT"),
+                    })
+        cls.frozen_plan = json.dumps({
+            "schema": result_completion.SCHEMA, "scope": "full_test",
+            "adaptation_seed": 42, "runs": runs,
+        })
+        cls.selected = (("RSAR", "chaff"), ("DIOR", "cloudy"))
+        image = io.BytesIO()
+        Image.new("RGB", (2, 3), (255, 0, 0)).save(image, format="PNG")
+        for identity in cls.selected:
+            val = cls.vals[identity]
+            (val / "nested").mkdir(parents=True)
+            for i in range(training.TARGET_VAL_SIZE[identity[0]]):
+                parent = val / "nested" if i % 2 else val
+                (parent / f"val_{i:05}.png").write_bytes(image.getvalue())
+            (val / "ignored.txt").write_text("not an image or annotation")
+
+    def setUp(self):
+        self.base = self.root / "completion-plan.json"
+        self.base.write_text(self.frozen_plan)
+
+    def discover(self, dataset, domain, seed=42):
+        return training.discover_target_images(self.base, dataset, domain, seed, workers=0)
+
+    def test_full_val_manifest_identical_with_and_without_test_no_test_or_gt_reads(self):
+        for dataset, domain in self.selected:
+            with self.subTest(dataset=dataset):
+                val, test = self.vals[dataset, domain], self.tests[dataset, domain]
+
+                def only_val_or_plan(operation):
+                    def checked(path, *args, **kwargs):
+                        path = Path(path)
+                        self.assertTrue(path == self.base or path.is_relative_to(val), path)
+                        return operation(path, *args, **kwargs)
+                    return checked
+
+                test.mkdir(parents=True)
+                try:
+                    with patch("builtins.open", side_effect=only_val_or_plan(open)), \
+                            patch("io.open", side_effect=only_val_or_plan(io.open)), \
+                            patch("os.scandir", side_effect=only_val_or_plan(os.scandir)):
+                        with_test = self.discover(dataset, domain)
+                        with patch.object(training, "resolve_target_val",
+                                          side_effect=extension_training.target_val):
+                            self.assertEqual(self.discover(dataset, domain), with_test)
+                        test.rmdir()
+                        without_test = self.discover(dataset, domain)
+                        self.assertEqual(without_test, with_test)
+                        expected_ids = [
+                            f"val_{i:05}" for i in range(training.TARGET_VAL_SIZE[dataset])]
+                        self.assertEqual(without_test["image_ids"], expected_ids)
+                        self.assertEqual(without_test["root"], str(val))
+                        self.assertEqual(without_test["split"], "val")
+                        self.assertEqual(without_test["seed"], 42)
+                        self.assertEqual(
+                            without_test["image_paths"],
+                            [str((val / "nested" if i % 2 else val) / f"{stem}.png")
+                             for i, stem in enumerate(expected_ids)])
+                        tensor = training.TargetImages(without_test["image_paths"])[0]
+                        self.assertEqual(tensor.shape, (3, 128, 128))
+                        torch.testing.assert_close(
+                            tensor[:, 0, 0],
+                            torch.tensor((0., 0., 255.)) - torch.tensor(training.BGR_MEAN))
+                finally:
+                    if test.exists():
+                        test.rmdir()
+                self.assertEqual(self.base.read_text(), self.frozen_plan)
+
+    def test_missing_empty_partial_val_and_duplicate_ids_rejected(self):
+        for dataset, domain in self.selected:
+            val = self.vals[dataset, domain]
+            count = training.TARGET_VAL_SIZE[dataset]
+            with self.subTest(dataset=dataset, failure="missing or empty VAL"):
+                saved = val.with_name("saved-val")
+                val.rename(saved)
+                try:
+                    with self.assertRaisesRegex(ValueError, "Missing image directory"):
+                        self.discover(dataset, domain)
+                    val.mkdir()
+                    with self.assertRaisesRegex(ValueError, f"requires {count}"):
+                        self.discover(dataset, domain)
+                finally:
+                    if val.exists():
+                        val.rmdir()
+                    saved.rename(val)
+            original = val / "val_00000.png"
+            saved = val / "not-an-image.txt"
+            original.rename(saved)
+            try:
+                with self.subTest(dataset=dataset, failure="partial VAL"):
+                    with self.assertRaisesRegex(ValueError, f"found {count - 1} images"):
+                        self.discover(dataset, domain)
+                duplicate = val / "val_00001.PNG"
+                saved.rename(duplicate)
+                saved = duplicate
+                with self.subTest(dataset=dataset, failure="duplicate VAL ID at full count"):
+                    with self.assertRaisesRegex(
+                            ValueError, f"found {count} images, {count - 1} unique"):
+                        self.discover(dataset, domain)
+            finally:
+                saved.rename(original)
+
+    def test_frozen_plan_seed_source_layout_and_test_ids_still_validated(self):
+        for seed in (43, 44):
+            with self.assertRaisesRegex(ValueError, "fit seed must be 42"):
+                self.discover("RSAR", "chaff", seed)
+        for defect, message in (
+                ("adaptation_seed", "adaptation seed42"),
+                ("source_seed", "identity differs"),
+                ("source_domain", "checkpoint from another domain"),
+                ("missing_group", "exactly the declared"),
+                ("test_ids", "full TEST requires"),
+                ("layout", "Unsupported RSAR TEST image layout")):
+            with self.subTest(defect=defect):
+                plan = json.loads(self.frozen_plan)
+                source = next(run for run in plan["runs"]
+                              if (run["dataset"], run["domain"], run["method"], run["role"])
+                              == ("RSAR", "chaff", "A", "source"))
+                if defect == "adaptation_seed":
+                    plan["adaptation_seed"] = 43
+                    for run in plan["runs"]:
+                        if run["method"] != "A":
+                            run["seed"] = 43
+                elif defect == "source_seed":
+                    source["seed"] = 43
+                elif defect == "source_domain":
+                    source["checkpoint_domain"] = "chaff"
+                elif defect == "missing_group":
+                    plan["runs"].pop()
+                elif defect == "test_ids":
+                    source["image_ids"][0] = source["image_ids"][1]
+                else:
+                    source["img_prefix"] = str(self.root / "RSAR/chaff/train/images")
+                self.base.write_text(json.dumps(plan))
+                with self.assertRaisesRegex(ValueError, message):
+                    self.discover("RSAR", "chaff")
 
 
 class TargetTrainingTest(unittest.TestCase):
