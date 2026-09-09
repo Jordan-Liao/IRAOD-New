@@ -142,11 +142,12 @@ class MixedQueueTest(unittest.TestCase):
         finished = set()
         active = []
         backend = SimpleNamespace(
-            run_dir=self.root / "run", producer=nullcontext,
+            queue=self.out, run_dir=self.root / "run", producer=nullcontext,
             discover_external_owners=lambda *args: [], discover=lambda *args: [],
             available=lambda: {4, 5, 6},
             evidence=lambda cell, phase: "complete" if (cell, phase) in finished else "pending",
-            prerequisites=lambda cell: finite.prerequisite_state(self.paths, cell),
+            admission=lambda cell, phase: (finite.prerequisite_state(self.paths, cell)
+                                           if phase == "train" else ("ready", "")),
             finish=lambda *args: ("complete", ""),
             wait=lambda: list(active), close=lambda handle: active.remove(handle),
         )
@@ -166,7 +167,7 @@ class MixedQueueTest(unittest.TestCase):
             self.assertEqual((rows[method]["train"], rows[method]["eval"]), ("complete", "complete"))
         for method in ("AASFOD", "SFYOLO"):
             self.assertEqual(rows[method]["train"], "waiting")
-            self.assertTrue(rows[method]["prerequisite_reason"])
+            self.assertTrue(rows[method]["train_input_reason"])
 
     def test_worker_and_native_train_refuse_missing_prerequisite_before_gpu_or_output(self):
         for method in ("AASFOD", "SFYOLO"):
@@ -414,10 +415,12 @@ class PortStudentQueueTest(unittest.TestCase):
             return list(active)
 
         backend = SimpleNamespace(
-            run_dir=self.root / "run", producer=nullcontext,
+            queue=self.root, run_dir=self.root / "run", producer=nullcontext,
             discover_external_owners=lambda *args: [], discover=lambda *args: [],
             available=lambda: {4, 5, 6}, evidence=evidence,
-            prerequisites=lambda cell: ("ready", "") if prereq_ready else ("waiting", "TAM missing"),
+            admission=lambda cell, phase: (("waiting", "TAM missing")
+                                           if cell == model and phase == "train" and not prereq_ready
+                                           else ("ready", "")),
             start=start, finish=lambda *args: ("complete", ""), wait=wait,
             close=lambda handle: active.remove(handle))
         result = finite.run_finite({student: False, model: True, independent: True}, backend)

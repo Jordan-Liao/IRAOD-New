@@ -4,12 +4,150 @@ This is a code-only replacement entry point. It does not replace live queue
 scripts, change the training/evaluation checkouts, or launch a GPU until the
 coordinator explicitly invokes it.
 
-## Observed defects
+## Input admission and selected recovery
+
+Prepared target/mixed queues now resolve each cell through the existing
+`extension_training.load_cell` route, including the original source queue's
+`runtime.json`, before admission. Training requires its nonempty bound source
+checkpoint, target image directory and at least the frozen `unlabeled_epoch_size`
+supported images, plus existing AASFOD/SFYOLO/oracle prerequisites. Evaluation
+requires its bound final checkpoint, DIOR TEST list (or RSAR annotation
+directory), and TEST image directory. This detects missing inputs such as RSAR
+`train/epoch_100.pth`, DIOR `ImageSets/test.txt`, and
+`formal_ports_manifests_a39c832/runtime.json` omissions before an attempt.
+It does not decode images, restore data, change sample IDs, reduce epoch size,
+or certify complete image/annotation contents; frozen-data restoration remains
+the experiment owner's responsibility. Historical non-runtime shell queues
+retain their existing prerequisite interface.
+
+Admission applies to ordinary F training as well as B_REG and its F deletions,
+and resolves the correct queue route and checkpoint for **both** eval roles.
+
+Missing inputs produce `waiting` and `train_input_reason` / `eval_input_reason`,
+not a failed attempt. Admission is reconsidered at startup and tracked job/owner
+exit events. The worker checks again before GPU probing/locks or runner invocation.
+Independent ready work still proceeds. With no active event source, the finite
+producer terminates blocked; it does not poll for restored files. Start a new
+invocation at the authorized boundary to reconsider those inputs.
+
+### Boundary-only controls, not a live control channel
+
+These options are consumed **only at startup by the new executable**:
+
+| Option (repeatable except previous state) | Effect |
+| --- | --- |
+| `--previous-state OLD_RUN/state.json` | Carry forward exactly the same finite scope and training ownership, failed/blocked states, attempts and holds. Keep original list ordering. |
+| `--hold-cell DS/DOMAIN/SEED/METHOD[/student]` | Persist a hold on new train/eval submissions for that exact cell. Never stop an already running job. |
+| `--release-cell DS/DOMAIN/SEED/METHOD[/student]` | Release that hold; this does **not** clear failures or authorize retry. |
+| `--retry-cell DS/DOMAIN/SEED/METHOD[/student]:train` or `:eval` | With previous state, authorize one new attempt for only that failed/blocked phase. A hold still applies. No wildcards or blanket retry. |
+
+Use the same queue, finite lists, external ownership/reservations and GPU
+assignment as the existing approved invocation. Add only these options and a
+**new** run directory. For example, the experiment owner can append:
+
+```bash
+--previous-state "$OLD_RUN/state.json" \
+--hold-cell DIOR/brightness/43/F \
+--retry-cell RSAR/clean/43/B_REG:train \
+--retry-cell DIOR/clean/43/B_REG:eval
+```
+
+An eval retry requires completed training. Training retry is limited to
+producer-owned EMA training, refuses any retained final checkpoint or
+evaluation output, and never retries Student training. Staged AASFOD training
+retry is explicitly blocked: its method directory also holds the required
+TSD split, so it needs owner-specific recovery rather than generic relocation.
+Conflicting completed artifacts also require owner resolution, not deletion.
+
+Retry ownership is checked by the producer against the finite lists and prior
+ledger, before archive movement. Generated worker specs contain only execution
+fields (`cell`, `phase`, `gpus`, `queue`, `receipt`, `tmux`), not producer ownership.
+Mixed queues declare Student evaluation bindings in `runtime.json.student_cells`:
+an exposed `eval_student_dir` function alone does not mean every model has one.
+Likewise, a model's `student_checkpoint` is a training output, not a declaration
+of a Student evaluation role.
+Training retry checks Student outputs only for declared bindings; a missing
+mapping remains an error, never an implicit empty ownership set. Legacy resolvers
+without runtime metadata retain their existing Student-path checks.
+
+At startup, after canonical discovery and under the selected model's cell lock,
+a retry refuses any live canonical job for that model. It renames only the
+selected failed method directory (train) or role-specific eval directory (eval),
+and that phase's queue/source-queue wrapper statuses, to adjacent
+`NAME.finite-retry-NEW_RUN_BASENAME` archives. Existing archives are never
+overwritten. Native runners then use their **unchanged original destinations
+and frozen bindings**. Use a unique run basename. Archive movement is journaled
+in `NEW_RUN/recovery/*.json`; if interrupted or an OS rename fails, preserve the
+`planned` journal and have the owner resolve its listed moves before another
+retry. No automatic rollback or destructive cleanup occurs.
+
+The old ledger, job specs, receipts and logs are untouched. The new run also
+retains `previous_state.json`, accumulated reasons and per-cell `attempts`
+(including retry authorization and archive locations). Old-code ledgers without
+an attempts array remain preserved in full. Unselected failures remain failures;
+completed cells are not rerun; new attempts write new run-local job/receipt/log
+files. Existing failed/partial native destinations are blocked even when a
+caller omits previous state, rather than silently overwritten. Always carry
+`--previous-state` forward to retain failed attempts that created no native files.
+
+To release the example hold at a later approved boundary, retain the same
+finite lists and add `--previous-state "$LAST_RUN/state.json"
+--release-cell DIOR/brightness/43/F`. Add a `--retry-cell` only if that phase is
+failed/blocked and explicitly authorized; waiting inputs need no retry flag.
+
+### Producer deployment boundary
+
+**Do not replace or inject code into the running old producer. It cannot consume
+these options, and creating/editing a request or ledger does not make it do so.**
+Wait for its natural terminal state, or obtain a separate explicit authorization
+from the experiment owner for a safe producer-only deployment boundary. At that
+boundary the owner must stop further old-producer submissions and ensure its
+producer lock is released, preserve every running canonical GPU job, and start
+the new runner from a separate checkout with the same frozen queue/lists and a
+new run directory. Retry-selected models must have no live canonical job; other
+live canonical jobs are adopted unchanged.
+
+This code delivery does not perform that cutover; deployment, GPU operations
+and data restoration remain with the experiment owner. The dated cutover
+examples below are historical, not current authorization.
+
+For owner deployment, retain the exact original train/eval lists and their role
+columns. Entries are **mixed records, not a count of training jobs**; never turn
+the eval list into a training list.
+`--previous-state` enforces the same finite keys and training ownership.
+Student `:train` retries and eval-only training are rejected, as are retries of
+completed training. A hold/release never grants training ownership. Keep all
+valid trained models, original attempts/failure artifacts and existing valid
+F2-update smokes; do not enqueue or repeat those smokes.
+
+After the owner restores the required **frozen** dependencies, the clean-boundary
+invocation uses the new checkout, original terminal ledger and a new run
+directory. This native-host example restricts new submissions to GPUs0-3,
+excluding independent GPU4 work (owner-only; not executed by this delivery):
+
+```bash
+PYTHONPATH="$RUNNER_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
+  --queue "$Q" --run-dir "$NEW_RUN" \
+  --train-list "$ORIGINAL_TRAIN_LIST" --eval-list "$ORIGINAL_EVAL_LIST" \
+  --previous-state "$OLD_RUN/state.json" \
+  --gpus 0,1,2,3 --handoff-confirmed \
+  --retry-cell RSAR/clean/43/B_REG:train
+```
+
+Retain any additional original list/external-ownership arguments unchanged.
+Select only actual failed, owned phases from the terminal ledger; repeat
+`--retry-cell` for each explicitly authorized selection. IRG/LPLD/SFUT reference
+Student records remain evaluation-only. An eval selection needs completed training.
+With no retry flags, failed states remain failed; with inputs still absent,
+selected retries wait without a runner attempt. No option restores data, consumes
+a request in the old executable, changes budgets or touches independent GPU4 work.
+
+## Legacy-wrapper defects
 
 The actual `resume_empty_gpu.sh` waits after every train and every eval, then
 finishes the entire B-C-D list before considering E/F. CPU replay of that
 actual shell script with four free cards produced peak concurrency **one**.
-The current double-GPU API is also different from its caller:
+The legacy double-GPU wrapper API is also different from its caller:
 
 ```text
 run_train_1gpu.sh GPU DS DOMAIN SEED METHOD
@@ -18,8 +156,8 @@ run_eval_full.sh GPU DS DOMAIN SEED METHOD
 ```
 
 The old caller omits `PORT` and tries `4,6`, while the actual double-GPU script
-accepts only **4,5 / port 29804** and **6,7 / port 29806**. The replacement uses
-these exact APIs/pairs and never changes their commands or hyperparameters.
+accepts only **4,5 / port 29804** and **6,7 / port 29806**. In legacy-wrapper mode,
+the replacement uses these exact APIs/pairs without changing their hyperparameters.
 Global batch32, LR0.02, seeds42/43/44, single1x32/double2x16, final checkpoints,
 training tree0f98 and evaluation tree331d remain unchanged.
 
@@ -37,7 +175,13 @@ automatic model retry or new scheduling service.
   Native evaluation uses a free single card only when no ready training fits.
   Already running evaluations are not preempted.
 - Availability requires no compute PID, memory below500MiB and the actual
-  shared GPU flock being available. Only physical GPUs4-7 are accepted.
+  shared GPU flock being available. Legacy-wrapper mode accepts physical GPUs4-7,
+  with pairs4,5 / port29804 and6,7 / port29806.
+- On native host `73F3-5xA6000-221`, `host_binding` exposes GPUs0-4 and
+  pairs0,1 / port29804 and2,3 / port29806. `--gpus` restricts submissions to the
+  owner-authorized subset; host support does not authorize use of every card.
+  Native mode invokes `extension_training.py` with the bound runtime and paths,
+  not the copied legacy shell wrappers. Frozen cell settings remain unchanged.
 - Each independent worker holds the existing GPU lock files and an additional
   cell-wide lock (shared by train/eval and independent of GPU assignment).
   It sets `IRAOD_GPU_LOCKED=1` only while holding those actual locks, preventing
@@ -237,7 +381,8 @@ reported blocked; the operator must resolve them or choose a fresh native
 output path through the existing evaluation configuration.
 
 A failed task blocks its own dependent eval, not unrelated ready training.
-There are no automatic retries in an invocation. If no GPU group can be
+There are no automatic retries; selected boundary retries use the explicit
+controls above. If no GPU group can be
 allocated and no tracked active task can produce an exit event, the finite
 process returns `blocked` immediately. Return codes: complete0, failed1,
 blocked2 (individual worker lock conflicts use75).
@@ -249,7 +394,8 @@ do not terminate worker sessions or a whole process tree.
 ## CPU regression
 
 ```bash
-CUDA_VISIBLE_DEVICES="" python3 -m unittest tools.tests.test_finite_resumer -v
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_finite_resumer -v
 ```
 
 The tests run the actual entry, tmux, kernel flocks and pidfd exit loop against
@@ -257,5 +403,9 @@ temporary CPU runners. They exercise4-card mixed packing, simultaneous pairs,
 immediate refill before eval, legacy GPU5 canonical adoption, producer
 replacement, cell uniqueness across different GPU locks, success skipping,
 bad terminal/ID rejection, delayed external canonical creation/GPU reservation,
-and blocked-with-no-active-work. No real training,
+blocked-with-no-active-work, missing checkpoint/TEST-list/source-runtime
+admission, event-triggered input recovery, selective train/eval retries,
+held/released cells and retained failure/completion evidence. Use the existing
+CPU environment with NumPy (prepared runtime resolution imports report helpers).
+No real training,
 GPU probing or live queue is used by the tests.
