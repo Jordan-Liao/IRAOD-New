@@ -151,8 +151,10 @@ already-generated `alignment.py`. Hostname/path binding for a different host
 is a separate integration concern; this correction adds no host authorization.
 
 For the runtime owner's observed pre-training import failure, inspect and
-retain the actual failed layout before retrying. Generic finite
-`archive_retry` deliberately refuses AASFOD; it remains unchanged.
+retain the actual failed layout before retrying. The narrow
+[pre-stage finite retry](../FINITE_RESUMER.md#aasfod-retained-tsd-recovery-before-the-first-stage)
+preserves TSD and archives failed outputs, but deliberately refuses any retained
+stage checkpoint. It is not an FNS continuation interface.
 The outer `extension_training._train` requires `cell.work_dir` not to exist.
 The inner `train_aasfod.run` allows the work root but refuses an existing
 `work/alignment` or `work/fns`; it otherwise rewrites stage configs and
@@ -174,7 +176,80 @@ This is a recovery contract for the runtime owner, not a recovery command or
 authorization to launch. Exact remote layout inspection and recovery are not
 performed by the code fix.
 
+### Mixed-size FNS batching and blocked post-alignment continuation
+
+The later, owner-reported RSAR/clean/42 failure is **not** the pre-alignment
+ColorJitter import failure. `target_losses` predicts 32 original weak images and
+composes eight mosaics. Each mosaic takes its first original's `img_shape` as its
+canvas extent and pads independently to divisor32. Thus the real 256x256 and
+800x800 canvases cannot enter the old `torch.stack(images)`.
+
+The batching correction adds zero padding only at each canvas's right/bottom to
+the batch maximum, matching MMCV `DataContainer(stack=True)` collation. It does
+not alter mosaic crops, interpolation, geometry, RNG draws, original-image
+teacher inference, image count, optimizer, LR or budget. Each canvas keeps its
+own `img_shape` and `pad_shape`: native `AnchorHead.get_anchors` calls
+`prior_generator.valid_flags` with that individual `pad_shape`. Replacing it
+with the batch maximum would wrongly admit padded anchors. OBBs and labels are
+not translated or rescaled by batch padding.
+
+**Code-only delivery; FNS-only continuation remains blocked.** The requested
+new `aasfod-RSAR-clean-42-fns-failed` artifact folder was unavailable during this
+delivery. No earlier ColorJitter artifacts are treated as alignment completion.
+No continuation command/interface, stage reset, queue mutation or runtime
+deployment is supplied. Existing pre-stage retry/lock/hold guards stay intact.
+The CPU stage-entry regression retains both synthetic alignment finals and
+failed FNS artifacts, refuses a second two-stage invocation, and leaves final
+aliases absent; it is not runtime completion proof.
+
+The missing owner evidence is the original failed FNS trace and attempt/wrapper
+terminal records; both alignment student/teacher final checkpoints and their
+native iteration metadata; original stage exit evidence, `alignment.py`,
+`fns.py`, `stages.json`, `execution.json` and frozen queue/cell binding; and the
+unchanged complete `tsd.json` with its source/VAL/seed and 8467x20 identity.
+`stages.json` with `invoked_not_completion_evidence` contains planned updates
+and commands, not individual stage-exit receipts. The owner must also establish
+no live job, no completed FNS or common final aliases, and no conflicting hold
+or binding before any artifact archival or continuation.
+
+Once that evidence is available, the only valid entry for this reported
+pre-update FNS failure is the original FNS spec from `stage_specs`: load
+`alignment/iter_159.pth` into student and teacher, use a fresh SGD optimizer,
+warmup0 and only the frozen 106 FNS updates. Preserve all original TSD/alignment
+bytes and archive the failed FNS attempt through the existing finite ownership,
+lock and attempt-history machinery. Never replay the 159 alignment updates.
+Native FNS finals remain `fns/iter_106{,_ema}.pth`, with common
+`iter_266{,_ema}.pth` aliases only after successful completion of the full
+159+106 budget; 266 is a filename convention, not another update.
+
+Unlike the orchestration-only ColorJitter correction, this fix changes model
+source. Deployment needs a **new explicitly accepted training-code checkout
+and SHA** for FNS, not an in-place edit of frozen `36c2053` or an old-SHA claim.
+Retain the original execution record and record the original alignment source
+separately from the corrected FNS source. Final stage/execution provenance must
+describe both stages and remain consistent with the native evaluation consumer.
+That binding/provenance change is pending the evidence above and owner acceptance,
+not implemented or asserted successful by this delivery.
+
 ## Narrow CPU validation
+
+The mixed-size regression runs the actual `AASFODOBB.target_losses`,
+`teacher_labels`, `four_image_mosaic`, native collation reference and anchor
+validity functions using 32 small CPU originals and eight canvases:
+
+```bash
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_aasfod_fns_batching
+```
+
+Before the correction it fails at the actual stack with `[3,32,32]` versus
+`[3,96,64]`. Assertions cover rectangular/variable canvases, zero-only batch
+padding, unchanged per-canvas metadata/OBBs/labels, exact RNG state, all32
+original teacher inputs, and bitwise pixel/input-gradient/parameter-gradient
+agreement with old equal-size stacking and native mixed-size collation.
+Unused compiled MMCV operators are replaced by fail-fast test functions;
+feature extraction and downstream detector losses use tiny CPU seams. These
+tests do not run a full native detector or certify GPU execution.
 
 The stage import regression is a non-skipping CPU gate:
 
