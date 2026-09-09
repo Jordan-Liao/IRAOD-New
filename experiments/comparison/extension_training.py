@@ -380,10 +380,10 @@ def require_prerequisites(cell):
         load_completed_tam(require_file(cell["tam_checkpoint"]), expected, "cpu")
 
 
-def train(queue, gpu, dataset, domain, seed, method, fns_continuation=None):
+def train(queue, gpu, dataset, domain, seed, method, fns_continuation=None, aasfod_fns_code=None):
     if gpu not in ALLOWED_GPUS:
         raise ValueError("Training requires a host-approved GPU" + ",".join(map(str, ALLOWED_GPUS)))
-    return _train(queue, (gpu,), None, dataset, domain, seed, method, fns_continuation)
+    return _train(queue, (gpu,), None, dataset, domain, seed, method, fns_continuation, aasfod_fns_code)
 
 
 def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
@@ -393,7 +393,7 @@ def train_ddp(queue, gpu_pair, port, dataset, domain, seed, method):
     return _train(queue, gpus, port, dataset, domain, seed, method)
 
 
-def _train(queue, gpus, port, dataset, domain, seed, method, fns_continuation=None):
+def _train(queue, gpus, port, dataset, domain, seed, method, fns_continuation=None, aasfod_fns_code=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Invoke via the finite worker holding the shared GPU lock")
     runtime, cell = load_cell(queue, dataset, domain, seed, method)
@@ -404,7 +404,7 @@ def _train(queue, gpus, port, dataset, domain, seed, method, fns_continuation=No
     if work.exists() and not fns_continuation:
         raise FileExistsError(f"Refusing existing work directory: {work}")
     code, producer_sha, command, env = training_invocation(
-        queue, runtime, cell, gpus, port, work, fns_continuation)
+        queue, runtime, cell, gpus, port, work, fns_continuation, aasfod_fns_code)
     if fns_continuation:
         if any((Path(cell["method_dir"]) / name).exists()
                for name in ("execution.json", "train.log", "terminal_status")):
@@ -421,6 +421,10 @@ def _train(queue, gpus, port, dataset, domain, seed, method, fns_continuation=No
             "preserved_alignment_training_code_sha": cell["training_code_sha"],
             "preserved_alignment_updates": 159, "new_fns_updates": 106}
            if fns_continuation else {}),
+        **({"aasfod_fns_code": str(code),
+            "alignment_training_code": cell["training_code"],
+            "alignment_training_code_sha": code_sha(cell["training_code"])}
+           if aasfod_fns_code and not fns_continuation else {}),
     })
     terminal = Path(cell["terminal_status"])
     rc = 1
@@ -438,7 +442,8 @@ def _train(queue, gpus, port, dataset, domain, seed, method, fns_continuation=No
             stream.write(f"tmux_wrap_exit={rc}\n")
 
 
-def training_invocation(queue, runtime, cell, gpus, port, work, fns_continuation=None):
+def training_invocation(queue, runtime, cell, gpus, port, work,
+                        fns_continuation=None, aasfod_fns_code=None):
     """One frozen native command/environment shared by formal and bounded smoke."""
     runtime, cell = host.map_data(runtime), host.map_data(cell)
     work = Path(host.map_path(work))
@@ -446,12 +451,15 @@ def training_invocation(queue, runtime, cell, gpus, port, work, fns_continuation
     source = str(require_file(cell["source_checkpoint"]))
     python = runtime["python"]
     code = Path(cell.get("training_code", runtime["training_code"]))
-    if fns_continuation:
-        from experiments.comparison.train_aasfod import load_fns_continuation
+    if fns_continuation or aasfod_fns_code:
+        from experiments.comparison.train_aasfod import load_fns_continuation, validate_fns_code
 
         if method != "AASFOD" or len(gpus) != 1 or port is not None:
-            raise ValueError("FNS continuation is one fixed single-GPU AASFOD stage")
-        code, _ = load_fns_continuation(fns_continuation, cell)
+            raise ValueError("FNS code selection requires single-GPU AASFOD")
+        if fns_continuation:
+            code, _ = load_fns_continuation(fns_continuation, cell, aasfod_fns_code)
+        else:
+            code = validate_fns_code(aasfod_fns_code, cell)
     producer_sha = code_sha(code)
     if method in ("B_REG", *F_DELETIONS) and producer_sha != cell["training_code_sha"]:
         raise ValueError("Frozen baseline training code changed after preparation")
@@ -482,12 +490,14 @@ def training_invocation(queue, runtime, cell, gpus, port, work, fns_continuation
     if method == "AASFOD":
         command = [
             python, *([str(ROOT / "experiments/comparison/train_aasfod.py")]
-                      if host.is_target_host() or fns_continuation
+                      if host.is_target_host() or fns_continuation or aasfod_fns_code
                       else ["-m", "experiments.comparison.train_aasfod"]),
             "--queue", host.map_path(Path(queue).absolute()), "--dataset", dataset,
             "--domain", domain, "--seed", str(seed)]
         if fns_continuation:
             command += ["--fns-continuation", str(fns_continuation)]
+        if aasfod_fns_code:
+            command += ["--aasfod-fns-code", str(code)]
     else:
         command = host.native_command(command, code / "train.py")
     env = {k: v for k, v in os.environ.items()
@@ -565,6 +575,7 @@ def main():
             entry.add_argument("--role", choices=("ema", "student"), default="ema")
         if action == "train":
             entry.add_argument("--fns-continuation", help="Selected finite FNS recovery record")
+            entry.add_argument("--aasfod-fns-code", help="Accepted model snapshot for the FNS stage only")
         if action == "train-ddp":
             entry.add_argument("--gpu-pair", required=True)
             entry.add_argument("--port", required=True, type=int)

@@ -240,7 +240,48 @@ This is code/CPU-fixture evidence, not a remote run. The sole runtime owner
 still controls acceptance and the safe producer boundary; no existing job,
 producer, observer, checkout or artifact is changed by this delivery.
 
+### Fresh AASFOD jobs use the same explicit FNS source selection
+
+The first continuation delivery applied `--aasfod-fns-code` only to the
+capture-backed retry. That was insufficient for the35 unattempted cells:
+their prepared36c2053 FNS model still contained the known stack bug.
+The same option is now wired independently through fresh finite jobs,
+the worker, native training CLI and stage helper. Fresh jobs need their normal
+completed TSD, but no failure capture, recovery record or retry selection.
+
+Alignment remains on its original prepared checkout with unchanged
+config/source/TSD. Only FNS executes accepted `cbd0f75/train.py`, with that
+checkout's cwd and native `PYTHONPATH`; both student and teacher still start
+from the alignment Student checkpoint. The original RSAR159/106 and
+DIOR110/74 budgets, optimizer/warmup/EMA settings and final aliases are
+unchanged. Per-stage provenance records both sources; final execution and
+EMA/Student evaluation identify accepted FNS code, not an injected36c2053 claim.
+
+Use the [fresh-job finite invocation](../FINITE_RESUMER.md#aasfod-accepted-fns-code-for-fresh-jobs)
+on every producer run that can submit fresh AASFOD. The option does not clear
+holds/history, retry failed phases or overwrite any existing work. Retained
+alignment still requires the explicit capture-backed continuation. Other
+methods and evaluation-only jobs keep their existing routing. With no option,
+the old prepared training-code selection remains unchanged, so do not release
+the35 temporary fresh-cell holds into an invocation that omits it.
+
 ## Narrow CPU validation
+
+Fresh-job source-selection coverage:
+
+```bash
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_aasfod_fresh_fns_code
+```
+
+The regression creates actual clean36c2053 and cbd0f75 fixture checkouts,
+uses real generated jobs and both CLI parsers, and loads both resolved configs
+through MMCV at the native host-command boundary. It proves that fresh RSAR
+and DIOR alignment still selects36c2053 while FNS selects the accepted snapshot,
+with correct final execution/eval identity. Code-only held/failed/completed
+rows, retained-alignment retries without captures, dirty code before alignment
+and unrelated method/evaluation routing are covered. Detector computation and
+external process discovery remain CPU test seams.
 
 Continuation coverage (small CPU checkpoint payloads; no original tensor reads):
 

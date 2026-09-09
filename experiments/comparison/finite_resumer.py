@@ -333,10 +333,12 @@ def eval_state(queue, paths, cell, check_wrap=True):
         return "blocked"
 
 
-def runner_command(queue, cell, phase, gpus, fns_continuation=None):
+def runner_command(queue, cell, phase, gpus, fns_continuation=None, aasfod_fns_code=None):
     if fns_continuation and (cell.key != "RSAR/clean/42/AASFOD" or phase != "train"):
         raise ValueError("FNS continuation is only the selected EMA model's TRAIN job")
-    if host.is_target_host() or fns_continuation:
+    if aasfod_fns_code and (cell.method != "AASFOD" or cell.role != "ema" or phase != "train"):
+        raise ValueError("FNS model-code selection applies only to AASFOD model TRAIN jobs")
+    if host.is_target_host() or fns_continuation or aasfod_fns_code:
         if (not set(gpus).issubset(host.approved_gpus())
                 or len(gpus) != (cell.width if phase == "train" else 1)):
             raise ValueError("Invalid target-host GPU assignment")
@@ -358,6 +360,8 @@ def runner_command(queue, cell, phase, gpus, fns_continuation=None):
             command += ["--role", cell.role]
         if fns_continuation:
             command += ["--fns-continuation", str(fns_continuation)]
+        if aasfod_fns_code:
+            command += ["--aasfod-fns-code", str(aasfod_fns_code)]
         return command
     args = [cell.dataset, cell.domain, str(cell.seed), cell.method]
     if phase == "eval":
@@ -464,6 +468,7 @@ class TmuxBackend:
         self.handles = {}
         self.fns_options = None
         self.fns_recovery = None
+        self.fns_code = None
 
     def tmux_call(self, *args, check=True):
         env = dict(os.environ)
@@ -696,6 +701,9 @@ class TmuxBackend:
             "queue": str(self.queue), "receipt": str(receipt), "tmux": list(self.tmux),
             **({"fns_continuation": self.fns_recovery}
                if self.fns_recovery and cell.key == "RSAR/clean/42/AASFOD" and phase == "train" else {}),
+            **({"aasfod_fns_code": self.fns_code}
+               if self.fns_code and cell.method == "AASFOD" and cell.role == "ema" and phase == "train"
+               else {}),
         })
         logs = self.run_dir / "logs"
         logs.mkdir(exist_ok=True)
@@ -777,8 +785,10 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
         if phase not in ("train", "eval") or key not in state:
             raise Blocked(f"Unknown retry cell/phase: {value}")
         retries.add((key, phase))
-    if aasfod_fns_evidence or aasfod_fns_code:
-        if (not aasfod_fns_evidence or not aasfod_fns_code
+    if aasfod_fns_code:
+        backend.fns_code = host.map_path(Path(aasfod_fns_code).absolute())
+    if aasfod_fns_evidence:
+        if (not aasfod_fns_code
                 or ("RSAR/clean/42/AASFOD", "train") not in retries):
             raise Blocked("FNS continuation requires evidence, accepted model code and its explicit TRAIN retry")
         backend.fns_options = {"evidence_dir": host.map_path(Path(aasfod_fns_evidence).absolute()),
@@ -1014,8 +1024,11 @@ def worker(job_file):
         owns_cell = True
         paths = load_paths(queue)
         continuation = job.get("fns_continuation")
+        fns_code = job.get("aasfod_fns_code")
         if continuation and (phase != "train" or cell.key != "RSAR/clean/42/AASFOD"):
             raise Blocked("FNS continuation cannot authorize a different cell or Student TRAIN")
+        if fns_code and (phase != "train" or cell.method != "AASFOD" or cell.role != "ema"):
+            raise Blocked("FNS code selection cannot authorize another method or Student TRAIN")
         state = (train_state(queue, paths, cell, fns_continuation=continuation)
                  if phase == "train" else eval_state(queue, paths, cell))
         if state == "complete":
@@ -1037,7 +1050,8 @@ def worker(job_file):
                 raise Blocked("GPU is occupied by another process; no runner invoked")
             env = {**os.environ, "IRAOD_GPU_LOCKED": "1",
                    "PYTHONPATH": str(SCRIPT.parents[2])}
-            command = (runner_command(queue, cell, phase, gpus, continuation) if continuation
+            command = (runner_command(queue, cell, phase, gpus, continuation, fns_code)
+                       if continuation or fns_code
                        else runner_command(queue, cell, phase, gpus))
             rc = subprocess.run(command, env=env).returncode
             valid = (train_state if phase == "train" else eval_state)(
@@ -1092,7 +1106,7 @@ def main():
         resume.add_argument("--aasfod-fns-evidence",
                             help="Original RSAR/clean/42 completed-alignment/FNS-failure captures")
         resume.add_argument("--aasfod-fns-code",
-                            help="Separate clean model checkout pinned to accepted cbd0f75")
+                            help="Accepted cbd0f75 FNS model code for fresh AASFOD and selected recovery; not retry permission")
         resume.add_argument("--handoff-confirmed", action="store_true",
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
     run_worker = commands.add_parser("worker")

@@ -108,14 +108,15 @@ class FNSContinuationTest(unittest.TestCase):
     def backend(self, runtime, cell, evidence, name="continuation"):
         queue = self.root / "queue"
         queue.mkdir(exist_ok=True)
+        key = "/".join(str(cell[k]) for k in ("dataset", "domain", "seed", "method"))
         finite.write_json(queue / "runtime.json", {**runtime, "cells": {
-            stages.FNS_CELL: cell}})
+            key: cell}})
         (queue / "with_gpu_lock.sh").write_text(
             f"LOCKDIR={shlex.quote(str(queue / 'gpu_locks'))}\n")
         (queue / "paths.py").write_text(
             "import json\nfrom pathlib import Path\n"
             "C=json.loads((Path(__file__).parent/'runtime.json').read_text())['cells']"
-            "['RSAR/clean/42/AASFOD']\n"
+            f"[{key!r}]\n"
             "def binding(*a): return C\n"
             "def method_dir(*a): return C['method_dir']\n"
             "def ema_path(*a): return C['checkpoint']\n"
@@ -123,14 +124,15 @@ class FNSContinuationTest(unittest.TestCase):
             "def eval_full_dir(*a): return str(Path(C['method_dir'])/'eval')\n")
         backend = finite.TmuxBackend(queue, self.root / name, (4,))
         self.addCleanup(backend.selector.close)
-        backend.fns_options = dict(evidence_dir=str(evidence), model_code=str(self.root / "model-code"))
+        backend.fns_options = (dict(evidence_dir=str(evidence), model_code=str(self.root / "model-code"))
+                               if evidence else None)
         return backend
 
-    def model_checkout(self):
-        code = self.root / "model-code"
+    def model_checkout(self, sha=ACCEPTED, name="model-code"):
+        code = self.root / name
         NATIVE_RUN(["git", "clone", "--quiet", "--shared", "--no-checkout", str(ROOT), str(code)],
                    check=True)
-        NATIVE_RUN(["git", "-C", str(code), "checkout", "--quiet", "--detach", ACCEPTED], check=True)
+        NATIVE_RUN(["git", "-C", str(code), "checkout", "--quiet", "--detach", sha], check=True)
         return code
 
     def test_selected_previous_state_worker_native_stage_and_eval_identity(self):
@@ -172,13 +174,15 @@ class FNSContinuationTest(unittest.TestCase):
                 self.assertIn("--fns-continuation", command)
                 with patch.dict(os.environ, kwargs["env"]):
                     training.train(str(backend.queue), 4, "RSAR", "clean", 42, "AASFOD",
-                                   command[command.index("--fns-continuation") + 1])
+                                   command[command.index("--fns-continuation") + 1],
+                                   command[command.index("--aasfod-fns-code") + 1])
                 return SimpleNamespace(returncode=0)
             if str(ROOT / "experiments/comparison/train_aasfod.py") in command:
                 self.assertEqual(kwargs["cwd"], code)
                 with patch.dict(os.environ, kwargs["env"]):
                     stages.run(str(backend.queue), "RSAR", "clean", 42,
-                               fns_continuation=command[command.index("--fns-continuation") + 1])
+                               fns_continuation=command[command.index("--fns-continuation") + 1],
+                               aasfod_fns_code=command[command.index("--aasfod-fns-code") + 1])
                 return SimpleNamespace(returncode=0)
             self.assertIn(str(code / "train.py"), command)
             self.assertEqual(kwargs["cwd"], code)
@@ -408,6 +412,8 @@ class FNSContinuationTest(unittest.TestCase):
         backend.run_dir.mkdir()
         model = finite.Cell("RSAR", "clean", 42, "AASFOD")
         backend.archive_retry(model, "train")
+        with self.assertRaisesRegex(ValueError, "differs from the archived recovery record"):
+            stages.load_fns_continuation(backend.fns_recovery, cell, self.root / "different-code")
         retained = {p: p.read_bytes() for p in Path(cell["work_dir"]).glob("alignment/*") if p.is_file()}
 
         def fail(command, **kwargs):

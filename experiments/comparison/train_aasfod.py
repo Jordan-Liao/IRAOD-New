@@ -156,7 +156,7 @@ def validate_fns_evidence(cell, evidence_dir, moves=()):
             "alignment_training_code_sha": cell["training_code_sha"]}
 
 
-def load_fns_continuation(record_path, cell):
+def load_fns_continuation(record_path, cell, model_code=None):
     record = host.read_json(record_path)
     continuation = record["fns_continuation"]
     if (record["status"] != "archived" or record["phase"] != "train"
@@ -167,6 +167,8 @@ def load_fns_continuation(record_path, cell):
             raise ValueError("FNS continuation history archive is missing")
     proof = validate_fns_evidence(cell, continuation["evidence_dir"], record["moves"])
     code = validate_fns_code(continuation["model_code"], cell)
+    if model_code and not host.same_path(str(code), host.map_path(model_code)):
+        raise ValueError("FNS model-code selection differs from the archived recovery record")
     if (Path(cell["work_dir"]) / "fns").exists():
         raise ValueError("FNS continuation already entered; preserve the new attempt")
     return code, proof
@@ -196,20 +198,20 @@ def stage_specs(cell, work, smoke_steps=None):
     return specs
 
 
-def run(queue, dataset, domain, seed, smoke_steps=None, fns_continuation=None):
+def run(queue, dataset, domain, seed, smoke_steps=None, fns_continuation=None, aasfod_fns_code=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Use the existing owner's shared GPU lock")
     runtime, cell = load_cell(queue, dataset, domain, seed, "AASFOD")
     validate_split(host.read_json(require_file(cell["tsd_split"])), cell)
-    code = Path(cell.get("training_code", runtime["training_code"]))
+    original_code = Path(cell.get("training_code", runtime["training_code"]))
     proof = None
+    fns_code = None
     if fns_continuation:
         if smoke_steps is not None:
             raise ValueError("FNS continuation cannot add smoke updates")
-        code, proof = load_fns_continuation(fns_continuation, cell)
-    if host.is_target_host():
-        sys.path.insert(0, str(code))
-        os.chdir(code)
+        fns_code, proof = load_fns_continuation(fns_continuation, cell, aasfod_fns_code)
+    elif aasfod_fns_code:
+        fns_code = validate_fns_code(aasfod_fns_code, cell)
     work = Path(cell["work_dir"])
     if smoke_steps is not None:
         work = work.with_name("smoke_work")
@@ -225,6 +227,10 @@ def run(queue, dataset, domain, seed, smoke_steps=None, fns_continuation=None):
                     "completion_evidence": proof["evidence_dir"], "preserved": True}
     work.mkdir(parents=True, exist_ok=True)
     for spec in specs[1:] if proof else specs:
+        code = fns_code if fns_code and spec["stage"] == "fns" else original_code
+        if host.is_target_host():
+            sys.path.insert(0, str(code))
+            os.chdir(code)
         directory = Path(spec["work_dir"])
         if directory.exists():
             raise FileExistsError(directory)
@@ -263,9 +269,11 @@ def run(queue, dataset, domain, seed, smoke_steps=None, fns_continuation=None):
                    "--deterministic", "--no-validate"]
         command = host.native_command(command, code / "train.py")
         spec["command"] = command
-        if proof:
-            spec.update(training_code=str(code), training_code_sha=FNS_MODEL_SHA,
-                        config_binding=cell["config"], continuation_record=str(fns_continuation))
+        if fns_code:
+            spec.update(training_code=str(code), training_code_sha=code_sha(code),
+                        config_binding=cell["config"])
+            if proof:
+                spec["continuation_record"] = str(fns_continuation)
         write_json(work / "stages.json", {
             "status": "invoked_not_completion_evidence", "budget": cell["aasfod_budget"],
             "smoke_steps": smoke_steps, "stages": specs})
@@ -291,6 +299,7 @@ def main():
     parser.add_argument("--seed", required=True, type=int, choices=(42, 43, 44))
     parser.add_argument("--smoke-steps", type=int)
     parser.add_argument("--fns-continuation", help="Selected finite recovery record; never a full replay")
+    parser.add_argument("--aasfod-fns-code", help="Accepted model snapshot for FNS; alignment stays bound")
     print(run(**vars(parser.parse_args())))
 
 
