@@ -95,6 +95,50 @@ finite lists and add `--previous-state "$LAST_RUN/state.json"
 --release-cell DIOR/brightness/43/F`. Add a `--retry-cell` only if that phase is
 failed/blocked and explicitly authorized; waiting inputs need no retry flag.
 
+### Restored readonly Student dependencies: re-evidence, not retry
+
+A persisted `train=blocked, eval=blocked` Student reference can re-enter the
+existing evidence/admission path without `--retry-cell`. This is limited to
+`train_requested=false`, `training_ownership=eval_only` records with no recorded
+attempts or adopted evaluations, no cell/model hold, and no producer-owned or
+externally reserved training for that model. Owned blocked/failed training and
+failed/attempted evaluations are not reset.
+
+The existing backend must report training **complete**: both exact final files
+and genuine successful native terminal evidence, with no conflicting wrapper
+status. Checkpoints alone do not suffice. Absent wrapper files retain the existing
+`None`/no-conflict meaning; never fabricate terminal exits or require/create
+wrappers that the source did not produce. A recorded nonzero evaluation wrapper
+also blocks an otherwise empty eval destination, including old ledgers without
+attempt entries.
+
+Only after that evidence succeeds does the normal eval evidence/input admission
+run. Incomplete eval artifacts remain blocked, completed outputs are reused, and
+missing eval inputs wait. No training, archiving or retry authorization occurs.
+Original ledgers, reasons and attempt records remain intact. Re-evidence uses
+startup/tracked completion events, not a new flag or polling service.
+
+Structural completion is **not numerical-health certification**. Carry policy
+exclusions as explicit `--hold-cell` entries even if files are restored. For the
+known RSAR Student NaN exclusions, preserve the original finite lists and append
+these options at the next owner-authorized **natural terminal boundary**, using
+the new checkout and a new run directory:
+
+```bash
+--previous-state "$OLD_RUN/state.json" \
+--hold-cell RSAR/point_target/44/IRG/student \
+--hold-cell RSAR/point_target/44/LPLD/student \
+--hold-cell RSAR/noise_suppression/44/IRG/student \
+--hold-cell RSAR/noise_suppression/44/LPLD/student \
+--hold-cell RSAR/noise_suppression/44/SFUT/student
+```
+
+Use the same queue, train/eval lists, GPU subset and ownership arguments;
+do not add Student training or retry flags, edit/reset the old state, or replace
+a running producer. Holds take cell keys, not the `:eval` phase suffix. Retain the
+separate ten ROI exclusions in their existing owner-controlled selection: this
+finite runner neither changes nor releases ROI policy.
+
 ### Producer deployment boundary
 
 **Do not replace or inject code into the running old producer. It cannot consume

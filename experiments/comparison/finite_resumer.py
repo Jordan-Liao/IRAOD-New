@@ -269,7 +269,8 @@ def eval_state(queue, paths, cell, check_wrap=True):
     pred = out / "predictions.pkl"
     sidecar = out / "predictions.pkl.image_ids.json"
     if not pred.exists() and not sidecar.exists():
-        return "blocked" if out.exists() else "pending"
+        return ("blocked" if out.exists()
+                or check_wrap and not wrappers_complete(queue, paths, cell, "eval") else "pending")
     required = (pred, sidecar, out / "class_ap.txt", out / "pred_count.txt")
     if not all(p.is_file() and p.stat().st_size > 0 for p in required):
         return "blocked"
@@ -810,9 +811,21 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
                                 and cell.session("eval") not in active and cell.session("train") not in active):
                             row["train"] = row["eval"] = "waiting"
                         continue
-                    if row["train"] in ("pending", "external", "waiting"):
+                    model_row = state.get(cell.model.key)
+                    readonly_blocked = (
+                        cell.role == "student" and not requested
+                        and row["training_ownership"] == "eval_only"
+                        and row["train"] == row["eval"] == "blocked"
+                        and not cells.get(cell.model) and cell.model not in external
+                        and not row["held"] and not (model_row and model_row["held"])
+                        and not row["attempts"]
+                        and not any(a["phase"] == "eval" for a in row["adopted"]))
+                    if row["train"] in ("pending", "external", "waiting") or readonly_blocked:
                         evidence = backend.evidence(cell, "train")
-                        model_row = state.get(cell.model.key)
+                        if readonly_blocked:
+                            if evidence != "complete":
+                                continue
+                            row["eval"] = "pending"
                         waiting_model = (cell.role == "student" and model_row is not None
                                          and (cells.get(cell.model) or cell.model in external)
                                          and model_row["train"] not in ("complete", "failed", "blocked"))
