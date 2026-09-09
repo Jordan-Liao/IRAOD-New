@@ -67,6 +67,21 @@ def same_path(first, second):
     return Path(map_path(first)).resolve() == Path(map_path(second)).resolve()
 
 
+def same_data(first, second):
+    """Keep JSON identity exact except equivalent absolute paths on target."""
+    if not is_target_host():
+        return first == second
+    if isinstance(first, dict) and isinstance(second, dict):
+        return first.keys() == second.keys() and all(
+            same_data(value, second[key]) for key, value in first.items())
+    if isinstance(first, list) and isinstance(second, list):
+        return len(first) == len(second) and all(map(same_data, first, second))
+    if (isinstance(first, str) and isinstance(second, str)
+            and first.startswith("/") and second.startswith("/")):
+        return same_path(first, second)
+    return first == second
+
+
 def approved_gpus():
     return (0, 1, 2, 3, 4) if is_target_host() else (4, 5, 6, 7)
 

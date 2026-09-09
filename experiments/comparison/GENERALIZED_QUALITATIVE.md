@@ -8,6 +8,8 @@ The360 Student/EMA native dependencies match the explicit release bindings.
 All360 ROI input records were pending when prepared; no extraction ran.
 These b87 plans retain their original GPU4,5,6 binding. Future newly prepared
 plans allow the ledger's GPUs4,5,6,7; old plans and exports remain valid unchanged.
+On the selected221 host only, use the operational overlay below: its physical
+GPU0-4 mapping does not rewrite either preserved plan's original GPU list.
 Preserved48 B-F embeddings below means the existing approved job/plan scope,
 not an assertion that48 completed files have been observed.
 
@@ -106,7 +108,7 @@ legacy B-F APIs; **do not rerun them to prepare this extension**.
 
 ## Actual extraction and artifact binding
 
-Only the compute owner executes `export_argv` in its recorded `cwd` with its
+On the original host, only the compute owner executes `export_argv` in its recorded `cwd` with its
 actual GPU lock (`IRAOD_GPU_LOCKED=1`) and `CUDA_VISIBLE_DEVICES` set to exactly
 one physical GPU allowed by that plan. Future plans allow GPU4,5,6,7, while
 preserved b87 plans still allow4,5,6. GPUs0-3 and multi-GPU export visibility
@@ -145,6 +147,82 @@ binding; they do not upgrade old exports or infer success from counts.
 Existing ROI, visualization or embedding directories are refused, including
 partial directories. Investigate/retain an interrupted directory and prepare
 a fresh explicitly bound output; do not delete/relabel a completed export.
+
+## Selected221 host: preserved frozen exports and current CPU readers
+
+The owner's2026-09-09T01:48:25 CPU evidence found the old `/mnt/shared/zechuan`
+and `/mnt/SSD2_8TB/zechuan` aliases absent on221. A source-ready
+`DIOR/brightness/seed_42/IRG/ema` native binding had matching logical
+checkpoint/config/code/TEST identities, but raw physical reads on221 failed.
+At that observation, the original BF/port job lists and plans still needed
+restoration from source67. BF inputsets were240 on source and0 on target;
+port checkpoints/native inputsets were216/108 on source and72/36 on target.
+All inspected ROI indices were0. These are dated readiness counts, not current
+restoration or ROI completion claims. Runtime pH restores only the exact
+original artifacts; this code does not copy data, regenerate plans or launch GPU work.
+
+`roi_host_binding` selects exactly one original `roi_jobs.json` entry by
+seed/run ID, verifies the recorded frozen checkout SHA, and invokes that
+checkout's unmodified exporter. BF uses native
+`331d2131b84651f0a2930a3d53faeefad8701531`; ports use
+`b87f34ef06eb85589cbc7dd4d385666c37696083`. Its frozen `aligned_roi.py` and
+detector import root remain native. Only the current result reader, mapped
+Path/config IO, in-memory path view and actual GPU0-4 ownership check are
+overlaid. The index retains `code_commit` as the genuine frozen exporter SHA,
+restores the original logical run object, and separately records
+`host_binding.wrapper_code_sha`, wrapper dirty state, frozen checkout,
+original export argv and physical GPU. No frozen file is modified.
+
+After the runtime owner restores the exact original inputs, the following
+are **single-job launch recipes**, not a second scheduler. `CODE` is a complete
+clone of this ROI-binding delivery, `GPU` is the owner's selected free physical
+device0-4, and the existing shared lock entry checks ownership/occupancy.
+Do not fabricate `IRAOD_GPU_LOCKED=1` or invoke an unlocked exporter.
+
+```bash
+PY=/home/zechuan/miniforge3/envs/iraod/bin/python
+ART=/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908
+cd "$CODE"
+PYTHONPATH="$CODE" "$PY" -m experiments.comparison.host_binding lock "$GPU" -- \
+  "$PY" -m experiments.comparison.roi_host_binding \
+  --jobs "$ART/repo_manifests_37c65b6/roi_jobs.json" \
+  --seed 43 --run-id RSAR/clean/B/ema
+
+PYTHONPATH="$CODE" "$PY" -m experiments.comparison.host_binding lock "$GPU" -- \
+  "$PY" -m experiments.comparison.roi_host_binding \
+  --jobs "$ART/qualitative_manifests_b87f34e/roi_jobs.json" \
+  --seed 42 --run-id DIOR/brightness/seed_42/IRG/ema
+```
+
+The wrapper does not acquire a second lock, install dependencies or change the
+stored command vectors. A missing restored plan/checkpoint/native result remains
+an error or pending input, never substitute inference. Source/core132 exports,
+completed Student180 and ports108 quantitative outputs are reused, not replayed.
+BF43/44 ROI240 and port ROI360 remain the exact required extraction scopes.
+No Oracle/ablation qualitative job is added.
+
+CPU visualization, joint embedding, collection and accepted-report reuse must
+load **this delivery's** `result_completion`, `joint_tsne`,
+`complete_qualitative` and `report_qualitative`, not the frozen exporter copy.
+Run the stored CPU modules/arguments from `CODE` with the existing CPU
+interpreter; retain the original plan, run ID, output paths, cap, perplexity
+and seed. For example, after the port export exists:
+
+```bash
+CUDA_VISIBLE_DEVICES="" PYTHONPATH="$CODE" PYTHONNOUSERSITE=1 \
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  "$NATIVE_CPU_PY" -m experiments.comparison.result_completion visualize \
+  --plan "$ART/qualitative_manifests_b87f34e/qualitative_seed42.json" \
+  --run-id DIOR/brightness/seed_42/IRG/ema
+```
+
+These readers map physical files and compare equivalent native home/HDD/old
+path aliases only on221. All non-path identity, checkpoint/code revisions,
+ordered TEST IDs, feature rows, NMS arrays, thresholds and sampling remain
+strict. Genuinely different files or revisions still fail. Old-host exact
+path/GPU behavior remains unchanged. Completed collector reuse checks the
+compact indices without reopening NPZs, and returns mapped CSV/image paths
+for downstream report links.
 
 ## CPU embedding and streaming collection
 
@@ -215,5 +293,21 @@ CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS
   tools.tests.test_nontraining_extensions -v
 ```
 
-No environment installation, remote operation, GPU execution, production
-metadata preparation, commit or push is part of this worker delivery.
+The target overlay's CPU regression first failed on absent old-prefix plan
+reads and falsely pending native evidence. Its acceptance gate exercises both
+actual frozen exporter files and frozen ROI capture code with explicitly
+synthetic CPU model/NMS doubles, then validates NPZ arrays, visualization,
+embedding and compact collector reuse. It is not real detector/GPU evidence.
+
+```bash
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest \
+  tools.tests.test_roi_host_binding tools.tests.test_generalized_qualitative \
+  tools.tests.test_host_binding.HostBindingTest.test_stdlib_only_import \
+  tools.tests.test_host_binding.HostBindingTest.test_exact_host_prefixes_and_scientific_values
+```
+
+Before committing/pushing this scoped branch, run the documented
+[staged HEAD-diff secrets gate](ORACLE_TRAINING.md#integration-pre-push-secrets-gate).
+No environment installation, remote operation, GPU execution or production
+metadata preparation is part of this code delivery.
