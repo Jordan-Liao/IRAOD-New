@@ -213,7 +213,7 @@ def inspect_cell(cell, checkpoint, source_id):
         if not math.isfinite(metric) or not 0 <= metric <= 1:
             raise ValueError("metric.mAP must be finite 0..1; do not use rounded AP50")
         result.update(mAP50=metric, eval_mAP50=metric, config=payload["config"])
-        if cell.get("config") and cell["config"] != payload["config"]:
+        if cell.get("config") and not host.same_data(cell["config"], payload["config"]):
             issues.append("eval_config_mismatch")
     if "missing_class_ap" not in issues:
         text = files["class_ap"].read_text()
@@ -234,8 +234,8 @@ def inspect_cell(cell, checkpoint, source_id):
         issues.append("missing_prediction_image_order")
     elif "missing_predictions" not in issues:
         images, order = prediction_evidence(files["predictions"], ids_path, cell["dataset"])
-        if (order["checkpoint"] != result.get("checkpoint")
-                or order["config"] != result.get("config")):
+        if (not host.same_data(order["checkpoint"], result.get("checkpoint"))
+                or not host.same_data(order["config"], result.get("config"))):
             issues.append("prediction_sidecar_checkpoint_or_config_mismatch")
         result["training_code_sha"] = order["training_code_sha"]
         result["evaluation_code_sha"] = order["evaluation_code_sha"]

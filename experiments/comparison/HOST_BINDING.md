@@ -144,7 +144,10 @@ checking checkpoint tokens in original `eval_status` files (`ema`, `student`
 or `checkpoint`). Equivalent old `/mnt/shared/zechuan` and mapped home paths
 are accepted without rewriting native receipts or creating old-root aliases.
 Exit code, method, domain, seed and role still match exactly; different
-checkpoints remain invalid. Other hosts retain strict identity comparison.
+checkpoints remain invalid. The same comparison applies to the native eval
+JSON config and prediction-sidecar checkpoint/config, so the entire preserved
+source-evaluation bundle resolves consistently. All native bytes and code SHAs
+are retained. Other hosts retain strict identity comparison.
 
 ## Staging dependencies and parent integration
 

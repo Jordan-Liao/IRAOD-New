@@ -89,6 +89,46 @@ class ReportEvalPathAliasTest(unittest.TestCase):
                     result, _, _ = inspect_cell(self.cell, self.checkpoint, "fixture-source")
                 self.assertEqual(result["status"], "complete", result["problems"])
 
+    def test_original_status_metric_and_sidecar_paths_form_one_source_identity(self):
+        original_checkpoint = "/mnt/shared/zechuan/iraod_artifacts/source/train/epoch_100.pth"
+        mapped_checkpoint = original_checkpoint.replace("/mnt/shared/zechuan", "/home/zechuan")
+        original_config = "/mnt/SSD2_8TB/zechuan/IRAOD-New-rc331d213/configs/source.py"
+        mapped_config = original_config.replace("/mnt/SSD2_8TB/zechuan", "/home/zechuan")
+        self.cell.update(method="A", role="source", config=mapped_config)
+        self.checkpoint.update(method="A", role="source", selection="source", path=mapped_checkpoint)
+        payload_path = Path(self.cell["eval_json"])
+        payload = json.loads(payload_path.read_text())
+        payload["config"] = original_config
+        write_json(payload_path, payload)
+        order_path = Path(self.cell["prediction_image_ids"])
+        order = json.loads(order_path.read_text())
+        order.update(checkpoint=original_checkpoint, config=mapped_config)
+        write_json(order_path, order)
+        status_path = self.eval / "eval_status"
+        status_path.write_text("eval_exit=0 name=A domain=clean seed=42 "
+                               f"ema={original_checkpoint}\n")
+        original_bytes = {p: p.read_bytes() for p in (payload_path, order_path, status_path)}
+        with patch.object(host, "is_target_host", return_value=True):
+            result, _, _ = inspect_cell(self.cell, self.checkpoint, "fixture-source")
+        self.assertEqual(result["status"], "complete", result["problems"])
+        self.assertEqual(result["n_predictions"], 8538)
+        self.assertEqual({p: p.read_bytes() for p in original_bytes}, original_bytes)
+
+        for origin, field, value, problem in (
+                (payload_path, "config", original_config + ".wrong", "eval_config_mismatch"),
+                (order_path, "config", mapped_config + ".wrong", "prediction_sidecar_checkpoint_or_config_mismatch"),
+                (order_path, "checkpoint", original_checkpoint + ".wrong", "prediction_sidecar_checkpoint_or_config_mismatch")):
+            with self.subTest(origin=origin.name, field=field):
+                for path, content in original_bytes.items():
+                    path.write_bytes(content)
+                changed = json.loads(origin.read_text())
+                changed[field] = value
+                write_json(origin, changed)
+                with patch.object(host, "is_target_host", return_value=True):
+                    result, _, _ = inspect_cell(self.cell, self.checkpoint, "fixture-source")
+                self.assertEqual(result["status"], "incomplete")
+                self.assertIn(problem, result["problems"])
+
     def test_status_path_alias_does_not_relax_native_identity(self):
         original = "/mnt/shared/zechuan/iraod_artifacts/fixture/iter_266_ema.pth"
         mapped = original.replace("/mnt/shared/zechuan", "/home/zechuan")
