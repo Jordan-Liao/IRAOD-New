@@ -87,7 +87,12 @@ def run(queue, dataset, domain, seed, smoke_steps=None):
                                      save_last=True, max_keep_ckpts=2)
         cfg.work_dir = str(directory)
         config_path = work / (spec["stage"] + ".py")
-        cfg.dump(str(config_path))
+        # MMCV renders transform instances as bare constructors, without imports
+        # (same resolved-config boundary as f_deletion._resolved_text).
+        config_path.write_text(
+            "from torchvision.transforms import ColorJitter\n"
+            + cfg.pretty_text
+            + "\ndel ColorJitter\n")
         command = [runtime["python"], str(code / "train.py"), str(config_path),
                    "--work-dir", str(directory), "--gpus", "1", "--seed", str(seed),
                    "--deterministic", "--no-validate"]
