@@ -448,6 +448,32 @@ class ExtensionTrainingTest(unittest.TestCase):
         missing.mkdir(parents=True)
         with self.assertRaisesRegex(ValueError, "Missing image directory"):
             training.target_val("DIOR", "clean", str(missing))
+        for dataset, domain in (("RSAR", "chaff"), ("DIOR", "cloudy")):
+            test = self.root / "layout" / domain / (
+                "test/images" if dataset == "RSAR" else "test")
+            val = self.root / "layout" / domain / (
+                "val/images" if dataset == "RSAR" else "val")
+            with self.subTest(dataset=dataset):
+                val.mkdir(parents=True)
+                with self.assertRaisesRegex(ValueError, f"Missing image directory: {test}"):
+                    training.target_val(dataset, domain, str(test))
+                test.mkdir(parents=True)
+                self.assertEqual(training.target_val(dataset, domain, str(test)), str(val))
+
+    def test_target_val_resolver_is_layout_only(self):
+        with patch.object(Path, "is_dir", side_effect=AssertionError("Filesystem access")):
+            for dataset, domain, prefix, expected in (
+                    ("RSAR", "chaff", "/data/chaff/test/images", "/data/chaff/val/images"),
+                    ("DIOR", "cloudy", "/data/cloudy/test", "/data/cloudy/val")):
+                with self.subTest(dataset=dataset):
+                    self.assertEqual(training.resolve_target_val(dataset, domain, prefix),
+                                     expected)
+            for dataset, domain, prefix in (
+                    ("RSAR", "chaff", "/data/chaff/train/images"),
+                    ("DIOR", "clean", "/data/cloudy/test"),
+                    ("unknown", "clean", "/data/clean/test")):
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    training.resolve_target_val(dataset, domain, prefix)
 
     def test_train_all_methods_four_losses_env_and_exact_final_success(self):
         self.prepare(training.PORT_METHODS)

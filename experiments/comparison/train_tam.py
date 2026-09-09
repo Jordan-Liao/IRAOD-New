@@ -22,7 +22,7 @@ from PIL import Image
 import torch
 from torch.utils.data import DataLoader, Dataset, Sampler
 
-from experiments.comparison.extension_training import TARGET_VAL_SIZE, target_val
+from experiments.comparison.extension_training import TARGET_VAL_SIZE, resolve_target_val
 from experiments.comparison.report_qualitative import validate_plan
 from experiments.comparison.result_completion import DOMAINS
 from experiments.comparison.tam_artifacts import (
@@ -71,7 +71,9 @@ def discover_target_images(base_plan, dataset, domain, seed, workers=16):
     source = next(run for run in plan["runs"]
                   if (run["dataset"], run["domain"], run["method"], run["role"])
                   == (dataset, domain, "A", "source"))
-    root = Path(target_val(dataset, domain, source["img_prefix"])).resolve()
+    root = Path(resolve_target_val(dataset, domain, source["img_prefix"])).resolve()
+    if not root.is_dir():
+        raise ValueError(f"Missing image directory: {root}")
     paths = sorted((path.resolve() for path in root.rglob("*")
                     if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES),
                    key=lambda path: (path.stem, str(path)))
