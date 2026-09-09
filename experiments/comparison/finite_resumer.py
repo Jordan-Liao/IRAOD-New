@@ -809,6 +809,13 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
                                 and cell.session("eval") not in active and cell.session("train") not in active):
                             row["train"] = row["eval"] = "waiting"
                         continue
+                    if (cell.role == "student" and not requested
+                            and row["training_ownership"] == "eval_only"
+                            and row["train"] == row["eval"] == "blocked"
+                            and not row["held"] and not row["attempts"] and not row["adopted"]
+                            and backend.evidence(cell, "train") == "complete"):
+                        # Restored dependency evidence is not an experiment retry.
+                        row["train"], row["eval"] = "complete", "pending"
                     if row["train"] in ("pending", "external", "waiting"):
                         evidence = backend.evidence(cell, "train")
                         model_row = state.get(cell.model.key)
