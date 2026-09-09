@@ -91,12 +91,15 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   tools.tests.test_host_binding.HostBindingTest.test_nested_rsar_ema_config_resolves_original_relative_base
 ```
 
-This code-only repair does not establish GPU compatibility. After acceptance,
-the runtime owner may retry only the observed RSAR clean42 B_REG smoke using
-the existing `smoke_frozen_training` entry, frozen0f98, GPU4,1x32/global32,
-LR.02, exactly two updates and a new NON_RESULT output directory. That entry
-owns its GPU/cell locks; no outer lock, producer replacement, finite-state
-change, LoRA/DIOR repeat or batch change is part of this fix.
+This code-only repair does not establish GPU compatibility. The user's
+2026-09-09T01:12:17 withdrawal forbids any new GPU detector smoke or two-update
+retry. The failed NON_RESULT trace remains regression evidence only. After
+acceptance, runtime verification is the one already-planned formal
+RSAR/clean/42/B_REG run at the next natural boundary, using frozen0f98,
+1x32/global32, LR.02 and the unchanged full one-epoch budget. The sole runtime
+owner applies existing flags to hold only the remaining23 B_REG cells, not
+the48 F2x16 cells or DIOR work. No new runtime guard, producer replacement,
+LoRA/DIOR repeat or batch change is part of this fix.
 
 ## Staging dependencies and parent integration
 
