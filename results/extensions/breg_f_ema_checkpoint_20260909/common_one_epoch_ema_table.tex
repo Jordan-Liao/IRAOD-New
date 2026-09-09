@@ -1,0 +1,19 @@
+% Requires booktabs. Missing complete seed blocks remain --.
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{common\_one\_epoch / ema. Mean $\pm$ sample standard deviation over three adaptation seeds; A is one fixed reference. Values in percentage points. No cross-budget or cross-supervision ranking.}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Method & \multicolumn{3}{c}{RSAR} & \multicolumn{3}{c}{DIOR-R} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+ & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$ & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\
+\midrule
+A & $53.14$ & $31.71$ & $0.00$ & $29.49$ & $27.12$ & $0.00$ \\
+B\_REG & -- & -- & -- & $29.98 \pm 0.05$ & $27.56 \pm 0.05$ & $0.44 \pm 0.05$ \\
+F\_text\_only & -- & -- & -- & $29.83 \pm 0.10$ & $26.82 \pm 0.07$ & $-0.30 \pm 0.07$ \\
+F\_veto\_only & -- & -- & -- & $29.91 \pm 0.06$ & $27.59 \pm 0.06$ & $0.47 \pm 0.06$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -1,0 +1,31 @@
+{
+  "status": "partial_quantitative_checkpoint",
+  "full_objective_complete": false,
+  "quantitative_expected_cells": 120,
+  "quantitative_complete_cells": 87,
+  "completed_by_method": {
+    "A": 12,
+    "B_REG": 12,
+    "F_text_only": 31,
+    "F_veto_only": 32
+  },
+  "incomplete_by_method": {
+    "B_REG": 24,
+    "F_text_only": 5,
+    "F_veto_only": 4
+  },
+  "scope_note": "Twelve fixed source evaluations are reused; 75 extension EMA results. Ten actual OOM models and 23 B_REG policy-held models lack valid final evaluations. No failed score is fabricated.",
+  "scope_excludes": [
+    "Student quantification",
+    "TSD/TAM prerequisite completion",
+    "Oracle appendix completion",
+    "ROI/visualizations/joint embeddings completion"
+  ],
+  "collector_code_sha": "44ac42177eafaac4b2b8312414a254f0b0add17b",
+  "renderer_code_sha": "efed0668a4b6c489415ff56ea344d4f1b1fd21c8",
+  "native_evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "source_report_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/report_checkpoint_breg_f_ema_20260909T2102Z/report_mapped",
+  "large_remote_only_evidence": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/report_checkpoint_breg_f_ema_20260909T2102Z/report_mapped/prediction_image_coverage.csv",
+  "native_artifacts_modified": false,
+  "reproduce_render": "python -c \"import json,sys; from pathlib import Path; from experiments.comparison.final_report import render_report; p=Path(sys.argv[1]); render_report(json.loads((p/'report.json').read_text()),p,sys.executable)\" results/extensions/breg_f_ema_checkpoint_20260909"
+}

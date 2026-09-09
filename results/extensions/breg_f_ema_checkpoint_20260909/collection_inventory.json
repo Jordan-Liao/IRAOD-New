@@ -1,0 +1,1214 @@
+[
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_42/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_43/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_44/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_42/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_43/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_44/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_42/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_43/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/clean/seed_44/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_42/methods/B_REG/eval_full_chaff_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_43/methods/B_REG/eval_full_chaff_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_44/methods/B_REG/eval_full_chaff_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_42/methods/F_text_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_43/methods/F_text_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_44/methods/F_text_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_42/methods/F_veto_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_43/methods/F_veto_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "chaff",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/chaff/seed_44/methods/F_veto_only/ddp2/eval_full_chaff_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_42/methods/B_REG/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_43/methods/B_REG/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_44/methods/B_REG/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_42/methods/F_text_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_43/methods/F_text_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_44/methods/F_text_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_42/methods/F_veto_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_43/methods/F_veto_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "gaussian_white_noise",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/gaussian_white_noise/seed_44/methods/F_veto_only/ddp2/eval_full_gaussian_white_noise_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_42/methods/B_REG/eval_full_point_target_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_43/methods/B_REG/eval_full_point_target_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_44/methods/B_REG/eval_full_point_target_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_42/methods/F_text_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_43/methods/F_text_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_44/methods/F_text_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_42/methods/F_veto_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_43/methods/F_veto_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "point_target",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/point_target/seed_44/methods/F_veto_only/ddp2/eval_full_point_target_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_42/methods/B_REG/eval_full_noise_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_43/methods/B_REG/eval_full_noise_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_44/methods/B_REG/eval_full_noise_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_42/methods/F_text_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_43/methods/F_text_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_44/methods/F_text_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_42/methods/F_veto_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_43/methods/F_veto_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "noise_suppression",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/noise_suppression/seed_44/methods/F_veto_only/ddp2/eval_full_noise_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_42/methods/B_REG/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_43/methods/B_REG/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_44/methods/B_REG/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_42/methods/F_text_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_text_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_44/methods/F_text_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_42/methods/F_veto_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_veto_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_horizontal",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_44/methods/F_veto_only/ddp2/eval_full_am_noise_horizontal_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_42/methods/B_REG/eval_full_smart_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_43/methods/B_REG/eval_full_smart_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_44/methods/B_REG/eval_full_smart_suppression_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_42/methods/F_text_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_43/methods/F_text_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_44/methods/F_text_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_42/methods/F_veto_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_43/methods/F_veto_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "smart_suppression",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/smart_suppression/seed_44/methods/F_veto_only/ddp2/eval_full_smart_suppression_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_42/methods/B_REG/eval_full_am_noise_vertical_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_43/methods/B_REG/eval_full_am_noise_vertical_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_44/methods/B_REG/eval_full_am_noise_vertical_ids_v1",
+    "missing": [
+      "missing_eval_json",
+      "checkpoint_missing_or_size_changed",
+      "missing_native_execution_binding"
+    ],
+    "status": "incomplete"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_42/methods/F_text_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_43/methods/F_text_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_44/methods/F_text_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_42/methods/F_veto_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_43/methods/F_veto_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "RSAR",
+    "domain": "am_noise_vertical",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_vertical/seed_44/methods/F_veto_only/ddp2/eval_full_am_noise_vertical_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_42/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_43/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_44/methods/B_REG/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_42/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_43/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_44/methods/F_text_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_42/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_43/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "clean",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/clean/seed_44/methods/F_veto_only/ddp2/eval_full_clean_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_42/methods/B_REG/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_43/methods/B_REG/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_44/methods/B_REG/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_42/methods/F_text_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_43/methods/F_text_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_44/methods/F_text_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_42/methods/F_veto_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_43/methods/F_veto_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "brightness",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/brightness/seed_44/methods/F_veto_only/ddp2/eval_full_brightness_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_42/methods/B_REG/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_43/methods/B_REG/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_44/methods/B_REG/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_42/methods/F_text_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_43/methods/F_text_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_44/methods/F_text_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_42/methods/F_veto_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_43/methods/F_veto_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "cloudy",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/cloudy/seed_44/methods/F_veto_only/ddp2/eval_full_cloudy_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "B_REG",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_42/methods/B_REG/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "B_REG",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_43/methods/B_REG/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "B_REG",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_44/methods/B_REG/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_text_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_42/methods/F_text_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_text_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_43/methods/F_text_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_text_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_44/methods/F_text_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_veto_only",
+    "seed": 42,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_42/methods/F_veto_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_veto_only",
+    "seed": 43,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_43/methods/F_veto_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  },
+  {
+    "dataset": "DIOR",
+    "domain": "contrast",
+    "method": "F_veto_only",
+    "seed": 44,
+    "role": "ema",
+    "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/dior/contrast/seed_44/methods/F_veto_only/ddp2/eval_full_contrast_ids_v1",
+    "missing": [],
+    "status": "bound_not_inspected"
+  }
+]
