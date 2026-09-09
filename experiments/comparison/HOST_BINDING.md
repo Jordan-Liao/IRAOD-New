@@ -62,6 +62,45 @@ Only the operational TAM artifact reader is supplied by the integration
 checkout, so copied completed TAM payloads can find their mapped external VGG
 encoder without changing tensors or the native TAM implementation.
 
+### Nested RSAR teacher config resolution
+
+The observed RSAR clean42 B_REG two-update NON_RESULT attempt failed while
+constructing its teacher, before any optimizer update. The original relative
+`ema_config` points to
+`configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py`.
+Its existing sibling `_base_` was incorrectly looked up beneath
+`/tmp/iraod-bound-config-*/configs/baseline/ema_config/` instead of the frozen
+checkout. This is a host-bound config-path resolution defect, not missing
+source data/weights, a finite-state failure, or evidence of detector OOM.
+
+`native_config_paths` now makes the mapped source filename absolute in the
+native working directory before producing its temporary view. Thus relative
+`_base_` references resolve against the real source config's directory, even
+when a detector later calls `Config.fromfile(model.ema_config)`. Only requested
+config files get temporary views; no checkout copy, replacement config,
+fallback search or frozen-file rewrite is performed. MMCV retains its normal
+inheritance, original filename and predefined-variable behavior.
+
+The CPU regression loads the actual frozen RSAR teacher and its sibling base
+through this nested `Config.fromfile` seam and compares the complete resolved
+config with the unpatched loader. The two files are unchanged from0f98.
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest \
+  tools.tests.test_host_binding.HostBindingTest.test_nested_rsar_ema_config_resolves_original_relative_base
+```
+
+This code-only repair does not establish GPU compatibility. The user's
+2026-09-09T01:12:17 withdrawal forbids any new GPU detector smoke or two-update
+retry. The failed NON_RESULT trace remains regression evidence only. After
+acceptance, runtime verification is the one already-planned formal
+RSAR/clean/42/B_REG run at the next natural boundary, using frozen0f98,
+1x32/global32, LR.02 and the unchanged full one-epoch budget. The sole runtime
+owner applies existing flags to hold only the remaining23 B_REG cells, not
+the48 F2x16 cells or DIOR work. No new runtime guard, producer replacement,
+LoRA/DIOR repeat or batch change is part of this fix.
+
 ## Staging dependencies and parent integration
 
 The compute owner, not this patch, stages:

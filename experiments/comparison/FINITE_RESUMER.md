@@ -59,6 +59,17 @@ retry is explicitly blocked: its method directory also holds the required
 TSD split, so it needs owner-specific recovery rather than generic relocation.
 Conflicting completed artifacts also require owner resolution, not deletion.
 
+Retry ownership is checked by the producer against the finite lists and prior
+ledger, before archive movement. Generated worker specs contain only execution
+fields (`cell`, `phase`, `gpus`, `queue`, `receipt`, `tmux`), not producer ownership.
+Mixed queues declare Student evaluation bindings in `runtime.json.student_cells`:
+an exposed `eval_student_dir` function alone does not mean every model has one.
+Likewise, a model's `student_checkpoint` is a training output, not a declaration
+of a Student evaluation role.
+Training retry checks Student outputs only for declared bindings; a missing
+mapping remains an error, never an implicit empty ownership set. Legacy resolvers
+without runtime metadata retain their existing Student-path checks.
+
 At startup, after canonical discovery and under the selected model's cell lock,
 a retry refuses any live canonical job for that model. It renames only the
 selected failed method directory (train) or role-specific eval directory (eval),

@@ -6,6 +6,33 @@ Each selection reads only its own dataset's adapter, source and image inputs.
 Both use generated `train.list`/`eval.list`; no second runner or RSAR static
 selection layer is needed.
 
+## Integrated code delivery
+
+`work/dior-oracle-consumers` merges accepted Oracle consumer
+`0a421f0199ac3b693335f4901467c34e140f2a11` with native nested-EMA fix
+`e5089cc8ea34dfb8e8695798503aadbb66c4b1db`, including the accepted finite
+Student-role retry fix. The normal merge preserves both histories and all
+scientific settings. PR #6 carries the combined deployment snapshot; PR #7
+retains the distinct native-fix scope.
+
+Both adapters are complete; do not refit either. The exclusive runtime owner
+is Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`.
+Only that owner prepares actual inputs and launches the authorized DIOR24 and
+RSAR48 work. This code delivery does not perform SSH, remote preparation,
+GPU work, payload admission or producer replacement.
+
+Deploy the self-contained bundle as a **new clone**, not a copied worktree
+with a dangling `.git` pointer. The parent supplies `BUNDLE` and a new `DEST`:
+
+```bash
+git clone --branch work/dior-oracle-consumers "$BUNDLE" "$DEST"
+cd "$DEST"
+```
+
+Then the runtime owner uses the two complete CPU preparation commands below
+with the unchanged frozen inputs. Oracle72 remains final-EMA quantification
+plus retained Student only, with no extra Student evaluation or qualitative work.
+
 This appendix-only **Target-supervised** queue contains exactly `LoRA-CGA` and
 `LoRA-CGA+VLST`, DIOR `clean/brightness/cloudy/contrast`, seeds `42/43/44`.
 It does not depend on an RSAR adapter, read RSAR images/weights, train a source,
@@ -88,10 +115,9 @@ This is an exact **new DIOR-only scope**, not recovery of Q752. Do not pass
 Q752's `--previous-state`: that interface requires an identical finite scope.
 Do not launch this producer alongside a release/recovery producer. If the owner
 has resumed another producer, retain this queue for its next authorized boundary
-instead of starting a competitor. GPU4 is excluded to preserve the independent
-RSAR adapter job; DIOR does not wait for that adapter. Parent controls deployment
-and launches; only native experiment-supervisor
-`90fcacd0-c8ef-4604-b206-ed5e6f6d749e` owns remote systems/restoration for this
+instead of starting a competitor. The example retains GPUs0-3; both adapters
+are already complete. Parent relays the bundle; only the runtime owner
+`98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9` owns remote systems/restoration for this
 handoff. No launch, remote check, adapter copy or data write was performed here.
 
 ### Actual remaining input boundary
@@ -230,11 +256,43 @@ CPU preparation does not acquire the producer lock or interfere with ongoing
 `$ART/comparison/xaf_s424344/finite_resumer.producer.lock` and uses canonical
 tmux session `xaf-finite-producer`, plus the existing GPU/cell locks.
 **Do not run a second producer or interrupt/redeploy the live recovery for
-this queue.** Hold the prepared selection until the sole runtime owner90fc
+this queue.** Hold the prepared selection until the sole runtime owner
 authorizes its clean boundary. Do not attach the144/Q752 `--previous-state`
 to this different finite scope. This delivery performs no launch, remote access,
-input restoration or actual payload validation; parent controls deployment and
-supervisor90fcacd0-c8ef-4604-b206-ed5e6f6d749e controls execution.
+input restoration or actual payload validation; parent relays deployment code and
+Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`, controls execution.
+
+## Integration pre-push secrets gate
+
+Before committing the integration, check whitespace and scan the staged net
+delivery from the common accepted base. This local credential-pattern scan
+prints no matching content; any finding blocks the push for owner resolution.
+It is not a claim that pattern matching detects every possible secret.
+
+```bash
+git diff --cached d58ee869b52359bd528c2b0767f9fe441f6fa489 --check
+python3 - <<'PY'
+import re
+import subprocess
+
+diff = subprocess.check_output([
+    "git", "diff", "--cached",
+    "d58ee869b52359bd528c2b0767f9fe441f6fa489", "--",
+], text=True)
+patterns = (
+    r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
+    r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b",
+    r"\bgh[pousr]_[A-Za-z0-9]{36,}\b",
+    r"\bgithub_pat_[A-Za-z0-9_]{40,}\b",
+    r"\bsk-[A-Za-z0-9_-]{20,}\b",
+    r"""(?i)\b(?:api[_-]?key|access[_-]?token|password|client[_-]?secret)\s*[:=]\s*["'][A-Za-z0-9_+/.=-]{16,}["']""",
+)
+hits = sum(bool(re.search(pattern, diff)) for pattern in patterns)
+if hits:
+    raise SystemExit(f"BLOCKED: {hits} credential pattern(s); inspect locally without logging values")
+print("PASS: staged delivery credential-pattern scan")
+PY
+```
 
 ## Local evidence boundary
 
