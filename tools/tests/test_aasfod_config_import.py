@@ -192,6 +192,53 @@ class AASFODConfigImportTest(unittest.TestCase):
             run.assert_not_called()
         self.assertFalse(Path(cell["work_dir"]).exists())
 
+    def test_fns_failure_retains_completed_alignment_and_refuses_replay(self):
+        cell = self.fixture("RSAR")
+        work = Path(cell["work_dir"])
+        split = Path(cell["tsd_split"])
+        split_bytes = split.read_bytes()
+        calls = []
+        with ExitStack() as stack:
+            self.entry_scope(stack, cell)
+
+            def native_stage(command, **kwargs):
+                cfg = NATIVE_FROMFILE(
+                    command[command.index(str(ROOT / "train.py")) + 1],
+                    import_custom_modules=False)
+                calls.append(cfg.data.train.stage)
+                directory = Path(cfg.work_dir)
+                directory.mkdir()
+                if cfg.data.train.stage == "alignment":
+                    for suffix in ("", "_ema"):
+                        (directory / f"iter_159{suffix}.pth").write_bytes(
+                            f"CPU completed alignment fixture {suffix}".encode())
+                    return
+                self.assertEqual(cfg.runner.max_iters, 106)
+                self.assertEqual(cfg.load_from, str(work / "alignment/iter_159.pth"))
+                self.assertEqual(cfg.model.ema_ckpt, cfg.load_from)
+                self.assertIsNone(cfg.resume_from)
+                self.assertNotIn("warmup", cfg.lr_config)
+                self.assertEqual(cfg.optimizer.type, "SGD")
+                (directory / "failure.log").write_text("mixed canvas stack failure fixture")
+                raise subprocess.CalledProcessError(1, command)
+
+            stack.enter_context(patch.object(train_aasfod.subprocess, "run",
+                                            side_effect=native_stage))
+            with self.assertRaises(subprocess.CalledProcessError):
+                train_aasfod.run("/fixture/queue", "RSAR", "clean", 42)
+            retained = {path: path.read_bytes() for path in work.rglob("*") if path.is_file()}
+            with self.assertRaises(FileExistsError):
+                train_aasfod.run("/fixture/queue", "RSAR", "clean", 42)
+        self.assertEqual(calls, ["alignment", "fns"])
+        self.assertEqual({path: path.read_bytes() for path in retained}, retained)
+        self.assertEqual(split.read_bytes(), split_bytes)
+        plan = json.loads((work / "stages.json").read_text())
+        self.assertEqual(plan["status"], "invoked_not_completion_evidence")
+        self.assertEqual([stage["updates"] for stage in plan["stages"]], [159, 106])
+        self.assertTrue(all(stage["command"] for stage in plan["stages"]))
+        self.assertFalse(Path(cell["checkpoint"]).exists())
+        self.assertFalse(Path(cell["student_checkpoint"]).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

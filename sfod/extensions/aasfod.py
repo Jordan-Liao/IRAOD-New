@@ -4,6 +4,7 @@ import json
 import random
 
 import torch
+from torch.nn import functional as F
 from mmcv.parallel import is_module_wrapper
 from mmcv.runner import HOOKS, Hook
 from mmdet.models.builder import DETECTORS
@@ -99,7 +100,14 @@ class AASFODOBB(ProposalAlignedTeacher):
                 strong[i:i + 4], strong_metas[i:i + 4], boxes[i:i + 4], labels[i:i + 4])
                 for i in range(0, len(strong), 4)]
             images, metas, boxes, labels = zip(*mosaics)
-            features = self.extract_feat(torch.stack(images))
+            height = max(image.shape[-2] for image in images)
+            width = max(image.shape[-1] for image in images)
+            # Native collation pads right/bottom, retaining each canvas's
+            # pad_shape for anchor validity rather than the batch extent.
+            batch = torch.stack([F.pad(
+                image, (0, width - image.shape[-1], 0, height - image.shape[-2]))
+                for image in images])
+            features = self.extract_feat(batch)
             losses = self.detection_losses(features, list(metas), list(boxes), list(labels))
         else:
             # Existing OrthoNet layer1/layer4, not FPN outputs or a new encoder.
