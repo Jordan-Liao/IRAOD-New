@@ -799,6 +799,189 @@ else: raise SystemExit(2)
         terminal.write_text("tmux_wrap_exit=0\n")
         return work, terminal
 
+    def blocked_student_dependency(self):
+        cell = Cell("RSAR", "point_target", 43, "IRG", "student")
+        runtime = self.prepared_inputs([cell.model])
+        work, terminal = self.successful_train_files(cell.model)
+        original = self.root / "original-training-terminal.status"
+        terminal.rename(original)
+        origin = Path(runtime["source_queues"][cell.model.key])
+        wrapper = origin / f"wrap_{cell.model.session('train')}.status"
+        wrapper.write_text(f"wrap_exit=0 cell={cell.model.key} phase=train\n")
+        process, directory = self.start([], "missing-student-dependency", eval_cells=(cell,))
+        self.assertEqual(process.wait(timeout=8), 2)
+        row = json.loads((directory / "state.json").read_text())["cells"][0]
+        self.assertFalse(row["train_requested"])
+        self.assertEqual(row["training_ownership"], "eval_only")
+        self.assertEqual((row["train"], row["eval"], row["attempts"]), ("blocked", "blocked", []))
+        self.assertEqual(self.events, [])
+        return cell, directory / "state.json", work, terminal, original, wrapper
+
+    def test_restored_never_attempted_student_dependency_rechecks_without_retry_or_training(self):
+        cell, previous, work, terminal, original, wrapper = self.blocked_student_dependency()
+        previous_bytes = previous.read_bytes()
+        terminal.write_bytes(original.read_bytes())
+        self.assertEqual(finite.train_state(self.q, finite.load_paths(self.q), cell), "complete")
+        artifacts = {path: path.read_bytes() for path in (*work.iterdir(), terminal, original, wrapper)}
+        process, directory = self.start([], "restored-student-dependency", eval_cells=(cell,), controls=(
+            "--previous-state", str(previous)))
+        fd = open_pidfd(process.pid)
+        try:
+            ready, _, _ = select.select([self.events_fd, fd], [], [], 8)
+            self.assertNotIn(fd, ready, (directory / "state.json").read_text()
+                             if (directory / "state.json").exists() else "resumer exited without state")
+        finally:
+            os.close(fd)
+        event = self.next_start()
+        self.assertEqual((event["name"], event["phase"]), (cell.session("eval"), "eval"))
+        self.finish(process, 1)
+        row = json.loads((directory / "state.json").read_text())["cells"][0]
+        self.assertEqual((row["train"], row["eval"]), ("complete", "complete"))
+        self.assertFalse(row["train_requested"])
+        self.assertEqual(row["training_ownership"], "eval_only")
+        self.assertEqual([(a["phase"], a["status"]) for a in row["attempts"]], [("eval", "complete")])
+        self.assertEqual(row["reasons"], json.loads(previous_bytes)["cells"][0]["reasons"])
+        self.assertEqual(previous.read_bytes(), previous_bytes)
+        self.assertEqual(json.loads((directory / "previous_state.json").read_text()), json.loads(previous_bytes))
+        self.assertFalse((directory / "jobs" / (cell.session("train") + ".json")).exists())
+        self.assertEqual({p.name for p in (directory / "jobs").glob("*.json")},
+                         {cell.session("eval") + ".json"})
+        self.assertFalse((directory / "recovery").exists())
+        self.assertFalse(list(self.q.rglob("*.finite-retry-*")))
+        self.assertTrue(all(path.read_bytes() == content for path, content in artifacts.items()))
+
+    def test_restored_student_dependency_missing_conflicting_or_held_stays_blocked(self):
+        cell, previous, work, terminal, original, wrapper = self.blocked_student_dependency()
+        previous_bytes = previous.read_bytes()
+        queue_wrapper = self.q / wrapper.name
+        wrapper_bytes = wrapper.read_bytes()
+        finals = {path: path.read_bytes() for path in work.iterdir()}
+        for case in ("missing_terminal", "conflicting_terminal", "origin_wrapper_conflict",
+                     "queue_wrapper_conflict", "held_reference"):
+            with self.subTest(case=case):
+                terminal.write_bytes(original.read_bytes())
+                wrapper.write_bytes(wrapper_bytes)
+                if queue_wrapper.exists():
+                    queue_wrapper.unlink()
+                if case == "missing_terminal":
+                    terminal.unlink()
+                elif case == "conflicting_terminal":
+                    terminal.write_bytes(original.read_bytes() + b"tmux_wrap_exit=9\n")
+                elif case == "origin_wrapper_conflict":
+                    wrapper.write_bytes(wrapper_bytes + b"wrap_exit=9\n")
+                elif case == "queue_wrapper_conflict":
+                    queue_wrapper.write_text("wrap_exit=9\n")
+                controls = ("--hold-cell", cell.key) if case == "held_reference" else ()
+                evidence = finite.train_state(self.q, finite.load_paths(self.q), cell)
+                self.assertEqual(evidence, "complete" if case == "held_reference" else "blocked")
+                process, directory = self.start([], case, eval_cells=(cell,), controls=(
+                    "--previous-state", str(previous), *controls))
+                self.assertEqual(process.wait(timeout=8), 2)
+                row = json.loads((directory / "state.json").read_text())["cells"][0]
+                self.assertEqual((row["train"], row["eval"], row["attempts"]), ("blocked", "blocked", []))
+                self.assertEqual(row["held"], case == "held_reference")
+                self.assertFalse((directory / "jobs").exists())
+                self.assertFalse((directory / "recovery").exists())
+                self.assertEqual(previous.read_bytes(), previous_bytes)
+                self.assertTrue(all(path.read_bytes() == data for path, data in finals.items()))
+        self.assertEqual(self.events, [])
+
+    def test_restored_student_dependency_does_not_reset_attempts_or_completed_models(self):
+        cell, previous, work, terminal, original, wrapper = self.blocked_student_dependency()
+        terminal.write_bytes(original.read_bytes())
+        completed = Cell("DIOR", "clean", 43, "B_REG")
+        completed_work, completed_terminal = self.successful_train_files(completed)
+        preserved = {path: path.read_bytes() for path in (
+            *work.iterdir(), terminal, original, wrapper, *completed_work.iterdir(), completed_terminal)}
+        complete_row = {
+            "cell": completed.__dict__, "train_requested": True, "training_ownership": "producer",
+            "train": "complete", "eval": "complete", "reasons": ["preserved prior success"],
+            "adopted": [], "held": False,
+            "attempts": [{"phase": "train", "status": "complete"},
+                         {"phase": "eval", "status": "complete"}]}
+        initial = json.loads(previous.read_text())
+        for case, updates in (
+                ("failed_eval", {"eval": "failed", "attempts": [{"phase": "eval", "status": "failed"}]}),
+                ("blocked_prior_attempt", {"attempts": [{"phase": "eval", "status": "failed"}]}),
+                ("blocked_prior_adoption", {"adopted": [{"phase": "eval", "pid": 123, "gpus": [4]}]}),
+                ("completed_reference", {"train": "complete", "eval": "complete",
+                                         "attempts": [{"phase": "eval", "status": "complete"}]})):
+            with self.subTest(case=case):
+                old_row = {**initial["cells"][0], **updates}
+                old = self.root / (case + "-previous.json")
+                finite.write_json(old, {**initial, "cells": [old_row, complete_row]})
+                old_bytes = old.read_bytes()
+                process, directory = self.start([completed], case, eval_cells=(cell,), controls=(
+                    "--previous-state", str(old)))
+                expected = 0 if case == "completed_reference" else 1 if case == "failed_eval" else 2
+                self.assertEqual(process.wait(timeout=8), expected)
+                rows = {Cell(**r["cell"]): r for r in json.loads((directory / "state.json").read_text())["cells"]}
+                self.assertEqual(rows[cell], old_row)
+                self.assertEqual(rows[completed], complete_row)
+                self.assertEqual(old.read_bytes(), old_bytes)
+                self.assertFalse((directory / "jobs").exists())
+                self.assertFalse((directory / "recovery").exists())
+                self.assertTrue(all(path.read_bytes() == data for path, data in preserved.items()))
+        self.assertEqual(self.events, [])
+
+    def test_restored_student_dependency_preserves_partial_eval_and_checks_admission(self):
+        cell, previous, _, terminal, original, _ = self.blocked_student_dependency()
+        terminal.write_bytes(original.read_bytes())
+        previous_bytes = previous.read_bytes()
+        paths = finite.load_paths(self.q)
+        out = Path(paths.eval_student_dir(cell.dataset, cell.domain, str(cell.seed), cell.method))
+        out.mkdir(parents=True)
+        partial = out / "predictions.pkl"
+        partial.write_bytes(b"preserved interrupted native evaluation")
+        process, directory = self.start([], "partial-student-eval", eval_cells=(cell,), controls=(
+            "--previous-state", str(previous)))
+        self.assertEqual(process.wait(timeout=8), 2)
+        row = json.loads((directory / "state.json").read_text())["cells"][0]
+        self.assertEqual((row["train"], row["eval"], row["attempts"]), ("complete", "blocked", []))
+        self.assertEqual(partial.read_bytes(), b"preserved interrupted native evaluation")
+        self.assertFalse((directory / "jobs").exists())
+        self.assertFalse((directory / "recovery").exists())
+        # A different empty-destination reference still needs original input admission.
+        other = Cell("RSAR", "point_target", 44, "IRG", "student")
+        self.successful_train_files(other.model)
+        runtime = self.prepared_inputs([other.model])
+        origin = Path(runtime["source_queues"][other.model.key])
+        (origin / "runtime.json").unlink()
+        old_row = {**json.loads(previous_bytes)["cells"][0], "cell": other.__dict__}
+        old = self.root / "other-blocked-state.json"
+        finite.write_json(old, {"queue": str(self.q), "cells": [old_row]})
+        process, directory = self.start([], "missing-original-runtime", eval_cells=(other,), controls=(
+            "--previous-state", str(old)))
+        self.assertEqual(process.wait(timeout=8), 2)
+        row = json.loads((directory / "state.json").read_text())["cells"][0]
+        self.assertEqual((row["train"], row["eval"], row["attempts"]), ("complete", "waiting", []))
+        self.assertIn("runtime.json", row["eval_input_reason"])
+        self.assertFalse((directory / "jobs").exists())
+        self.assertEqual(previous.read_bytes(), previous_bytes)
+        self.assertEqual(self.events, [])
+
+    def test_restored_student_dependency_adopts_completed_native_eval_without_attempt(self):
+        cell, previous, _, terminal, original, _ = self.blocked_student_dependency()
+        previous_bytes = previous.read_bytes()
+        terminal.write_bytes(original.read_bytes())
+        external, _ = self.start([], "original-student-eval", eval_cells=(cell,))
+        self.assertEqual(self.next_start()["name"], cell.session("eval"))
+        self.finish(external, 1)
+        paths = finite.load_paths(self.q)
+        self.assertEqual(finite.eval_state(self.q, paths, cell), "complete")
+        out = Path(paths.eval_student_dir(cell.dataset, cell.domain, str(cell.seed), cell.method))
+        native = {path: path.read_bytes() for path in out.iterdir()}
+        process, directory = self.start([], "restored-existing-eval", eval_cells=(cell,), controls=(
+            "--previous-state", str(previous)))
+        self.assertEqual(process.wait(timeout=8), 0)
+        row = json.loads((directory / "state.json").read_text())["cells"][0]
+        self.assertEqual((row["train"], row["eval"], row["attempts"]), ("complete", "complete", []))
+        self.assertFalse((directory / "jobs").exists())
+        self.assertFalse((directory / "recovery").exists())
+        self.assertEqual(previous.read_bytes(), previous_bytes)
+        self.assertTrue(all(path.read_bytes() == data for path, data in native.items()))
+        self.assertEqual([e["name"] for e in self.events if e["event"] == "start"], [cell.session("eval")])
+
     def test_existing_success_is_not_retrained_and_invalid_ids_are_blocked(self):
         cell = Cell("DIOR", "cloudy", 44, "C")
         self.successful_train_files(cell)

@@ -95,6 +95,87 @@ finite lists and add `--previous-state "$LAST_RUN/state.json"
 --release-cell DIOR/brightness/43/F`. Add a `--retry-cell` only if that phase is
 failed/blocked and explicitly authorized; waiting inputs need no retry flag.
 
+### Restored, never-attempted Student dependencies
+
+A future resumer can reconsider an eval-only Student row whose persisted
+`train` and `eval` are both `blocked`, with no attempts or adoption history
+and no hold. This is dependency re-evidence, **not an experiment retry**.
+It calls the unchanged training-evidence path: both nonempty final EMA and
+Student checkpoints, the original successful native training terminal, and
+no conflicting source-queue/current-queue wrapper status are still required.
+Missing or conflicting evidence leaves the row blocked. Do not manufacture
+an exit-zero terminal or replace this check with checkpoint sizes.
+
+Only after that original evidence is complete does the dependency become
+`train=complete`; no TRAIN ownership or TRAIN worker is created. The existing
+native EVAL evidence/admission path then recognizes a genuinely completed
+Student evaluation, queues only a pending Student EVAL, or preserves a
+partial/conflicting native destination as blocked. Missing EVAL inputs still
+wait through ordinary admission. Recorded attempts, prior adoption, failed
+evaluations and held references are not reset or re-admitted by this path.
+Original ledger bytes, reasons, attempts, completed models and artifacts are
+retained; there is no retry archive, ledger edit, new flag or file-arrival poll.
+Re-evidence uses startup and the existing tracked exit-event boundaries.
+
+The actual2026-09-09 control was `RSAR/point_target/43/IRG/student:eval`.
+Its persisted row was eval-only, blocked/blocked with `attempts=[]`;
+both final files were present (380,953,727-byte EMA and411,401,179-byte
+Student), but the real training `terminal_status` was missing on221.
+Source had the original `tmux_wrap_exit=0`; the origin wrapper was successful
+and the target queue wrapper did not conflict. **The blocked state was correct
+until the owner restored the original evidence.** The regression isolates
+the separate stale-state bug after that restoration, without relaxing evidence.
+
+Only this matched control is certified finite by the prior bounded diagnosis
+at `a013744d926f265c72f2c00cb3adc19015748002`,
+`results/extensions/ports108_ema/artifact_manifest.json:numerical_diagnosis.control`
+(Student/EMA/optimizer all0 nonfinite tensors). The67 nonexcluded Student
+records are **repair candidates, not67 certified-healthy models**. No new
+tensors are inspected. The five diagnosed NaN Student keys and their ten ROI
+roles remain excluded by the owner's existing policy; the library contains
+no scientific exclusion list and does not control ROI selection.
+
+**Future natural boundary only:** let the current producer reach its authorized
+terminal boundary, preserve its final ledger, and use a new checkout/run
+directory with the **same queue and full original train/eval lists**, original
+external ownership/reservations and GPU assignment. Do not make a67-row scope,
+turn the eval list into TRAIN, inject code into the current producer, or use
+`--retry-cell`/ledger resets to release these dependencies. The owner supplies
+the actual `FINAL_PREVIOUS_STATE`, `NEW_RUN` and original invocation bindings.
+Persisted holds carry forward; the existing hold flags add the five explicit
+Student exclusions, without a blanket F hold:
+
+```bash
+PYTHONPATH="$FUTURE_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
+  --queue "$Q" --run-dir "$NEW_RUN" \
+  --train-list "$ORIGINAL_TRAIN_LIST" --eval-list "$ORIGINAL_EVAL_LIST" \
+  --previous-state "$FINAL_PREVIOUS_STATE" \
+  --gpus "$ORIGINAL_GPU_SET" --handoff-confirmed \
+  --hold-cell RSAR/noise_suppression/44/IRG/student \
+  --hold-cell RSAR/noise_suppression/44/LPLD/student \
+  --hold-cell RSAR/noise_suppression/44/SFUT/student \
+  --hold-cell RSAR/point_target/44/IRG/student \
+  --hold-cell RSAR/point_target/44/LPLD/student
+```
+
+Retain any original external-list/reservation arguments unchanged. pH alone
+restores inputs and exercises the real control later; this delivery does not
+deploy, probe the host, launch GPU work or certify new models.
+
+The narrow CPU regression first failed with the real fixture resumer still
+blocked after restoring its original terminal. The affected module gate
+exercises missing/conflicting terminals and wrappers, a held exclusion analog,
+prior attempts/adoptions, retained completed models, partial native output,
+ordinary admission and completed-EVAL reuse using CPU-only fixture runners:
+
+```bash
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_finite_resumer
+```
+
+Before committing/pushing the future snapshot, use the existing
+[staged HEAD-diff secrets gate](ORACLE_TRAINING.md#integration-pre-push-secrets-gate).
+
 ### Producer deployment boundary
 
 **Do not replace or inject code into the running old producer. It cannot consume
