@@ -1,0 +1,14 @@
+{
+  "utc": "2026-09-09T02:53:35.598414+00:00",
+  "stage": "accepted_ROI_wrapper_CPU_only_deployment",
+  "host": "zechuan@1.14.177.180:20138",
+  "checkout": "/home/zechuan/IRAOD-New-roi-binding-4b2fbe6-20260909",
+  "actual_git_head": "4b2fbe6119f2d662f32d93443135153a268dfe2e",
+  "git_status_porcelain": "",
+  "git_metadata": "complete clone from verified self-contained bundle; detached HEAD",
+  "bundle_bytes": 4036975,
+  "roi_gpu_launched": false,
+  "producer3620449_restarted_or_retargeted": false,
+  "native_exporters": "remain separate frozen331/B87 checkouts from original manifests; B87 restoration owned by input supervisor",
+  "original_plan_or_argv_modified": false
+}

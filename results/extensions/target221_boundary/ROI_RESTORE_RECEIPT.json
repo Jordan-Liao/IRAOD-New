@@ -1,0 +1,159 @@
+{
+  "utc": "2026-09-09T02:55:29Z",
+  "status": "complete",
+  "scope": "transfer-only restoration of source-existing target-missing ROI240/ROI360 inputs, reused core132 exports, frozen port code/plans",
+  "source_host": "7T83-8xA100-67",
+  "source_control": "gpu-183 then zechuan@192.168.0.167",
+  "bulk": "source zechuan@192.168.0.167 -> zechuan@172.18.160.221:22",
+  "target_host": "73F3-5xA6000-221",
+  "source_physical_root": "/mnt/shared/zechuan",
+  "target_physical_root": "/home/zechuan",
+  "logical_prefix_map": {
+    "/mnt/shared/zechuan": "/home/zechuan",
+    "/mnt/SSD2_8TB/zechuan": "/home/zechuan"
+  },
+  "no_gpu": true,
+  "no_plan_regeneration": true,
+  "no_inference_or_training": true,
+  "preflight": {
+    "required_source_bytes_all_candidates": 178834797497,
+    "target_free_before_bytes": 2175859769344,
+    "target_filesystem": "/dev/sdb /mnt/HDD_14TB bind-mounted as /home/zechuan",
+    "decision": "proceed: free 2.0TiB > required 166.6GiB"
+  },
+  "rsync": {
+    "main": {
+      "start": "2026-09-09T02:06:45Z",
+      "end": "2026-09-09T02:45:08Z",
+      "pid_wrapper": 1678663,
+      "rc": 0,
+      "regular_files_transferred": 1268651,
+      "bytes": 176704024529,
+      "note": "--files-from copied immediate children only; nested dirs repaired separately"
+    },
+    "repair_integration_and_repo_manifests": {
+      "end": "2026-09-09T02:47:13Z",
+      "integration_files": 561,
+      "integration_bytes": 22826704,
+      "manifest_files": 5,
+      "manifest_bytes": 186511,
+      "rc": 0
+    },
+    "repair_core132_visualizations": {
+      "end": "2026-09-09T02:54:27Z",
+      "files": 3652,
+      "bytes": 1382087879,
+      "rc": 0
+    },
+    "completion_bindings": {
+      "files": 1,
+      "bytes": 22937,
+      "rc": 0
+    }
+  },
+  "transferred_totals": {
+    "regular_files": 1272870,
+    "bytes": 178109148560
+  },
+  "verified": {
+    "oldBF240_checkpoints": {
+      "n": 240,
+      "bytes": 84360239120,
+      "mismatch": 0
+    },
+    "ports360_checkpoints_source_existing_target_missing": {
+      "n": 144,
+      "bytes": 52665184080,
+      "mismatch": 0
+    },
+    "ports360_native_source_existing_target_missing": {
+      "n": 288,
+      "bytes": 540183412,
+      "mismatch": 0
+    },
+    "source_epoch_100_already_present": {
+      "n": 2,
+      "bytes": 701123590
+    },
+    "core132_export_dirs": {
+      "n": 132,
+      "files": 1271600,
+      "bytes": 40338090255,
+      "mismatch": 0
+    },
+    "plans_oldBF": [
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/repo_manifests_37c65b6/qualitative_seed43.json",
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/repo_manifests_37c65b6/qualitative_seed44.json",
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/repo_manifests_37c65b6/roi_jobs.json"
+    ],
+    "plans_ports360": [
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_b87f34e/qualitative_seed42.json",
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_b87f34e/qualitative_seed43.json",
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_b87f34e/qualitative_seed44.json",
+      "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_b87f34e/roi_jobs.json"
+    ],
+    "integration_code": {
+      "sha": "b87f34ef06eb85589cbc7dd4d385666c37696083",
+      "git_dir": ".git",
+      "git_is_dir": true,
+      "git_is_file": false,
+      "disk_total": 16000898564096,
+      "disk_used": 14012210987008,
+      "disk_free": 1988687577088,
+      "producer_3620449": true,
+      "frozen_eval_sha": "331d2131b84651f0a2930a3d53faeefad8701531"
+    },
+    "frozen_eval_331d213_not_recopied": true
+  },
+  "pending_source_absent": [
+    {
+      "collection": "ports360",
+      "kind": "checkpoint+native",
+      "count_jobs": 144,
+      "methods": [
+        "AASFOD",
+        "SFYOLO"
+      ],
+      "roles": [
+        "ema",
+        "student"
+      ],
+      "reason": "source_missing_untrained_or_absent; do not fabricate"
+    },
+    {
+      "collection": "ports360",
+      "kind": "native_only",
+      "count_jobs": 108,
+      "methods": [
+        "IRG",
+        "LPLD",
+        "SFUT"
+      ],
+      "roles": [
+        "student"
+      ],
+      "reason": "source has checkpoints but native eval artifacts absent; do not regenerate inference"
+    }
+  ],
+  "not_copied_on_purpose": [
+    "IRAOD-New-rc331d213 frozen complete checkout SHA 331d2131b84651f0a2930a3d53faeefad8701531",
+    "datasets ann/img already present on mapped paths",
+    "5 interrupted core132 sibling dirs *.interrupted_*",
+    "AASFOD/SFYOLO untrained checkpoints",
+    "IRG/LPLD/SFUT student native eval artifacts absent on source",
+    "live recovery producer outputs under release_manifests_752a139"
+  ],
+  "preserved_logical_symlink_unresolved_on_target": {
+    "path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/repo_manifests_37c65b6/student_queue/with_gpu_lock.sh",
+    "target": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_s424344/with_gpu_lock.sh",
+    "reason": "preserve logical identity; do not create /mnt/shared alias; not an ROI input"
+  },
+  "producer_3620449_preserved": true,
+  "target_disk_after": {
+    "total": 16000898564096,
+    "used": 14012210987008,
+    "free": 1988687577088
+  },
+  "expected_integration_sha": "b87f34ef06eb85589cbc7dd4d385666c37696083",
+  "expected_frozen_eval_sha": "331d2131b84651f0a2930a3d53faeefad8701531"
+}

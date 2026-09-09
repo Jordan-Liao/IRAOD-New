@@ -11,6 +11,32 @@ plans allow the ledger's GPUs4,5,6,7; old plans and exports remain valid unchang
 Preserved48 B-F embeddings below means the existing approved job/plan scope,
 not an assertion that48 completed files have been observed.
 
+## Target221 restoration boundary, not ROI completion
+
+The owner receipt is terminal at2026-09-09T02:55:29Z:1,272,870 regular files,
+178,109,148,560 bytes (165.877GiB) transferred. Reused core132 export directories
+contain1,271,600 files /40,338,090,255 bytes, mismatch0. The exact original
+job/plan metadata,240 BF checkpoints,144 previously missing port checkpoints
+(72 already target), and288 native **files** were restored. The288 count is
+not an evaluation-role count. All-candidate planning was178,834,797,497 bytes,
+approximately166.55GiB or178.83GB; the old launch label had the wrong unit.
+
+Source-absent144 AASFOD/SFYOLO checkpoint-plus-native jobs and108
+IRG/LPLD/SFUT Student native jobs remain pending real GPU work. Their artifacts
+were not fabricated by transfer. The genuine native331 checkout is preserved;
+b87 is a complete Git directory at
+`b87f34ef06eb85589cbc7dd4d385666c37696083`. The target-only ROI wrapper from
+separate PR#8, `4b2fbe6119f2d662f32d93443135153a268dfe2e`, is deployed clean at
+`/home/zechuan/IRAOD-New-roi-binding-4b2fbe6-20260909`. Its owner-only launch
+instructions live in that deployed revision of this document; this Oracle
+branch update does not copy or change the ROI implementation.
+
+**No ROI inference has started at this boundary.** Input transfer, wrapper
+deployment, checkpoint readiness and native EVAL completion are distinct.
+See the [dated recovery and restoration evidence](HOST_BINDING.md#verified-target221-execution-boundary)
+and byte-preserved receipts under `results/extensions/target221_boundary/`.
+The full1.27-million-file inventory and native logs remain outside Git.
+
 This is preparation/collection code, **not execution evidence**. No GPU work,
 training change, source re-export, numerical detector change, scheduler, or
 queue regeneration is introduced. DRU, the three ablations and oracle methods

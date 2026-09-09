@@ -103,29 +103,65 @@ is authorized by this evidence.
 
 ### Verified target221 execution boundary
 
-The unchanged owner receipts are versioned in
-[`results/extensions/target221_boundary`](../../results/extensions/target221_boundary):
-`RSAR_BREG_COMPATIBILITY_RESULT_20260909T014021Z.json`,
-`FROZEN_EVAL_CHECKOUT_REPAIR_20260909T012841Z.json` and
-`NEXT_STAGE_INPUT_READINESS_20260909T014005Z.json`. The B_REG receipt's
-embedded event time is `2026-09-09T01:41:11Z`; its supplied filename is retained.
-Remote paths are provenance references, not locally verified artifact copies.
+Small original owner receipts are retained byte-for-byte in
+[`results/extensions/target221_boundary`](../../results/extensions/target221_boundary).
+The latest four are `ROI_RESTORE_RECEIPT.json`,
+`ROI_WRAPPER_DEPLOY_4b2fbe6_20260909.json`,
+`recovery-status-20260909T0232.json` and
+`rsar-f-seed43-oom-evidence-20260909T0220.json`. Earlier receipts remain
+unchanged. The B_REG receipt's embedded event time remains01:41:11Z, despite
+its earlier filename timestamp. No full transfer inventory or native logs
+are committed; remote paths and short extracted OOM lines are source references.
 
 The evaluator at `/home/zechuan/IRAOD-New-rc331d213` is now a genuine complete
 clone with HEAD `331d2131b84651f0a2930a3d53faeefad8701531` and tree
 `b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8`. Its broken worktree-pointer
-checkout was preserved separately. This is environment repair only: these
-receipts do not prove any post-repair EVAL succeeded.
+checkout was preserved separately and was not recopied by ROI restoration.
+The repair receipt alone proves only environment repair. The accepted first
+post-repair EVAL success was **clean42 B_REG at01:38:33Z, not brightness**.
+The later recovery receipt independently records completed native EMA EVALs.
 
-The accepted owner boundary preserves36 completed release TRAIN cells
-(31 earlier plus5 brightness), with no replay; this count is the parent's
-accepted statement, not a result inferred from the three receipts.
-Next-stage original inputs are present, including all12 domain VAL counts.
-Formal TSD splits remain0/36 and TAM checkpoints0/12; SFYOLO releases per
-completed TAM domain, not behind an all12 barrier. Both adapters are complete,
-but Oracle72 actual training remains pending. These facts do not establish
-aggregate completion or additional authorization. Execution remains exclusively
-with Herdr `w6:pG`, session `98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9`.
+**Dated aggregate, not current status:** the latest full verified snapshot is
+`2026-09-09T02:33:03.328124+00:00`. TRAIN is38/180 complete,1 running,42 ready,
+4 actual current-attempt OOMs,23 unretried B_REG policy holds and72 waiting
+on prerequisites. EMA EVAL is25/180 complete,3 running,0 failed; Student EVAL
+is0 complete,0 running,0 failed. Student checkpoint readiness is not evaluation
+completion. The four OOM cells are RSAR clean42 B_REG,
+am_noise_horizontal43 F_text_only/F_veto_only, and
+am_noise_horizontal44 F_text_only. The23 held B_REG cells are not23 newly
+observed OOMs. The seed43 F receipt preserves its two exact full-budget2x16
+failures separately from the held B_REG scope.
+
+**Later individual event, not a recomputed aggregate:** RSAR
+am_noise_horizontal44 F_veto_only TRAIN succeeded at02:44 with both final
+EMA and Student checkpoints. It is not another OOM. The first post-repair
+EVAL time and this later TRAIN event are parent-accepted statements; no
+additional raw receipt or exact success second is reconstructed here.
+The preserved36 release TRAIN cohort (31 earlier plus5 brightness) remains
+retained without replay, not an extra36 to add to the dated38.
+
+**Transfer terminal at02:55:29Z:**1,272,870 regular files /
+178,109,148,560 bytes (165.877GiB). The reused132 core export directories
+contain1,271,600 files /40,338,090,255 bytes with0 mismatches. Restoration
+includes240 BF checkpoints,144 previously missing port checkpoints
+(72 were already on target), and288 native **files**, not288 evaluation roles.
+The source-absent144 AASFOD/SFYOLO checkpoint-plus-native jobs and108
+IRG/LPLD/SFUT Student native jobs remain pending real GPU work; transfer does
+not create their results. Planned all-candidate bytes were178,834,797,497,
+approximately166.55GiB or178.83GB; the old launch label used the wrong unit.
+The original recovery receipt's transfer-progress string is historical and
+superseded by the terminal restoration receipt.
+
+B87 is restored as a complete `.git` directory at
+`b87f34ef06eb85589cbc7dd4d385666c37696083`. Wrapper
+`4b2fbe6119f2d662f32d93443135153a268dfe2e` is actually deployed as a clean
+complete clone at `/home/zechuan/IRAOD-New-roi-binding-4b2fbe6-20260909`.
+This is the separately scoped PR#8 code; this docs update neither changes nor
+redeploys it. **No ROI inference has started at this boundary.**
+The01:40 input receipt's TSD0/36 and TAM0/12 are dated evidence, not fresh probes.
+Both adapters are complete; Oracle72 actual training remains pending.
+No aggregate completion, replay, new smoke, numerical change or extra
+authorization follows from any of these receipts.
 
 ## Staging dependencies and parent integration
 

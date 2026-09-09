@@ -1,0 +1,104 @@
+{
+  "utc": "2026-09-09T02:20:44.551880+00:00",
+  "producer_pid": 3620449,
+  "scope": "two exact failed F seed43 cells only; other approved cells unchanged",
+  "B_REG_policy_holds_separate": 23,
+  "items": [
+    {
+      "key": "RSAR/am_noise_horizontal/43/F_text_only:train",
+      "model_role": "ema",
+      "phase": "train",
+      "current_attempt_status": "failed",
+      "classification": "actual_formal_CUDA_OOM_not_historical_missing_input",
+      "protocol": {
+        "world_size": 2,
+        "samples_per_gpu": 16,
+        "global_batch": 32,
+        "full_budget": true
+      },
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-am_noise_horizontal-43-F_text_only.json",
+      "receipt": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/results/xaf-RSAR-am_noise_horizontal-43-F_text_only.json",
+      "native_logs": [
+        {
+          "path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_text_only/train.log",
+          "bytes": 93599,
+          "oom_lines": [
+            {
+              "line": 1618,
+              "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1024.00 MiB (GPU 0; 47.40 GiB total capacity; 41.01 GiB already allocated; 892.31 MiB free; 46.05 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+            }
+          ]
+        }
+      ],
+      "terminal_status_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_text_only/ddp2/terminal_status",
+      "no_retry_without_new_larger_VRAM_authorization": true,
+      "attempt_receipt": {
+        "cell": {
+          "dataset": "RSAR",
+          "domain": "am_noise_horizontal",
+          "seed": 43,
+          "method": "F_text_only",
+          "role": "ema"
+        },
+        "phase": "train",
+        "gpus": [
+          0,
+          1
+        ],
+        "status": "failed",
+        "exit_code": 1,
+        "reason": "runner exit=1, final evidence=blocked"
+      },
+      "terminal_status": "tmux_wrap_exit=1\n",
+      "preserved_checkpoint_files": []
+    },
+    {
+      "key": "RSAR/am_noise_horizontal/43/F_veto_only:train",
+      "model_role": "ema",
+      "phase": "train",
+      "current_attempt_status": "failed",
+      "classification": "actual_formal_CUDA_OOM_not_historical_missing_input",
+      "protocol": {
+        "world_size": 2,
+        "samples_per_gpu": 16,
+        "global_batch": 32,
+        "full_budget": true
+      },
+      "spec": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/jobs/xaf-RSAR-am_noise_horizontal-43-F_veto_only.json",
+      "receipt": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/results/xaf-RSAR-am_noise_horizontal-43-F_veto_only.json",
+      "native_logs": [
+        {
+          "path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_veto_only/train.log",
+          "bytes": 93150,
+          "oom_lines": [
+            {
+              "line": 1614,
+              "text": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1024.00 MiB (GPU 0; 47.40 GiB total capacity; 41.01 GiB already allocated; 886.31 MiB free; 46.05 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"
+            }
+          ]
+        }
+      ],
+      "terminal_status_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_runs_daa3992/rsar/am_noise_horizontal/seed_43/methods/F_veto_only/ddp2/terminal_status",
+      "no_retry_without_new_larger_VRAM_authorization": true,
+      "attempt_receipt": {
+        "cell": {
+          "dataset": "RSAR",
+          "domain": "am_noise_horizontal",
+          "seed": 43,
+          "method": "F_veto_only",
+          "role": "ema"
+        },
+        "phase": "train",
+        "gpus": [
+          0,
+          1
+        ],
+        "status": "failed",
+        "exit_code": 1,
+        "reason": "runner exit=1, final evidence=blocked"
+      },
+      "terminal_status": "tmux_wrap_exit=1\n",
+      "preserved_checkpoint_files": []
+    }
+  ]
+}

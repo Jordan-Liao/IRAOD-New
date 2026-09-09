@@ -7,7 +7,7 @@
   "producer_policy": "IRG/LPLD/SFUT producer is terminal per accepted owner event; the same GPU owner operates the approved next release. Integration owner launches no GPU jobs and changes no controller or live code.",
   "approval_gates_remaining": false,
   "selected_target_host_binding": {
-    "status": "formal_RSAR_clean42_B_REG_OOM_23_held_next_stage_GPU_work_pending",
+    "status": "ROI_source_existing_inputs_restored_wrapper_deployed_recovery_incomplete_dated_snapshot_only",
     "hostname": "73F3-5xA6000-221",
     "endpoint": "zechuan@1.14.177.180:20138",
     "root": "/home/zechuan/iraod_artifacts",
@@ -38,20 +38,82 @@
       "reported_pane": 3513810,
       "code_owner_restarted_or_retested": false
     },
-    "detector_dependencies": "Owner receipt reports next-stage original inputs present; native331d exact HEAD/tree complete clone repaired. TSD0/36 and TAM0/12 remain pending, not detector-ready outputs.",
-    "memory_risk": "Actual full-protocol RSAR clean42 B_REG 1x32/global32/LR.02/e508 failed CUDA OOM on49140MiB A6000; supersedes historical-memory-only risk. Other23 B_REG held, not individually failed. No new smoke or batch/world/budget reduction.",
+    "detector_dependencies": "Original inputs restored; native331d preserved and b87 complete Git checkout restored. The01:40 input receipt reported TSD0/36 and TAM0/12; the02:33:03 recovery snapshot still has72 prerequisite-waiting TRAIN cells. No newer prerequisite completion is established here.",
+    "memory_risk": "At02:33:03Z four current-attempt formal TRAIN CUDA OOMs are recorded separately from23 unretried B_REG policy holds. Later F_veto am_noise_horizontal44 TRAIN succeeded at02:44 with both checkpoints; it is not another OOM and does not update that aggregate. No new smoke or batch/world/budget reduction.",
     "execution_boundary": {
       "runtime_owner": "Herdr w6:pG session98b171c5-ce2e-4ad6-b66a-97ab0e4c76d9",
       "receipts": [
         "results/extensions/target221_boundary/RSAR_BREG_COMPATIBILITY_RESULT_20260909T014021Z.json",
         "results/extensions/target221_boundary/FROZEN_EVAL_CHECKOUT_REPAIR_20260909T012841Z.json",
-        "results/extensions/target221_boundary/NEXT_STAGE_INPUT_READINESS_20260909T014005Z.json"
+        "results/extensions/target221_boundary/NEXT_STAGE_INPUT_READINESS_20260909T014005Z.json",
+        "results/extensions/target221_boundary/ROI_RESTORE_RECEIPT.json",
+        "results/extensions/target221_boundary/ROI_WRAPPER_DEPLOY_4b2fbe6_20260909.json",
+        "results/extensions/target221_boundary/recovery-status-20260909T0232.json",
+        "results/extensions/target221_boundary/rsar-f-seed43-oom-evidence-20260909T0220.json"
       ],
       "release_train_preserved": {"completed": 36, "earlier": 31, "brightness": 5, "replayed": false},
       "release_train_evidence": "Parent-accepted execution-boundary statement; not inferred from the three owner receipts",
       "frozen_eval_head": "331d2131b84651f0a2930a3d53faeefad8701531",
       "frozen_eval_tree": "b82e23dbdb7b826a7dbadf36ea64f486fd74f1a8",
-      "post_repair_eval_success": "not_established_by_these_receipts",
+      "first_post_repair_eval_success": {
+        "cell_description": "clean42 B_REG, not brightness",
+        "utc": "2026-09-09T01:38:33Z",
+        "evidence": "Parent-accepted execution-boundary statement; not inferred from the checkout-repair receipt"
+      },
+      "recovery_snapshot": {
+        "as_of_utc": "2026-09-09T02:33:03.328124+00:00",
+        "is_current_status": false,
+        "receipt": "results/extensions/target221_boundary/recovery-status-20260909T0232.json",
+        "train": {"total": 180, "complete": 38, "running": 1, "ready": 42, "current_failed_OOM": 4, "unretried_B_REG_policy_held": 23, "prerequisite_waiting": 72},
+        "ema_eval": {"total": 180, "complete": 25, "running": 3, "failed": 0, "blocked": 27, "pending": 43, "ready": 10, "waiting": 72},
+        "student_eval": {"total": 180, "complete": 0, "running": 0, "failed": 0, "blocked": 72, "ready": 36, "waiting": 72},
+        "actual_current_attempt_OOM_cells": [
+          "RSAR/clean/42/B_REG:train",
+          "RSAR/am_noise_horizontal/43/F_text_only:train",
+          "RSAR/am_noise_horizontal/43/F_veto_only:train",
+          "RSAR/am_noise_horizontal/44/F_text_only:train"
+        ],
+        "scope_note": "Preserved36 TRAIN is an earlier retained cohort, not added to these38. Student checkpoint availability is not Student EVAL completion."
+      },
+      "later_individual_train_event": {
+        "cell": "RSAR/am_noise_horizontal/44/F_veto_only:train",
+        "observed_minute_utc": "2026-09-09T02:44Z",
+        "status": "complete",
+        "final_ema_and_student_checkpoints_present": true,
+        "evidence": "Parent-accepted later event; no additional receipt or exact second supplied",
+        "aggregate_recomputed": false
+      },
+      "roi_input_restoration": {
+        "terminal_utc": "2026-09-09T02:55:29Z",
+        "status": "source_existing_target_missing_transfer_complete_not_ROI_completion",
+        "receipt": "results/extensions/target221_boundary/ROI_RESTORE_RECEIPT.json",
+        "transferred_regular_files": 1272870,
+        "transferred_bytes": 178109148560,
+        "planning_bytes_all_candidates": 178834797497,
+        "planning_unit_correction": "Approximately166.55GiB or178.83GB; the original launch label used the wrong unit",
+        "reused_core": {"directories": 132, "files": 1271600, "bytes": 40338090255, "mismatch": 0},
+        "restored_BF_checkpoints": 240,
+        "restored_previously_missing_port_checkpoints": 144,
+        "port_checkpoints_already_on_target": 72,
+        "restored_native_files": 288,
+        "native_count_unit": "files, not evaluation roles",
+        "pending_source_absent": {
+          "AASFOD_SFYOLO_checkpoint_and_native_jobs": 144,
+          "IRG_LPLD_SFUT_student_native_jobs": 108
+        },
+        "b87_complete_git_directory_head": "b87f34ef06eb85589cbc7dd4d385666c37696083",
+        "genuine_331_checkout_preserved_not_recopied": true,
+        "full_inventory_or_logs_versioned": false
+      },
+      "roi_wrapper_deployment": {
+        "as_of_utc": "2026-09-09T02:53:35.598414+00:00",
+        "receipt": "results/extensions/target221_boundary/ROI_WRAPPER_DEPLOY_4b2fbe6_20260909.json",
+        "checkout": "/home/zechuan/IRAOD-New-roi-binding-4b2fbe6-20260909",
+        "actual_git_head": "4b2fbe6119f2d662f32d93443135153a268dfe2e",
+        "clean_complete_clone": true,
+        "roi_inference_started": false,
+        "production_code_scope": "Separate PR#8; this provenance update does not change or redeploy it"
+      },
       "aggregate_completion_claimed": false,
       "additional_authorization": false
     },
@@ -96,7 +158,7 @@
       "training_code": "0f98a48b539f9260055fc305784ffbc924f50451",
       "world_size": 2,
       "samples_per_gpu": 16,
-      "status": "finished_deployment_adopted_no_formal_root_created",
+      "status": "dated_023303_snapshot_has3_actual_F_train_OOMs_later_F_veto_am_h44_train_success_not_aggregate_update",
       "changes": {
         "F_text_only": "vlst_text_visual_alpha0.5->1 only",
         "F_veto_only": "effective CGA_BLEND_DET_WEIGHT0.7->1 only"
@@ -114,6 +176,7 @@
       "encoder_parameters": 2915648,
       "queue": "tam_manifests_84a1aeb",
       "status": "original_inputs_ready_checkpoints0_of12_formal_fits_pending",
+      "status_as_of_utc": "2026-09-09T01:40:05Z",
       "next": "Runtime owner handles already-approved formal domain fits; no new smoke and no all12 release barrier"
     },
     "SFYOLO": {
@@ -123,11 +186,13 @@
       "final_checkpoint_labels": {"RSAR": 531, "DIOR": 369},
       "optimizer_updates": {"RSAR": 530, "DIOR": 368},
       "ranking": "separate_extended_budget_not_common_one_epoch",
-      "status": "original_inputs_ready_pending_per_completed_domain_TAM_checkpoints0_of12"
+      "status": "original_inputs_ready_pending_per_completed_domain_TAM_checkpoints0_of12",
+      "status_as_of_utc": "2026-09-09T01:40:05Z"
     },
     "AASFOD": {
       "train_cells": 36,
       "status": "original_inputs_ready_formal_TSD_splits0_of36_pending_no_new_smoke",
+      "status_as_of_utc": "2026-09-09T01:40:05Z",
       "queue": "aasfod_manifests_36c2053",
       "formal_root_created_by_preparation": false,
       "mechanisms": ["20-pass aligned posthoc-dropout TSD", "local and global target-to-target GRL", "four-image geometric FNS", "fresh optimizer and full teacher initialization at stage transition"],
@@ -152,6 +217,7 @@
     },
     "qualitative_and_new_method_consumers": {
       "status": "not_complete",
+      "target221_boundary": "Exact source-existing ROI inputs and reused core132 restored at02:55:29Z; wrapper4b2 deployed clean, no ROI inference yet. Missing-source144 checkpoint/native jobs plus108 Student native jobs still need real GPU work.",
       "existing_BF_seed43_44": {"new_roi_groups": 240, "new_image_role_records": 2305120, "new_embeddings": 48},
       "five_new_ports": {"models": 180, "EMA_and_Student_eval_cells": 360, "roi_groups": 360},
       "quantitative_consumer": "Implemented collect_extension_report with explicit approved methods/roles, exact native evidence, separate common/SFYOLO/oracle statistical families, CSV/LaTeX/figures/DOCX and default core compatibility",

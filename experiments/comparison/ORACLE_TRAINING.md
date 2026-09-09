@@ -256,11 +256,20 @@ Oracle72 actual training remains pending, and neither adapter completion nor
 the B_REG result certifies Oracle detector compatibility.
 
 The [target221 boundary](HOST_BINDING.md#verified-target221-execution-boundary)
-links the preserved receipts. Native331d now has a genuine complete clone at
-the exact frozen HEAD/tree; that environment repair proves no post-repair EVAL
-success. The36 completed release TRAIN cells (31 earlier plus5 brightness)
-are preserved without replay. Original next-stage inputs are present, while
-TSD0/36 and TAM0/12 remain pending. No aggregate completion, refit, new smoke,
+links the preserved receipts. Native331d's genuine complete clone is preserved.
+The first accepted post-repair EVAL success was clean42 B_REG at01:38:33Z,
+not brightness; this success is distinct from the earlier environment repair.
+The latest full verified recovery aggregate is dated02:33:03Z, not current:
+TRAIN38/180 complete,4 actual OOMs and23 unretried policy holds; EMA25/180
+complete and3 running,0 failed; Student0 complete/running/failed. The later
+F_veto am_noise_horizontal44 TRAIN success at02:44 with both checkpoints
+does not silently update that snapshot. The36 preserved TRAIN cohort is not
+added again, and retained Student checkpoints do not establish Student EVAL.
+
+Exact source-existing ROI input transfer became terminal at02:55:29Z and
+wrapper4b2 is deployed clean, but no ROI inference has started. Restoration
+is not Oracle training or a new quantitative result. The01:40 TSD0/36 and
+TAM0/12 input receipt remains dated evidence. No aggregate completion, refit, new smoke,
 batch/world/budget reduction, extra Student evaluation or qualitative work
 is authorized by this documentation.
 
