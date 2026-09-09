@@ -163,7 +163,7 @@ def native_config_paths():
     original = Config._file2dict
 
     def file2dict(filename, use_predefined_variables=True):
-        source = read_path(filename)
+        source = read_path(filename).absolute()
         with tempfile.TemporaryDirectory(prefix="iraod-bound-config-") as directory:
             view = Path(directory) / source.name
             if use_predefined_variables:

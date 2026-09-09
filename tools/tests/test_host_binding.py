@@ -36,6 +36,33 @@ def target(stack):
 
 
 class HostBindingTest(unittest.TestCase):
+    def test_nested_rsar_ema_config_resolves_original_relative_base(self):
+        from mmcv import Config
+
+        teacher_name = "configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py"
+        teacher = training.ROOT / teacher_name
+        base = teacher.with_name("baseline_oriented_rcnn_ema_rsar_cga.py")
+        before = {path: path.read_bytes() for path in (teacher, base)}
+        expected = Config.fromfile(str(teacher), import_custom_modules=False).to_dict()
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            target(stack)
+            previous_cwd = Path.cwd()
+            stack.callback(os.chdir, previous_cwd)
+            os.chdir(training.ROOT)
+            config = Path(directory) / "b_reg_rsar.py"
+            config.write_text(f"model=dict(ema_config={teacher_name!r})\n")
+            original_loader = Config._file2dict
+            with host.native_config_paths():
+                student = Config.fromfile(str(config), import_custom_modules=False)
+                actual = Config.fromfile(
+                    student.model.ema_config, import_custom_modules=False)
+            self.assertEqual(actual.to_dict(), expected)
+            self.assertEqual(actual.model.backbone.type, "OrthoNet")
+            self.assertEqual(actual.model.roi_head.bbox_head.num_classes, 6)
+            self.assertIs(Config._file2dict, original_loader)
+        for path, content in before.items():
+            self.assertEqual(path.read_bytes(), content)
+
     def test_ddp_launcher_rank_before_native_is_forwarded(self):
         for option, rank in (("--local-rank=0", 0), ("--local_rank=1", 1)):
             with self.subTest(option=option), ExitStack() as stack:
