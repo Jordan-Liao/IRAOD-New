@@ -112,6 +112,16 @@ python -m experiments.comparison.extension_training train \
 
 Both GPU modules require `IRAOD_GPU_LOCKED=1`; they acquire no new lock and modify
 no environment. Smoke results never satisfy the formal TSD or detector outputs.
+TSD replaces only its in-memory shared pipeline with image loading followed by
+metadata-only `flip=False, flip_direction=None`, and disables its strong pipeline.
+The bound weak resize/normalize/pad/format/Collect chain stays intact. This fixes
+the missing `Collect` flip metadata without any random-flip transform or RNG
+consumption; the frozen dataset/config and source/target path binding do not
+change. The existing prerequisite recipe and arguments remain valid once the
+runtime owner selects the corrected `experiments.comparison.aasfod_tsd` entry
+from the delivered checkout (not the old entry in frozen training code).
+No new TSD, training, ROI, or Oracle execution is authorized by this correction.
+
 `train_aasfod` uses native `train.py` twice: `work/alignment/iter_110.pth`
 (DIOR) initializes both FNS detectors; FNS produces `work/fns/iter_74{,_ema}.pth`.
 The completed final states are copied to common `work/iter_185{,_ema}.pth`
@@ -133,3 +143,28 @@ are absent. Native tests exercise registry/configs, actual image-only dataset
 partition consumption, real detector-loss routing (using tiny CPU feature/RPN/
 RoI seams), pre-mosaic teacher ordering, loss/backward separation and hook order.
 They are not evidence that native full-detector/GPU training or TSD has run.
+
+The deterministic TSD sampling regression is a separate, non-skipping CPU gate:
+
+```bash
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest -v tools.tests.test_aasfod_tsd_pipeline
+```
+
+It resolves both RSAR (6-class) and DIOR (20-class) configs, loads tiny real PNGs
+through the actual `StrictSourceFreeDOTADataset` and installed MMDetection/
+MMRotate loading, `RResize`, normalization, padding, formatting and `Collect`
+modules, and exercises the real TSD entry/score loop. Both families fail at
+`Collect` with `KeyError('flip')` before the fix. Assertions cover all required
+metadata, exact unflipped pixel geometry, repeated-view and RNG invariance,
+image-only reads, subset order, frozen checkpoint/BN state, full class and delta
+variance, and exactly 20 stochastic ROI passes per image.
+
+This gate requires installed `mmcv` 1.x, `mmdet` 2.x, `mmrotate` 0.3.x,
+`pycocotools`, PyTorch and torchvision. To run without compiled `mmcv._ext`,
+the test uses isolated registries and complete original pipeline modules;
+unused native-op/annotation entry points fail if called. `Collect`, dataset
+sampling, collate/CPU scatter and the TSD mechanism are not replaced. Only the
+detector/build/CUDA boundary is a tiny CPU fixture and custom model imports are
+disabled while resolving configs. This verifies the observed sampling-chain
+failure, not native full-detector imports, GPU execution or formal TSD results.
