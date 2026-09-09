@@ -137,6 +137,15 @@ identity checks. Current CPU visualization/embedding/collection readers share
 that boundary. See [exact owner-only recipes](GENERALIZED_QUALITATIVE.md#selected221-host-preserved-frozen-exports-and-current-cpu-readers).
 This is code delivery, not restored-input or actual ROI completion evidence.
 
+### Preserved native evaluation status in reports
+
+`report_inputs.inspect_cell` uses the same selected-host path identity when
+checking checkpoint tokens in original `eval_status` files (`ema`, `student`
+or `checkpoint`). Equivalent old `/mnt/shared/zechuan` and mapped home paths
+are accepted without rewriting native receipts or creating old-root aliases.
+Exit code, method, domain, seed and role still match exactly; different
+checkpoints remain invalid. Other hosts retain strict identity comparison.
+
 ## Staging dependencies and parent integration
 
 The compute owner, not this patch, stages:

@@ -10,6 +10,7 @@ import shlex
 import numpy as np
 
 from experiments.comparison.result_completion import DOMAINS, read_json
+from experiments.comparison import host_binding as host
 from experiments.comparison.report_statistics import SEEDS, declared_methods, method_group
 from tools.prediction_export import IMAGE_ORDER_ORIGIN, IMAGE_ORDER_SCHEMA
 from experiments.comparison.source_provenance import annotate_producer
@@ -204,7 +205,7 @@ def inspect_cell(cell, checkpoint, source_id):
             wanted["sidecar"] = Path(cell["prediction_image_ids"]).name
         else:
             issues.append("eval_status_missing_checkpoint_identity")
-        if any(fields.get(k) != v for k, v in wanted.items()):
+        if any(not host.same_data(fields.get(k), v) for k, v in wanted.items()):
             issues.append("last_eval_status_failed_or_identity_mismatch")
     if "missing_eval_json" not in issues:
         payload = read_json(files["eval_json"])
