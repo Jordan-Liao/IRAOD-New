@@ -176,7 +176,7 @@ This is a recovery contract for the runtime owner, not a recovery command or
 authorization to launch. Exact remote layout inspection and recovery are not
 performed by the code fix.
 
-### Mixed-size FNS batching and blocked post-alignment continuation
+### Mixed-size FNS batching and explicit post-alignment continuation
 
 The later, owner-reported RSAR/clean/42 failure is **not** the pre-alignment
 ColorJitter import failure. `target_losses` predicts 32 original weak images and
@@ -193,45 +193,69 @@ own `img_shape` and `pad_shape`: native `AnchorHead.get_anchors` calls
 with the batch maximum would wrongly admit padded anchors. OBBs and labels are
 not translated or rescaled by batch padding.
 
-**Code-only delivery; FNS-only continuation remains blocked.** The requested
-new `aasfod-RSAR-clean-42-fns-failed` artifact folder was unavailable during this
-delivery. No earlier ColorJitter artifacts are treated as alignment completion.
-No continuation command/interface, stage reset, queue mutation or runtime
-deployment is supplied. Existing pre-stage retry/lock/hold guards stay intact.
-The CPU stage-entry regression retains both synthetic alignment finals and
-failed FNS artifacts, refuses a second two-stage invocation, and leaves final
-aliases absent; it is not runtime completion proof.
+The accepted batching implementation is unchanged at
+`cbd0f75ab147fea6728f61d6fd696325cc195296`. The subsequent original read-only
+`aasfod-RSAR-clean-42-fns-failed` captures now establish the alignment-to-FNS
+transition: native alignment logs save iteration159; Student/EMA metadata
+records iter159/epoch1, 419/396 state tensors with zero nonfinite tensors,
+and files of 432,723,289/391,610,055 bytes. TSD retains its original
+484,231-byte, 8,467-image, 169,340-pass identity and SHA-256
+`9f15928b7c4ca40e35ea1f33d24d97e3cfa426610757b2ab96d821e4cff41770`.
+The FNS native log starts its106-iteration runner; the actual owner console
+records the mixed-size stack exception and nonzero FNS subprocess return.
+There are no FNS checkpoints or final aliases.
 
-The missing owner evidence is the original failed FNS trace and attempt/wrapper
-terminal records; both alignment student/teacher final checkpoints and their
-native iteration metadata; original stage exit evidence, `alignment.py`,
-`fns.py`, `stages.json`, `execution.json` and frozen queue/cell binding; and the
-unchanged complete `tsd.json` with its source/VAL/seed and 8467x20 identity.
-`stages.json` with `invoked_not_completion_evidence` contains planned updates
-and commands, not individual stage-exit receipts. The owner must also establish
-no live job, no completed FNS or common final aliases, and no conflicting hold
-or binding before any artifact archival or continuation.
+`stages.json` still says `invoked_not_completion_evidence`; that is not changed
+into a synthetic stage-exit receipt. Its **FNS command** was emitted only after
+the original helper's alignment `subprocess.run(check=True)` returned and both
+alignment checkpoint checks passed. The genuine checkpoint metadata and native
+logs corroborate that control flow. Root `train.log`, `terminal_status` and
+`execution.json` can still describe the older02fb ColorJitter attempt and are
+archived as such, not used to infer latest stage completion.
 
-Once that evidence is available, the only valid entry for this reported
-pre-update FNS failure is the original FNS spec from `stage_specs`: load
-`alignment/iter_159.pth` into student and teacher, use a fresh SGD optimizer,
-warmup0 and only the frozen 106 FNS updates. Preserve all original TSD/alignment
-bytes and archive the failed FNS attempt through the existing finite ownership,
-lock and attempt-history machinery. Never replay the 159 alignment updates.
-Native FNS finals remain `fns/iter_106{,_ema}.pth`, with common
-`iter_266{,_ema}.pth` aliases only after successful completion of the full
-159+106 budget; 266 is a filename convention, not another update.
+The [explicit finite FNS continuation](../FINITE_RESUMER.md#aasfod-fns-only-continuation-after-completed-alignment)
+accepts only this bound `RSAR/clean/42/AASFOD` failure. It preserves TSD and
+alignment in place, archives the failed FNS/config/ledger and root receipts,
+and loads the original resolved FNS config through MMCV. The same alignment
+**Student** initializes both detectors; `resume_from=None` creates fresh SGD
+(lr0.02, momentum0.9, weight_decay0.0001), warmup0, EMA cadence1, and exactly106
+new FNS updates. No alignment/TSD rerun, geometry/batch change, extra warmup,
+checkpoint averaging or arbitrary stage resume is exposed. Native FNS finals
+remain `fns/iter_106{,_ema}.pth`; common `iter_266{,_ema}.pth` aliases are copied
+only after both required FNS outputs exist. Their native metadata stays106;
+the stage ledger explains the full preserved159+new106 budget.
 
-Unlike the orchestration-only ColorJitter correction, this fix changes model
-source. Deployment needs a **new explicitly accepted training-code checkout
-and SHA** for FNS, not an in-place edit of frozen `36c2053` or an old-SHA claim.
-Retain the original execution record and record the original alignment source
-separately from the corrected FNS source. Final stage/execution provenance must
-describe both stages and remain consistent with the native evaluation consumer.
-That binding/provenance change is pending the evidence above and owner acceptance,
-not implemented or asserted successful by this delivery.
+FNS uses a **separate clean checkout pinned exactly to accepted cbd0f75**.
+Its `train.py`, working directory and native `PYTHONPATH` all select that code,
+not frozen36c2053 or injected modules. The config/source/TSD bindings remain
+original. `stages.json` records original36c2053 alignment provenance separately
+from FNS provenance. `execution.json` records actual FNS model code/SHA, current
+orchestration code/SHA, preserved159 and new106 updates, and the recovery
+record. The existing native terminal, finite job/receipt and EMA/Student eval
+consumer complete through their ordinary paths; no exit-zero evidence is
+written before successful execution. A new failed continuation is retained
+and cannot be replayed through the same record.
+
+This is code/CPU-fixture evidence, not a remote run. The sole runtime owner
+still controls acceptance and the safe producer boundary; no existing job,
+producer, observer, checkout or artifact is changed by this delivery.
 
 ## Narrow CPU validation
+
+Continuation coverage (small CPU checkpoint payloads; no original tensor reads):
+
+```bash
+CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest tools.tests.test_aasfod_fns_continuation
+```
+
+This exercises actual stage generation/MMCV loading, original-shaped metadata,
+selected previous-state recovery, filesystem archives/locks, generated native
+commands, worker receipts, aggregate labels and evaluation provenance. A fresh
+CPU subprocess imports the actual model module from the accepted FNS snapshot.
+Only the detector computation and external tmux/GPU discovery are CPU seams.
+Missing/invalid proof, changed binding/budget/TSD, retained checkpoints/finals,
+holds, busy locks, live jobs, Student TRAIN and non-explicit replay stay blocked.
 
 The mixed-size regression runs the actual `AASFODOBB.target_losses`,
 `teacher_labels`, `four_image_mosaic`, native collation reference and anchor

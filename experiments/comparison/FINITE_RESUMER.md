@@ -168,6 +168,76 @@ dispatch is deliberately stopped before model/GPU construction with a nonzero
 result; this is recovery/config evidence, not trained checkpoints or a claim
 that the owner's remote TSD bytes were inspected.
 
+### AASFOD: FNS-only continuation after completed alignment
+
+The later `RSAR/clean/42/AASFOD` mixed-size FNS failure is **not** eligible
+for the preceding pre-stage retry. That guard remains unchanged for every
+ordinary retry. A separate explicit selection accepts the now-available
+original completed-alignment/FNS-failure captures described in
+[AASFOD.md](extensions/AASFOD.md#mixed-size-fns-batching-and-explicit-post-alignment-continuation).
+
+**Sole runtime owner, only after acceptance at a safe producer boundary:**
+keep the same queue, full finite train/eval lists, GPU assignments, external
+ownership/reservations, NaN/OOM holds and Student training exclusions.
+Use this delivery's orchestration checkout, a NEW run directory, and the final
+previous ledger. `FNS_CODE` must be a separate clean checkout at exact
+`cbd0f75ab147fea6728f61d6fd696325cc195296`; it is not the frozen36c2053 checkout
+and not this later orchestration branch HEAD. The full delivery bundle contains
+both commits. `FNS_EVIDENCE` is the original read-only capture directory, with
+`EVIDENCE.json`, `checkpoint_evidence.json`, `owner_console_evidence.json`,
+`work/stages.json`, both resolved stage configs and both native stage logs.
+Keep captures unchanged; retain original checkpoint payloads at their bound
+locations. No new per-stage exit file is required or accepted as a substitute.
+
+Append these options to the owner's unchanged finite invocation:
+
+```bash
+PYTHONPATH="$CONTINUATION_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
+  --queue "$Q" --run-dir "$NEW_RUN" \
+  --train-list "$ORIGINAL_TRAIN_LIST" --eval-list "$ORIGINAL_EVAL_LIST" \
+  --previous-state "$FINAL_PREVIOUS_STATE" \
+  --retry-cell RSAR/clean/42/AASFOD:train \
+  --aasfod-fns-evidence "$FNS_EVIDENCE" \
+  --aasfod-fns-code "$FNS_CODE" \
+  --gpus "$ORIGINAL_GPU_SET" --handoff-confirmed
+```
+
+Retain any additional original lists, hold flags and external-owner arguments
+unchanged. Do not release a hold, edit previous state, stop healthy jobs or
+invoke a helper outside the selected finite retry to make this command pass.
+The selection requires a producer-owned failed/blocked TRAIN row, no live
+canonical model job and the existing nonblocking cell lock. Completed final
+checkpoints/evaluations remain non-retriable. All unselected ledger rows,
+attempts, holds and artifacts retain their existing behavior.
+
+Before moving anything, the validator checks the bound159/106/265 budget,
+original stage invocations and resolved configs, CPU checkpoint metadata
+(without rereading large tensors), native/owner logs and the retained complete
+TSD's identity/size/hash. Only `work/fns`, `work/fns.py`, `work/stages.json`,
+root `train.log`, `execution.json`, `terminal_status`, and selected TRAIN
+queue/source-wrapper statuses are renamed to the existing adjacent
+`.finite-retry-NEW_RUN_NAME` archives. `work/alignment`, `work/alignment.py`,
+TSD, the method directory and all earlier archives remain in place. The
+existing recovery journal records every move and the explicit evidence/model
+bindings; archive collisions or partial archive failures do not authorize work.
+
+The job passes its archived recovery record through the real finite worker
+and `extension_training` into `train_aasfod`. The existing-work exception is
+local to that selected record, not a global pending-state reset. The native
+entry writes a new execution record and real terminal status; only successful
+FNS outputs produce final aliases and permit a successful worker receipt,
+ordinary training adoption and EMA/Student evaluation. The final execution
+identifies accepted FNS model code honestly and retains original alignment
+provenance. Never manufacture a success status to clear an older failure.
+
+If interrupted or blocked, preserve the new run's `previous_state.json`,
+`state.json` and `recovery/xaf-RSAR-clean-42-AASFOD.json`. Its move list is the
+rollback map; restore only under the sole owner's lock and only if no new
+outputs conflict. A newly entered or failed FNS attempt is not automatically
+retryable through this interface. A replacement producer can adopt an existing
+canonical continuation worker through its persisted job/receipt, or recognize
+genuine completed finals normally; never rearchive an active attempt.
+
 ### Restored, never-attempted Student dependencies
 
 A future resumer can reconsider an eval-only Student row whose persisted
