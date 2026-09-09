@@ -564,15 +564,54 @@ class TmuxBackend:
     def admission(self, cell, phase):
         return input_state(self.queue, self.paths, cell, phase)
 
+    def aasfod_retry_outputs(self, cell):
+        """Only the observed pre-first-stage layout can restart without replay."""
+        from experiments.comparison.extension_training import load_cell, require_prerequisites
+        from experiments.comparison.train_aasfod import stage_specs
+
+        _, binding = load_cell(self.queue, cell.dataset, cell.domain, cell.seed, cell.method)
+        require_prerequisites(binding)
+        method = Path(self.paths.method_dir(cell.dataset, cell.domain, str(cell.seed), cell.method))
+        work = method / "work"
+        for key, expected in (("method_dir", method), ("work_dir", work),
+                              ("tsd_split", method / "tsd.json"),
+                              ("terminal_status", method / "terminal_status")):
+            if Path(binding[key]).resolve() != expected.resolve():
+                raise Blocked(f"AASFOD retry requires the bound native layout: {key}")
+        if work.is_symlink() or work.resolve().parent != method.resolve():
+            raise Blocked("AASFOD retry work must remain inside its method directory")
+        split = Path(binding["tsd_split"]).resolve()
+        outputs = [work, method / "train.log", method / "execution.json", method / "terminal_status"]
+        if split.is_relative_to(work.resolve()) or split in {p.resolve() for p in outputs[1:]}:
+            raise Blocked("AASFOD retained TSD must be outside the failed retry outputs")
+        if any(method.rglob("*.pth")):
+            raise Blocked("AASFOD retained checkpoint requires owner recovery")
+        if (not work.is_dir()
+                or {p.name for p in work.iterdir()} != {"alignment.py", "stages.json"}):
+            raise Blocked("AASFOD stage entry/completion is ambiguous; owner recovery required")
+        execution = host.read_json(method / "execution.json")
+        stages = host.read_json(work / "stages.json")
+        frozen = {key: value for key, value in binding.items() if key != "status"}
+        if (execution["status"] != "invoked_not_completion_evidence"
+                or not host.same_data({key: execution[key] for key in frozen}, frozen)
+                or last_exit(method / "terminal_status", ("tmux_wrap_exit", "launcher_exit"))
+                in (None, 0)):
+            raise Blocked("AASFOD retry requires the original failed execution and unchanged binding")
+        specs = deepcopy(stages["stages"])
+        if (not specs or not specs[0].pop("command", None)
+                or not host.same_data(specs, stage_specs(binding, work))
+                or stages["status"] != "invoked_not_completion_evidence"
+                or stages["smoke_steps"] is not None
+                or stages["budget"] != binding["aasfod_budget"]):
+            raise Blocked("AASFOD stage entry/completion is ambiguous; owner recovery required")
+        return outputs
+
     def archive_retry(self, cell, phase):
         """Free only the selected failed native destination, retaining every byte."""
         args = (cell.dataset, cell.domain, str(cell.seed), cell.method)
         if self.evidence(cell, phase) == "complete":
             raise Blocked(f"Cannot retry completed {cell.key}:{phase}")
         if phase == "train":
-            if cell.method == "AASFOD":
-                raise Blocked("AASFOD staged training and its retained TSD split require owner-specific "
-                              "recovery; no automatic artifact relocation")
             if any(Path(resolve(*args)).exists()
                    for resolve in (self.paths.ema_path, self.paths.student_path)):
                 raise Blocked(f"Conflicting final checkpoints require owner resolution: {cell.key}")
@@ -584,12 +623,13 @@ class TmuxBackend:
                 destinations.append(Path(self.paths.eval_student_dir(*args)))
             if any(p.exists() for p in destinations):
                 raise Blocked(f"Training retry would affect retained evaluations: {cell.key}")
-            output = Path(self.paths.method_dir(*args))
+            outputs = (self.aasfod_retry_outputs(cell) if cell.method == "AASFOD"
+                       else [Path(self.paths.method_dir(*args))])
         else:
             resolve = self.paths.eval_student_dir if cell.role == "student" else self.paths.eval_full_dir
-            output = Path(resolve(*args))
+            outputs = [Path(resolve(*args))]
         origin = getattr(self.paths, "DATA", {}).get("source_queues", {}).get(cell.key, self.queue)
-        candidates = [output, *(Path(host.map_path(q)) / f"wrap_{cell.session(phase)}.status"
+        candidates = [*outputs, *(Path(host.map_path(q)) / f"wrap_{cell.session(phase)}.status"
                                 for q in dict.fromkeys((str(self.queue), str(origin))))]
         moves = []
         for source in candidates:
@@ -602,8 +642,13 @@ class TmuxBackend:
                 moves.append({"source": str(source), "archive": str(destination)})
         record = self.run_dir / "recovery" / (cell.session(phase) + ".json")
         write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "planned"})
-        for move in moves:
-            Path(move["source"]).rename(move["archive"])
+        try:
+            for move in moves:
+                Path(move["source"]).rename(move["archive"])
+        except OSError as error:
+            write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves,
+                                "status": "archive_failed", "reason": str(error)})
+            raise
         write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "archived"})
         return moves
 
@@ -779,6 +824,8 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
                         write_json(backend.run_dir / "previous_state.json", previous)
                     for key, phase in sorted(retries):
                         cell = Cell(**state[key]["cell"])
+                        if state[key]["held"]:
+                            raise Blocked(f"Retry cell held; explicit release required: {key}")
                         if cell.model in occupied:
                             raise Blocked(f"Retry requires no live canonical model job: {key}")
                         lock = take_lock(backend.lock_dir.parent / "cell_locks"
