@@ -708,6 +708,321 @@ else: raise SystemExit(2)
             (queue / script).write_bytes((self.q / script).read_bytes())
         return queue, binding
 
+    def aasfod_failed_fixture(self, count=8467):
+        from experiments.comparison.aasfod_protocol import TSD_CHOICE, budget
+        from experiments.comparison.train_aasfod import stage_specs
+
+        cell = Cell("RSAR", "clean", 42, "AASFOD")
+        reference = Cell("RSAR", "point_target", 44, "IRG", "student")
+        queue, binding = self.generated_retry_queue(cell, reference)
+        method = Path(binding["method_dir"])
+        work = method / "work"
+        work.mkdir(parents=True)
+        binding.update(
+            work_dir=str(work), tsd_split=str(method / "tsd.json"),
+            terminal_status=str(method / "terminal_status"),
+            training_code=str(ROOT), training_code_sha="frozen-model-code",
+            config=str(ROOT / "configs/unbiased_teacher/sfod/extensions/aasfod_rsar.py"),
+            status="prepared_not_execution_evidence",
+            unlabeled_epoch_size=count, aasfod_budget=budget(count), tsd_choice=TSD_CHOICE)
+        names = [f"frozen-{i}.png" for i in range(count)]
+        for name in names[2:]:
+            (Path(binding["target_val"]) / name).touch()
+        finite.write_json(binding["tsd_split"], dict(
+            identity={key: binding[key] for key in
+                      ("dataset", "domain", "seed", "source_checkpoint", "target_val")},
+            status="complete", choice=TSD_CHOICE,
+            scores={name: float(i) for i, name in enumerate(names)},
+            similar=names[-(count // 5):], dissimilar=names[:-(count // 5)]))
+        # Native layout of the observed config-import failure: no stage directory,
+        # only the generated alignment config and the invoked two-stage plan.
+        specs = stage_specs(binding, work)
+        specs[0]["command"] = [sys.executable, str(ROOT / "train.py"),
+                               str(work / "alignment.py"), "--seed", "42"]
+        finite.write_json(work / "stages.json", dict(
+            status="invoked_not_completion_evidence", budget=binding["aasfod_budget"],
+            smoke_steps=None, stages=specs))
+        (work / "alignment.py").write_text(
+            "operations = [ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4)]\n")
+        (method / "train.log").write_text("NameError: name 'ColorJitter' is not defined\n")
+        (method / "terminal_status").write_text("tmux_wrap_exit=1\n")
+        finite.write_json(method / "execution.json", {
+            **binding, "status": "invoked_not_completion_evidence", "command": ["original helper"]})
+        for q in (queue, self.q):
+            runtime = json.loads((q / "runtime.json").read_text())
+            runtime["cells"][cell.key] = binding
+            finite.write_json(q / "runtime.json", runtime)
+            (q / f"wrap_{cell.session('train')}.status").write_text("wrap_exit=1\n")
+        origin = Path(runtime["source_queues"][cell.key])
+        finite.write_json(origin / "runtime.json", dict(python=sys.executable, training_code=str(ROOT)))
+        rows = [
+            dict(cell=cell.__dict__, train_requested=True, training_ownership="producer",
+                 train="failed", eval="blocked", held=False, adopted=[],
+                 reasons=["NameError: name 'ColorJitter' is not defined"],
+                 attempts=[dict(phase="train", status="failed", exit_code=1,
+                                spec="original/jobs/xaf-RSAR-clean-42-AASFOD.json")]),
+            dict(cell=reference.__dict__, train_requested=False, training_ownership="eval_only",
+                 train="blocked", eval="blocked", held=True, adopted=[],
+                 reasons=["held NaN reference"], attempts=[])]
+        previous = self.root / "original/state.json"
+        finite.write_json(previous, dict(queue=str(queue), status="failed", cells=rows))
+        (previous.parent / "native-receipt.json").write_text('{"status":"failed","exit_code":1}\n')
+        return cell, reference, queue, binding, previous
+
+    def test_aasfod_selected_pre_stage_retry_preserves_tsd_and_failure_history(self):
+        cell, reference, queue, binding, previous = self.aasfod_failed_fixture()
+        unselected = Cell("RSAR", "clean", 43, "AASFOD")
+        ledger = json.loads(previous.read_text())
+        ledger["cells"].append(dict(
+            cell=unselected.__dict__, train_requested=True, training_ownership="producer",
+            train="failed", eval="blocked", held=False, adopted=[],
+            reasons=["unselected OOM"], attempts=[dict(phase="train", status="failed")]))
+        finite.write_json(previous, ledger)
+        split = Path(binding["tsd_split"])
+        identity = split.stat()
+        original = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        process, directory = self.start(
+            [cell, unselected], "aasfod-retry", queue=queue, eval_cells=(reference,), controls=(
+                "--previous-state", str(previous), "--retry-cell", cell.key + ":train"))
+        fd = open_pidfd(process.pid)
+        try:
+            ready, _, _ = select.select([self.events_fd, fd], [], [], 8)
+            self.assertNotIn(fd, ready, (directory / "state.json").read_text())
+        finally:
+            os.close(fd)
+        self.assertEqual(self.next_start()["name"], cell.session("train"))
+        self.assertFalse(Path(binding["work_dir"]).exists())
+        self.assertEqual(split.read_bytes(), original[split])
+        self.assertEqual((split.stat().st_ino, split.stat().st_mtime_ns),
+                         (identity.st_ino, identity.st_mtime_ns))
+        self.aasfod_stage_consumes_retained_split(queue, binding, original[split])
+        # A nonzero CPU runner result proves retry admission, not detector success.
+        self.release(cell.session("train"), rc=9)
+        self.assertEqual(process.wait(timeout=8), 1)
+        state = json.loads((directory / "state.json").read_text())
+        rows = {Cell(**row["cell"]): row for row in state["cells"]}
+        row, held = rows[cell], rows[reference]
+        self.assertEqual([a["status"] for a in row["attempts"]],
+                         ["failed", "retry_authorized", "failed"])
+        self.assertEqual(held, json.loads(original[previous])["cells"][1])
+        self.assertEqual(rows[unselected], ledger["cells"][2])
+        moves = json.loads((directory / "recovery" / (cell.session("train") + ".json")).read_text())
+        self.assertEqual(moves["status"], "archived")
+        archived = {Path(m["source"]): Path(m["archive"]) for m in moves["moves"]}
+        self.assertNotIn(split.parent, archived)
+        self.assertNotIn(split, archived)
+        for source, dest in archived.items():
+            for path, content in original.items():
+                if path == source or source in path.parents:
+                    target = dest if path == source else dest / path.relative_to(source)
+                    self.assertEqual(target.read_bytes(), content)
+        for path in previous.parent.iterdir():
+            self.assertEqual(path.read_bytes(), original[path])
+        self.assertEqual(len(list((directory / "jobs").glob("*.json"))), 1)
+        self.assertEqual([e["name"] for e in self.events if e["event"] == "start"],
+                         [cell.session("train")])
+        self.assertEqual(split.read_bytes(), original[split])
+        self.assertEqual((split.stat().st_ino, split.stat().st_mtime_ns),
+                         (identity.st_ino, identity.st_mtime_ns))
+
+    def aasfod_stage_consumes_retained_split(self, queue, binding, split_bytes):
+        from mmcv import Config
+        from torchvision.transforms import ColorJitter
+        from experiments.comparison import train_aasfod
+        from experiments.comparison.aasfod_protocol import validate_split
+        from tools.tests.test_aasfod_config_import import operators
+
+        native_fromfile = Config.fromfile
+
+        def load(path):
+            return native_fromfile(path, import_custom_modules=False)
+
+        def native_entry(command, cwd, env, check):
+            self.assertEqual(cwd, ROOT)
+            self.assertTrue(check)
+            cfg = load(command[command.index(str(ROOT / "train.py")) + 1])
+            self.assertEqual(cfg.data.train.tsd_split, binding["tsd_split"])
+            retained = Path(cfg.data.train.tsd_split).read_bytes()
+            self.assertEqual(retained, split_bytes)
+            split = json.loads(retained)
+            validate_split(split, binding)
+            self.assertEqual((len(split["similar"]), len(split["dissimilar"])), (1693, 6774))
+            self.assertEqual(cfg.data.train.stage, "alignment")
+            self.assertEqual(cfg.runner.max_iters, 159)
+            self.assertEqual(cfg.data.samples_per_gpu, 16)
+            self.assertEqual(cfg.load_from, binding["source_checkpoint"])
+            self.assertEqual(cfg.model.ema_ckpt, cfg.load_from)
+            self.assertIsNone(cfg.resume_from)
+            self.assertEqual(command[command.index("--seed") + 1], "42")
+            self.assertTrue(all(isinstance(op, ColorJitter) for op in operators(cfg._cfg_dict)))
+            self.assertTrue(list(operators(cfg._cfg_dict)))
+            # Stop at real serialized-config consumption, before any model/GPU.
+            raise subprocess.CalledProcessError(17, command)
+
+        with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1"}), \
+                patch.object(Config, "fromfile", side_effect=load), \
+                patch.object(train_aasfod.subprocess, "run", side_effect=native_entry) as native:
+            with self.assertRaises(subprocess.CalledProcessError) as stopped:
+                train_aasfod.run(queue, "RSAR", "clean", 42)
+            self.assertEqual(stopped.exception.returncode, 17)
+            self.assertEqual(native.call_count, 1)
+        self.assertFalse(Path(binding["checkpoint"]).exists())
+        self.assertFalse((Path(binding["work_dir"]) / "fns.py").exists())
+
+    def test_aasfod_retry_rejects_invalid_tsd_stages_finals_and_binding_changes(self):
+        cell, reference, queue, binding, previous = self.aasfod_failed_fixture(count=64)
+        method = Path(binding["method_dir"])
+        split = Path(binding["tsd_split"])
+        work = Path(binding["work_dir"])
+        original_split = json.loads(split.read_text())
+        original_stages = json.loads((work / "stages.json").read_text())
+        original_execution = json.loads((method / "execution.json").read_text())
+        cases = [
+            ("missing-tsd", split, None, "Missing nonempty file"),
+            ("partial-tsd", split, {**original_split, "status": "partial"}, "Smoke/partial TSD"),
+            ("wrong-tsd", split, {**original_split, "identity": {}}, "TSD identity"),
+            ("invalid-tsd", split, {**original_split, "scores": {}}, "TSD must partition"),
+            ("stage-checkpoint", work / "alignment/iter_159.pth", b"retained", "retained checkpoint"),
+            ("fns-checkpoint", work / "fns/iter_1.pth", b"retained", "retained checkpoint"),
+            ("final-ema", Path(binding["checkpoint"]), b"retained", "Conflicting final"),
+            ("final-student", Path(binding["student_checkpoint"]), b"", "Conflicting final"),
+            ("stage-directory", work / "alignment", "directory", "ambiguous"),
+            ("complete-stages", work / "stages.json",
+             {**original_stages, "status": "complete"}, "ambiguous"),
+            ("missing-stages", work / "stages.json", None, "ambiguous"),
+            ("malformed-stages", work / "stages.json", b"{", "Expecting property"),
+            ("fns-entered", work / "fns.py", b"native FNS config", "ambiguous"),
+            ("changed-plan", work / "stages.json",
+             {**original_stages, "budget": {}}, "ambiguous"),
+            ("changed-source", method / "execution.json",
+             {**original_execution, "source_checkpoint": "/different/source.pth"}, "unchanged binding"),
+            ("changed-config", method / "execution.json",
+             {**original_execution, "config": "/different/config.py"}, "unchanged binding"),
+            ("changed-budget", method / "execution.json",
+             {**original_execution, "aasfod_budget": {}}, "unchanged binding"),
+            ("terminal-success", method / "terminal_status", b"tmux_wrap_exit=0\n", "original failed"),
+            ("terminal-missing", method / "terminal_status", None, "original failed"),
+            ("ema-eval", Path(binding["eval_dir"]), "directory", "retained evaluations"),
+        ]
+        for name, path, value, reason in cases:
+            with self.subTest(case=name):
+                content = path.read_bytes() if path.is_file() else None
+                parent_existed = path.parent.exists()
+                if value is None:
+                    path.unlink()
+                elif value == "directory":
+                    path.mkdir()
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    if isinstance(value, dict):
+                        finite.write_json(path, value)
+                    else:
+                        path.write_bytes(value)
+                retained = {p: p.read_bytes() for p in method.rglob("*") if p.is_file()}
+                process, directory = self.start(
+                    [cell], name, queue=queue, eval_cells=(reference,), controls=(
+                        "--previous-state", str(previous), "--retry-cell", cell.key + ":train"))
+                self.assertEqual(process.wait(timeout=8), 2)
+                state = json.loads((directory / "state.json").read_text())
+                self.assertEqual(state["status"], "blocked")
+                self.assertIn(reason, state["reason"])
+                self.assertFalse((directory / "jobs").exists())
+                self.assertFalse((directory / "recovery").exists())
+                for retained_path, data in retained.items():
+                    self.assertEqual(retained_path.read_bytes(), data)
+                if content is not None:
+                    path.write_bytes(content)
+                elif path.is_dir():
+                    path.rmdir()
+                elif path.exists():
+                    path.unlink()
+                if not parent_existed:
+                    path.parent.rmdir()
+        self.assertEqual(self.events, [])
+
+    def test_aasfod_retry_cannot_archive_a_tsd_target_inside_failed_outputs(self):
+        cell, _, queue, binding, _ = self.aasfod_failed_fixture(count=64)
+        split = Path(binding["tsd_split"])
+        log = split.parent / "train.log"
+        log.write_bytes(split.read_bytes())
+        split.unlink()
+        split.symlink_to(log)
+        backend = TmuxBackend(queue, self.root / "unsafe-split")
+        self.addCleanup(backend.selector.close)
+        with self.assertRaisesRegex(finite.Blocked, "TSD must be outside"):
+            backend.archive_retry(cell, "train")
+        self.assertTrue(split.is_symlink())
+        self.assertEqual(split.read_bytes(), log.read_bytes())
+        self.assertFalse(backend.run_dir.exists())
+
+    def test_aasfod_held_retry_and_busy_cell_lock_leave_artifacts_untouched(self):
+        cell, reference, queue, binding, previous = self.aasfod_failed_fixture(count=64)
+        original = {p: p.read_bytes() for p in Path(binding["method_dir"]).rglob("*") if p.is_file()}
+        lock = finite.take_lock(finite.lock_root(queue).parent / "cell_locks"
+                                / (cell.session("train") + ".lock"))
+        self.addCleanup(lock.close)
+        for name, extra, reason in (
+                ("aasfod-held", ("--hold-cell", cell.key), "Retry cell held"),
+                ("aasfod-busy", (), "Retry cell lock busy")):
+            process, directory = self.start(
+                [cell], name, queue=queue, eval_cells=(reference,), controls=(
+                    "--previous-state", str(previous), "--retry-cell", cell.key + ":train", *extra))
+            self.assertEqual(process.wait(timeout=8), 2)
+            self.assertIn(reason, json.loads((directory / "state.json").read_text())["reason"])
+            self.assertFalse((directory / "recovery").exists())
+        for path, data in original.items():
+            self.assertEqual(path.read_bytes(), data)
+        self.assertEqual(self.events, [])
+
+    def test_aasfod_archive_failure_is_journaled_without_success_or_deletion(self):
+        cell, _, queue, binding, _ = self.aasfod_failed_fixture(count=64)
+        backend = TmuxBackend(queue, self.root / "failed-archive")
+        self.addCleanup(backend.selector.close)
+        original = {p: p.read_bytes() for p in Path(binding["method_dir"]).rglob("*") if p.is_file()}
+        rename = Path.rename
+
+        def fail_log(source, target):
+            if source.name == "train.log":
+                raise OSError("CPU fixture archive filesystem failure")
+            return rename(source, target)
+
+        with patch.object(Path, "rename", fail_log):
+            with self.assertRaisesRegex(OSError, "archive filesystem failure"):
+                backend.archive_retry(cell, "train")
+        record = backend.run_dir / "recovery" / (cell.session("train") + ".json")
+        journal = json.loads(record.read_text())
+        self.assertEqual(journal["status"], "archive_failed")
+        self.assertIn("archive filesystem failure", journal["reason"])
+        work = Path(binding["work_dir"])
+        for path, data in original.items():
+            retained = (work.with_name(work.name + ".finite-retry-failed-archive")
+                        / path.relative_to(work)) if work in path.parents else path
+            self.assertEqual(retained.read_bytes(), data)
+        self.assertFalse((backend.run_dir / "jobs").exists())
+
+    def test_aasfod_live_model_blocks_retry_without_relocating_tsd_or_native_work(self):
+        cell, reference, queue, binding, previous = self.aasfod_failed_fixture(count=64)
+        original = {p: p.read_bytes() for p in Path(binding["method_dir"]).rglob("*") if p.is_file()}
+        command = shlex.join(["bash", str(queue / "run_train_1gpu.sh"),
+                             "4", cell.dataset, cell.domain, str(cell.seed), cell.method])
+        subprocess.run(["tmux", "new-session", "-d", "-s", cell.session("train"), command],
+                       env=self.env, check=True)
+        self.assertEqual(self.next_start()["name"], cell.session("train"))
+        process, directory = self.start(
+            [cell], "aasfod-live", queue=queue, eval_cells=(reference,), controls=(
+                "--previous-state", str(previous), "--retry-cell", cell.key + ":train"))
+        self.assertEqual(process.wait(timeout=8), 2)
+        self.assertIn("no live canonical model job",
+                      json.loads((directory / "state.json").read_text())["reason"])
+        self.assertFalse((directory / "recovery").exists())
+        self.assertFalse((directory / "jobs").exists())
+        for path, data in original.items():
+            self.assertEqual(path.read_bytes(), data)
+        self.assertEqual(subprocess.run(
+            ["tmux", "has-session", "-t", cell.session("train")],
+            env=self.env, capture_output=True).returncode, 0)
+        self.release(cell.session("train"), rc=9)
+
     def test_generated_worker_spec_retry_without_a_student_evaluation_binding(self):
         cell = Cell("DIOR", "brightness", 42, "B_REG")
         reference = Cell("DIOR", "brightness", 42, "IRG", "student")

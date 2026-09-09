@@ -68,9 +68,10 @@ assignment as the existing approved invocation. Add only these options and a
 
 An eval retry requires completed training. Training retry is limited to
 producer-owned EMA training, refuses any retained final checkpoint or
-evaluation output, and never retries Student training. Staged AASFOD training
-retry is explicitly blocked: its method directory also holds the required
-TSD split, so it needs owner-specific recovery rather than generic relocation.
+evaluation output, and never retries Student training. A held retry is blocked
+before any archive movement; only an explicit release can remove that hold.
+AASFOD supports only the pre-first-stage recovery described below, never
+generic staged replay or relocation of its method/TSD directory.
 Conflicting completed artifacts also require owner resolution, not deletion.
 
 Retry ownership is checked by the producer against the finite lists and prior
@@ -86,14 +87,17 @@ without runtime metadata retain their existing Student-path checks.
 
 At startup, after canonical discovery and under the selected model's cell lock,
 a retry refuses any live canonical job for that model. It renames only the
-selected failed method directory (train) or role-specific eval directory (eval),
+selected failed method directory (ordinary train), pre-stage AASFOD outputs
+(below), or role-specific eval directory (eval),
 and that phase's queue/source-queue wrapper statuses, to adjacent
 `NAME.finite-retry-NEW_RUN_BASENAME` archives. Existing archives are never
 overwritten. Native runners then use their **unchanged original destinations
 and frozen bindings**. Use a unique run basename. Archive movement is journaled
-in `NEW_RUN/recovery/*.json`; if interrupted or an OS rename fails, preserve the
-`planned` journal and have the owner resolve its listed moves before another
-retry. No automatic rollback or destructive cleanup occurs.
+in `NEW_RUN/recovery/*.json`; interruption leaves a `planned` journal, and an OS
+rename failure records `archive_failed` and its error. Either is non-success:
+preserve the journal and have the owner resolve its listed moves before another
+retry. Already moved files remain archived; no automatic rollback or destructive
+cleanup occurs.
 
 The old ledger, job specs, receipts and logs are untouched. The new run also
 retains `previous_state.json`, accumulated reasons and per-cell `attempts`
@@ -108,6 +112,61 @@ To release the example hold at a later approved boundary, retain the same
 finite lists and add `--previous-state "$LAST_RUN/state.json"
 --release-cell DIOR/brightness/43/F`. Add a `--retry-cell` only if that phase is
 failed/blocked and explicitly authorized; waiting inputs need no retry flag.
+
+### AASFOD: retained-TSD recovery before the first stage
+
+The observed `RSAR/clean/42/AASFOD:train` failure was a generated-config
+`ColorJitter` import error, before alignment created a stage directory or any
+checkpoint. Its completed TSD (8,467 images, 20 passes, 1,693 similar and 6,774
+dissimilar; the owner's original file is 484,231 bytes) is not a failed phase
+and must not be refit. The generated-config import repair is already in the
+base; this recovery does not modify the frozen model code or stage helper.
+
+The existing selected retry now accepts only this bounded native layout:
+`method_dir/work` contains exactly `alignment.py` and `stages.json`, with no
+alignment/FNS directory, other stage output, or retained `.pth` anywhere in
+the method directory. The native execution must record failure (nonzero
+terminal), retain its invoked-not-complete status, and match every prepared
+binding field except that lifecycle status, using the existing host path
+equivalence. The stage ledger must match the unchanged formal budget and
+`train_aasfod.stage_specs`, with only alignment invoked and no smoke/completed
+stage. Missing, malformed, different, or ambiguous evidence stays blocked for
+owner recovery; even an empty stage directory is outside this path.
+
+Before any move, the existing `require_prerequisites` / `validate_split`
+validates the complete bound TSD identity, algorithm, exact partition and
+finite, non-tied scores. The split must remain outside the relocated outputs.
+Only `work`, `train.log`, `execution.json`, `terminal_status`, and the selected
+TRAIN queue/source-queue wrapper statuses are archived. The method directory,
+`tsd.json` bytes and file identity, other method artifacts, all earlier
+archives, original native logs/receipts and previous ledgers stay retained.
+An archive collision blocks rather than overwriting history.
+
+**Sole runtime owner, after acceptance and at the natural producer boundary:**
+retain the original full finite lists, same prepared queue, external ownership,
+holds, GPU assignment and all scientific bindings. Use the accepted recovery
+checkout and a fresh unique run directory, carrying the final previous ledger;
+append only the authorized selection:
+
+```bash
+--previous-state "$FINAL_PREVIOUS_STATE" \
+--retry-cell RSAR/clean/42/AASFOD:train
+```
+
+Do not copy these options into the already running producer, reset ledgers,
+move the method directory, rewrite TSD or manufacture exit-zero evidence.
+Do not release unrelated NaN/OOM holds or add Student TRAIN. The unchanged
+training entry starts fresh alignment at its canonical original work path,
+consuming the retained TSD, then follows its original FNS budget; this is
+recovery of one invalid pre-stage attempt, not new experiment budget or
+midstage resume. Current independent work need not be interrupted.
+
+CPU regression coverage uses the native failed-artifact layout and real
+previous-state/archive/tmux-worker path, then the real helper and MMCV
+serialization/import chain with the full-size synthetic valid split. Native
+dispatch is deliberately stopped before model/GPU construction with a nonzero
+result; this is recovery/config evidence, not trained checkpoints or a claim
+that the owner's remote TSD bytes were inspected.
 
 ### Restored, never-attempted Student dependencies
 
