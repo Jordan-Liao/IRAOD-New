@@ -178,7 +178,7 @@ def load_paths(queue):
     return module
 
 
-def train_state(queue, paths, cell, check_wrap=True):
+def train_state(queue, paths, cell, check_wrap=True, fns_continuation=None):
     cell = cell.model
     args = (cell.dataset, cell.domain, str(cell.seed), cell.method)
     ema = Path(paths.ema_path(*args))
@@ -187,6 +187,16 @@ def train_state(queue, paths, cell, check_wrap=True):
     student = Path(paths.student_path(*args))
     finals = all(p.is_file() and p.stat().st_size > 0 for p in (ema, student))
     if not finals:
+        if fns_continuation:
+            from experiments.comparison.extension_training import load_cell
+            from experiments.comparison.train_aasfod import load_fns_continuation
+
+            _, binding = load_cell(queue, cell.dataset, cell.domain, cell.seed, cell.method)
+            load_fns_continuation(fns_continuation, binding)
+            method = Path(binding["method_dir"])
+            if not any((method / name).exists() for name in
+                       ("execution.json", "train.log", "terminal_status")):
+                return "pending"
         failed = (ema.parent.exists()
                   or last_exit(ema.parent.parent / "terminal_status",
                                ("tmux_wrap_exit", "launcher_exit")) is not None
@@ -323,8 +333,12 @@ def eval_state(queue, paths, cell, check_wrap=True):
         return "blocked"
 
 
-def runner_command(queue, cell, phase, gpus):
-    if host.is_target_host():
+def runner_command(queue, cell, phase, gpus, fns_continuation=None, aasfod_fns_code=None):
+    if fns_continuation and (cell.key != "RSAR/clean/42/AASFOD" or phase != "train"):
+        raise ValueError("FNS continuation is only the selected EMA model's TRAIN job")
+    if aasfod_fns_code and (cell.method != "AASFOD" or cell.role != "ema" or phase != "train"):
+        raise ValueError("FNS model-code selection applies only to AASFOD model TRAIN jobs")
+    if host.is_target_host() or fns_continuation or aasfod_fns_code:
         if (not set(gpus).issubset(host.approved_gpus())
                 or len(gpus) != (cell.width if phase == "train" else 1)):
             raise ValueError("Invalid target-host GPU assignment")
@@ -344,6 +358,10 @@ def runner_command(queue, cell, phase, gpus):
             command += ["--gpu", str(gpus[0])]
         if phase == "eval":
             command += ["--role", cell.role]
+        if fns_continuation:
+            command += ["--fns-continuation", str(fns_continuation)]
+        if aasfod_fns_code:
+            command += ["--aasfod-fns-code", str(aasfod_fns_code)]
         return command
     args = [cell.dataset, cell.domain, str(cell.seed), cell.method]
     if phase == "eval":
@@ -448,6 +466,9 @@ class TmuxBackend:
             raise Blocked("GPU assignment exceeds this prepared queue's allowed_gpus")
         self.selector = selectors.DefaultSelector()
         self.handles = {}
+        self.fns_options = None
+        self.fns_recovery = None
+        self.fns_code = None
 
     def tmux_call(self, *args, check=True):
         env = dict(os.environ)
@@ -558,6 +579,10 @@ class TmuxBackend:
         return available
 
     def evidence(self, cell, phase, check_wrap=True):
+        if phase == "train" and cell.model.key == "RSAR/clean/42/AASFOD" and self.fns_recovery:
+            # The exception exists only in this selected new run, not globally.
+            return train_state(self.queue, self.paths, cell, check_wrap=check_wrap,
+                               fns_continuation=self.fns_recovery)
         return (train_state if phase == "train" else eval_state)(
             self.queue, self.paths, cell, check_wrap=check_wrap)
 
@@ -623,8 +648,19 @@ class TmuxBackend:
                 destinations.append(Path(self.paths.eval_student_dir(*args)))
             if any(p.exists() for p in destinations):
                 raise Blocked(f"Training retry would affect retained evaluations: {cell.key}")
-            outputs = (self.aasfod_retry_outputs(cell) if cell.method == "AASFOD"
-                       else [Path(self.paths.method_dir(*args))])
+            if self.fns_options and cell.key == "RSAR/clean/42/AASFOD":
+                from experiments.comparison.extension_training import load_cell
+                from experiments.comparison.train_aasfod import validate_fns_code, validate_fns_evidence
+
+                _, binding = load_cell(self.queue, cell.dataset, cell.domain, cell.seed, cell.method)
+                validate_fns_code(self.fns_options["model_code"], binding)
+                validate_fns_evidence(binding, self.fns_options["evidence_dir"])
+                method, work = Path(binding["method_dir"]), Path(binding["work_dir"])
+                outputs = [work / "fns", work / "fns.py", work / "stages.json",
+                           method / "train.log", method / "execution.json", method / "terminal_status"]
+            else:
+                outputs = (self.aasfod_retry_outputs(cell) if cell.method == "AASFOD"
+                           else [Path(self.paths.method_dir(*args))])
         else:
             resolve = self.paths.eval_student_dir if cell.role == "student" else self.paths.eval_full_dir
             outputs = [Path(resolve(*args))]
@@ -641,15 +677,19 @@ class TmuxBackend:
                     raise Blocked(f"Retry archive already exists: {destination}")
                 moves.append({"source": str(source), "archive": str(destination)})
         record = self.run_dir / "recovery" / (cell.session(phase) + ".json")
-        write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "planned"})
+        details = {"cell": asdict(cell), "phase": phase, "moves": moves}
+        if self.fns_options and cell.key == "RSAR/clean/42/AASFOD" and phase == "train":
+            details["fns_continuation"] = {**self.fns_options, "binding": binding}
+        write_json(record, {**details, "status": "planned"})
         try:
             for move in moves:
                 Path(move["source"]).rename(move["archive"])
         except OSError as error:
-            write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves,
-                                "status": "archive_failed", "reason": str(error)})
+            write_json(record, {**details, "status": "archive_failed", "reason": str(error)})
             raise
-        write_json(record, {"cell": asdict(cell), "phase": phase, "moves": moves, "status": "archived"})
+        write_json(record, {**details, "status": "archived"})
+        if "fns_continuation" in details:
+            self.fns_recovery = str(record)
         return moves
 
     def start(self, cell, phase, gpus):
@@ -659,6 +699,11 @@ class TmuxBackend:
         write_json(job_file, {
             "cell": asdict(cell), "phase": phase, "gpus": list(gpus),
             "queue": str(self.queue), "receipt": str(receipt), "tmux": list(self.tmux),
+            **({"fns_continuation": self.fns_recovery}
+               if self.fns_recovery and cell.key == "RSAR/clean/42/AASFOD" and phase == "train" else {}),
+            **({"aasfod_fns_code": self.fns_code}
+               if self.fns_code and cell.method == "AASFOD" and cell.role == "ema" and phase == "train"
+               else {}),
         })
         logs = self.run_dir / "logs"
         logs.mkdir(exist_ok=True)
@@ -724,7 +769,8 @@ def choose_training(ready, free):
 
 
 def run_finite(cells, backend, external=(), external_owners=None, *,
-               previous_state=None, hold_cells=(), release_cells=(), retry_cells=()):
+               previous_state=None, hold_cells=(), release_cells=(), retry_cells=(),
+               aasfod_fns_evidence=None, aasfod_fns_code=None):
     external = set(external)
     external_owners = external_owners or {}
     state = {c.key: {"cell": asdict(c), "train_requested": requested,
@@ -739,6 +785,14 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
         if phase not in ("train", "eval") or key not in state:
             raise Blocked(f"Unknown retry cell/phase: {value}")
         retries.add((key, phase))
+    if aasfod_fns_code:
+        backend.fns_code = host.map_path(Path(aasfod_fns_code).absolute())
+    if aasfod_fns_evidence:
+        if (not aasfod_fns_code
+                or ("RSAR/clean/42/AASFOD", "train") not in retries):
+            raise Blocked("FNS continuation requires evidence, accepted model code and its explicit TRAIN retry")
+        backend.fns_options = {"evidence_dir": host.map_path(Path(aasfod_fns_evidence).absolute()),
+                               "model_code": host.map_path(Path(aasfod_fns_code).absolute())}
     if controls - state.keys() or set(hold_cells) & set(release_cells):
         raise Blocked("Hold/release requires distinct exact keys in the finite scope")
     if retries and not previous_state:
@@ -969,7 +1023,14 @@ def worker(job_file):
         locks.append(lock)
         owns_cell = True
         paths = load_paths(queue)
-        state = (train_state if phase == "train" else eval_state)(queue, paths, cell)
+        continuation = job.get("fns_continuation")
+        fns_code = job.get("aasfod_fns_code")
+        if continuation and (phase != "train" or cell.key != "RSAR/clean/42/AASFOD"):
+            raise Blocked("FNS continuation cannot authorize a different cell or Student TRAIN")
+        if fns_code and (phase != "train" or cell.method != "AASFOD" or cell.role != "ema"):
+            raise Blocked("FNS code selection cannot authorize another method or Student TRAIN")
+        state = (train_state(queue, paths, cell, fns_continuation=continuation)
+                 if phase == "train" else eval_state(queue, paths, cell))
         if state == "complete":
             status, reason, rc = "complete", "", 0
         elif state == "blocked":
@@ -989,7 +1050,10 @@ def worker(job_file):
                 raise Blocked("GPU is occupied by another process; no runner invoked")
             env = {**os.environ, "IRAOD_GPU_LOCKED": "1",
                    "PYTHONPATH": str(SCRIPT.parents[2])}
-            rc = subprocess.run(runner_command(queue, cell, phase, gpus), env=env).returncode
+            command = (runner_command(queue, cell, phase, gpus, continuation, fns_code)
+                       if continuation or fns_code
+                       else runner_command(queue, cell, phase, gpus))
+            rc = subprocess.run(command, env=env).returncode
             valid = (train_state if phase == "train" else eval_state)(
                 queue, paths, cell, check_wrap=False)
             if rc == 0 and valid == "complete":
@@ -1039,6 +1103,10 @@ def main():
                             help="Exact cell key: release a persisted hold, not a failed attempt")
         resume.add_argument("--retry-cell", action="append", default=[],
                             help="KEY:train|eval: archive selected failure and permit one new attempt")
+        resume.add_argument("--aasfod-fns-evidence",
+                            help="Original RSAR/clean/42 completed-alignment/FNS-failure captures")
+        resume.add_argument("--aasfod-fns-code",
+                            help="Accepted cbd0f75 FNS model code for fresh AASFOD and selected recovery; not retry permission")
         resume.add_argument("--handoff-confirmed", action="store_true",
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
     run_worker = commands.add_parser("worker")
@@ -1085,7 +1153,9 @@ def main():
         cells, external, owners = load_work(args)
         result = run_finite(cells, TmuxBackend(args.queue, args.run_dir, gpus), external, owners,
                             previous_state=args.previous_state, hold_cells=args.hold_cell,
-                            release_cells=args.release_cell, retry_cells=args.retry_cell)
+                            release_cells=args.release_cell, retry_cells=args.retry_cell,
+                            aasfod_fns_evidence=args.aasfod_fns_evidence,
+                            aasfod_fns_code=args.aasfod_fns_code)
     except Blocked as error:
         print(f"blocked: {error}", file=sys.stderr)
         raise SystemExit(2)

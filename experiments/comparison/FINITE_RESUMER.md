@@ -168,6 +168,127 @@ dispatch is deliberately stopped before model/GPU construction with a nonzero
 result; this is recovery/config evidence, not trained checkpoints or a claim
 that the owner's remote TSD bytes were inspected.
 
+### AASFOD: accepted FNS code for fresh jobs
+
+`--aasfod-fns-code "$FNS_CODE"` now selects the accepted model snapshot for
+the FNS stage of **every newly submitted AASFOD TRAIN job**, independently of
+recovery. It requires neither captures nor a retry flag for fresh jobs.
+Alignment still uses the original prepared36c2053 checkout, config and source;
+FNS alone uses a separate clean checkout pinned exactly to
+`cbd0f75ab147fea6728f61d6fd696325cc195296`. Both stages consume the original
+bound TSD. RSAR remains159+106=265 updates with266 final labels; DIOR remains
+110+74=184 with185 labels. Optimizer resets, warmup, EMA cadence, batch/geometry
+and initialization remain the existing `stage_specs`.
+
+The source selection travels in each generated AASFOD TRAIN job, through
+the real worker and `extension_training` CLI into the current `train_aasfod`
+helper. Each native subprocess selects its own `train.py`, cwd and `PYTHONPATH`.
+`stages.json` records the actual alignment and FNS code/SHA separately;
+`execution.json` identifies the final FNS model source, records alignment
+source separately, and keeps the original config/source/TSD identity.
+Successful native EMA/Student evaluation uses the actual FNS execution SHA.
+Other methods and evaluation jobs receive no model-code override.
+
+At the sole owner's safe boundary, retain the full original invocation and
+final previous ledger, use a new run directory and this updated orchestration
+checkout, and add:
+
+```bash
+--aasfod-fns-code "$SEPARATE_CLEAN_CBD0F75_CHECKOUT"
+```
+
+Repeat this selection on each subsequent producer invocation that may submit
+fresh AASFOD. **Omitting it retains the prepared36c2053 FNS path and its known
+stack bug.** This flag is code selection, not retry permission: failed/blocked
+phases are not reset, completed training is not rerun, holds are not released,
+and an existing work directory is not overwritten. The normal complete-TSD
+prerequisite and all native/finite locks still apply.
+
+The35 fresh AASFOD cells temporarily held for this wiring gap may be released
+only by the owner after acceptance. Carry the same full finite lists and all
+other holds forward; append one `--release-cell DATASET/DOMAIN/SEED/AASFOD`
+for each exact temporary fresh-cell hold being released. Do not bulk-release
+NaN/OOM/Student exclusions, remove previous state, or turn a failed attempt
+into a fresh row. TSD completions can then make the released fresh jobs ready
+normally. No `--retry-cell` is needed for those unattempted jobs.
+
+For the one retained-alignment failure, combine this flag with the explicit
+retry and genuine captures below. Code selection alone, even with a selected
+retry, does not bypass the old pre-stage guard or authorize alignment replay.
+
+### AASFOD: FNS-only continuation after completed alignment
+
+The later `RSAR/clean/42/AASFOD` mixed-size FNS failure is **not** eligible
+for the preceding pre-stage retry. That guard remains unchanged for every
+ordinary retry. A separate explicit selection accepts the now-available
+original completed-alignment/FNS-failure captures described in
+[AASFOD.md](extensions/AASFOD.md#mixed-size-fns-batching-and-explicit-post-alignment-continuation).
+
+**Sole runtime owner, only after acceptance at a safe producer boundary:**
+keep the same queue, full finite train/eval lists, GPU assignments, external
+ownership/reservations, NaN/OOM holds and Student training exclusions.
+Use this delivery's orchestration checkout, a NEW run directory, and the final
+previous ledger. `FNS_CODE` must be a separate clean checkout at exact
+`cbd0f75ab147fea6728f61d6fd696325cc195296`; it is not the frozen36c2053 checkout
+and not this later orchestration branch HEAD. The full delivery bundle contains
+both commits. `FNS_EVIDENCE` is the original read-only capture directory, with
+`EVIDENCE.json`, `checkpoint_evidence.json`, `owner_console_evidence.json`,
+`work/stages.json`, both resolved stage configs and both native stage logs.
+Keep captures unchanged; retain original checkpoint payloads at their bound
+locations. No new per-stage exit file is required or accepted as a substitute.
+
+Append these options to the owner's unchanged finite invocation:
+
+```bash
+PYTHONPATH="$CONTINUATION_CODE" "$PY" -m experiments.comparison.finite_resumer launch \
+  --queue "$Q" --run-dir "$NEW_RUN" \
+  --train-list "$ORIGINAL_TRAIN_LIST" --eval-list "$ORIGINAL_EVAL_LIST" \
+  --previous-state "$FINAL_PREVIOUS_STATE" \
+  --retry-cell RSAR/clean/42/AASFOD:train \
+  --aasfod-fns-evidence "$FNS_EVIDENCE" \
+  --aasfod-fns-code "$FNS_CODE" \
+  --gpus "$ORIGINAL_GPU_SET" --handoff-confirmed
+```
+
+Retain any additional original lists, scientific hold flags and external-owner
+arguments unchanged. Release only the explicitly authorized temporary
+fresh-AASFOD holds described above. Do not edit previous state, stop healthy
+jobs or invoke a helper outside the selected finite retry to make it pass.
+The selection requires a producer-owned failed/blocked TRAIN row, no live
+canonical model job and the existing nonblocking cell lock. Completed final
+checkpoints/evaluations remain non-retriable. All unselected ledger rows,
+attempts, holds and artifacts retain their existing behavior.
+
+Before moving anything, the validator checks the bound159/106/265 budget,
+original stage invocations and resolved configs, CPU checkpoint metadata
+(without rereading large tensors), native/owner logs and the retained complete
+TSD's identity/size/hash. Only `work/fns`, `work/fns.py`, `work/stages.json`,
+root `train.log`, `execution.json`, `terminal_status`, and selected TRAIN
+queue/source-wrapper statuses are renamed to the existing adjacent
+`.finite-retry-NEW_RUN_NAME` archives. `work/alignment`, `work/alignment.py`,
+TSD, the method directory and all earlier archives remain in place. The
+existing recovery journal records every move and the explicit evidence/model
+bindings; archive collisions or partial archive failures do not authorize work.
+
+The job passes its archived recovery record through the real finite worker
+and `extension_training` into `train_aasfod`. The existing-work exception is
+local to that selected record, not a global pending-state reset. The native
+entry writes a new execution record and real terminal status; only successful
+FNS outputs produce final aliases and permit a successful worker receipt,
+ordinary training adoption and EMA/Student evaluation. The final execution
+identifies accepted FNS model code honestly and retains original alignment
+provenance. If both the code flag and recovery record are supplied, they must
+select the same model checkout. Never manufacture a success status to clear
+an older failure.
+
+If interrupted or blocked, preserve the new run's `previous_state.json`,
+`state.json` and `recovery/xaf-RSAR-clean-42-AASFOD.json`. Its move list is the
+rollback map; restore only under the sole owner's lock and only if no new
+outputs conflict. A newly entered or failed FNS attempt is not automatically
+retryable through this interface. A replacement producer can adopt an existing
+canonical continuation worker through its persisted job/receipt, or recognize
+genuine completed finals normally; never rearchive an active attempt.
+
 ### Restored, never-attempted Student dependencies
 
 A future resumer can reconsider an eval-only Student row whose persisted
