@@ -974,6 +974,25 @@ else: raise SystemExit(2)
         self.assertEqual(split.read_bytes(), log.read_bytes())
         self.assertFalse(backend.run_dir.exists())
 
+    def test_explicit_owner_recovery_archives_retained_aasfod_checkpoint_and_preserves_tsd(self):
+        cell, _, queue, binding, _ = self.aasfod_failed_fixture(count=64)
+        method = Path(binding["method_dir"])
+        checkpoint = method / "work/alignment/iter_159.pth"
+        checkpoint.parent.mkdir()
+        checkpoint.write_bytes(b"retained")
+        split = Path(binding["tsd_split"])
+        original_split = split.read_bytes()
+        backend = TmuxBackend(queue, self.root / "retained-owner-recovery")
+        self.addCleanup(backend.selector.close)
+        backend.retained_aasfod_archive = {cell.key}
+        moves = backend.archive_retry(cell, "train")
+        self.assertTrue(moves)
+        self.assertEqual(split.read_bytes(), original_split)
+        self.assertFalse((method / "work").exists())
+        self.assertTrue((method / (
+            "work.finite-retry-retained-owner-recovery/alignment/iter_159.pth"
+        )).is_file())
+
     def test_aasfod_held_retry_and_busy_cell_lock_leave_artifacts_untouched(self):
         cell, reference, queue, binding, previous = self.aasfod_failed_fixture(count=64)
         original = {p: p.read_bytes() for p in Path(binding["method_dir"]).rglob("*") if p.is_file()}

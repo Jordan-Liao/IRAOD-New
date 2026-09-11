@@ -468,6 +468,7 @@ class TmuxBackend:
         self.handles = {}
         self.fns_options = None
         self.fns_recovery = None
+        self.retained_aasfod_archive = set()
         self.fns_code = None
 
     def tmux_call(self, *args, check=True):
@@ -610,7 +611,9 @@ class TmuxBackend:
         if split.is_relative_to(work.resolve()) or split in {p.resolve() for p in outputs[1:]}:
             raise Blocked("AASFOD retained TSD must be outside the failed retry outputs")
         if any(method.rglob("*.pth")):
-            raise Blocked("AASFOD retained checkpoint requires owner recovery")
+            if cell.key not in self.retained_aasfod_archive:
+                raise Blocked("AASFOD retained checkpoint requires owner recovery")
+            return outputs
         if (not work.is_dir()
                 or {p.name for p in work.iterdir()} != {"alignment.py", "stages.json"}):
             raise Blocked("AASFOD stage entry/completion is ambiguous; owner recovery required")
@@ -770,7 +773,8 @@ def choose_training(ready, free):
 
 def run_finite(cells, backend, external=(), external_owners=None, *,
                previous_state=None, hold_cells=(), release_cells=(), retry_cells=(),
-               aasfod_fns_evidence=None, aasfod_fns_code=None, train_only=False):
+               aasfod_fns_evidence=None, aasfod_fns_code=None, train_only=False,
+               archive_retained_aasfod=()):
     external = set(external)
     external_owners = external_owners or {}
     state = {c.key: {"cell": asdict(c), "train_requested": requested,
@@ -785,6 +789,11 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
         if phase not in ("train", "eval") or key not in state:
             raise Blocked(f"Unknown retry cell/phase: {value}")
         retries.add((key, phase))
+    retained = set(archive_retained_aasfod)
+    if any(key not in state or (key, "train") not in retries
+           or state[key]["cell"]["method"] != "AASFOD" for key in retained):
+        raise Blocked("Retained AASFOD archive requires its exact TRAIN retry")
+    backend.retained_aasfod_archive = retained
     if aasfod_fns_code:
         backend.fns_code = host.map_path(Path(aasfod_fns_code).absolute())
     if aasfod_fns_evidence:
@@ -1114,6 +1123,8 @@ def main():
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
         resume.add_argument("--train-only", action="store_true",
                             help="Preserve the full finite ledger and scope while deferring all new evaluations")
+        resume.add_argument("--archive-retained-aasfod", action="append", default=[],
+                            help="Exact AASFOD TRAIN retry whose retained attempt may be archived in full")
     run_worker = commands.add_parser("worker")
     run_worker.add_argument("job")
     args = parser.parse_args()
@@ -1161,7 +1172,8 @@ def main():
                             release_cells=args.release_cell, retry_cells=args.retry_cell,
                             aasfod_fns_evidence=args.aasfod_fns_evidence,
                             aasfod_fns_code=args.aasfod_fns_code,
-                            train_only=args.train_only)
+                            train_only=args.train_only,
+                            archive_retained_aasfod=args.archive_retained_aasfod)
     except Blocked as error:
         print(f"blocked: {error}", file=sys.stderr)
         raise SystemExit(2)
