@@ -228,6 +228,17 @@ with patch.object(training, '_train', return_value='routed'):
             with self.subTest(hostname=hostname):
                 self.check_exact_host_prefixes(hostname)
 
+    def test_capacity_host_maps_134_artifacts_only(self):
+        source = "/mnt/HDD1_3TB/zechuan/iraod_artifacts/comparison/run/tam.pth"
+        expected = "/mnt/shared/zechuan/iraod_artifacts/comparison/run/tam.pth"
+        shared = "/mnt/shared/zechuan/iraod_artifacts/comparison/run/tam.pth"
+        with patch.object(host.socket, "gethostname", return_value=host.CAPACITY_HOST_67):
+            self.assertFalse(host.is_target_host())
+            self.assertEqual(host.map_path(source), expected)
+            self.assertEqual(host.map_data({"checkpoint": source}), {"checkpoint": expected})
+            self.assertEqual(host.map_path(shared), shared)
+            self.assertEqual(host.map_path(PYTHON), PYTHON)
+
     def check_exact_host_prefixes(self, hostname):
         raw = json.loads(FIXTURE.read_text())
         original = copy.deepcopy(raw)

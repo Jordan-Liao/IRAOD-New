@@ -22,6 +22,7 @@ from types import ModuleType
 
 TARGET_HOST = "73F3-5xA6000-221"
 TARGET_HOST_134 = "73F3-8x4090-134"
+CAPACITY_HOST_67 = "7T83-8xA100-67"
 PREFIXES = (
     ("/mnt/shared/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
     ("/mnt/shared/zechuan/iraod_data", "/home/zechuan/iraod_data"),
@@ -29,6 +30,9 @@ PREFIXES = (
     ("/mnt/SSD2_8TB/zechuan", "/home/zechuan"),
     # The owner's selected artifact root is a symlink to this same storage.
     ("/mnt/HDD_14TB/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
+)
+CAPACITY_HOST_67_PREFIXES = (
+    ("/mnt/HDD1_3TB/zechuan/iraod_artifacts", "/mnt/shared/zechuan/iraod_artifacts"),
 )
 SHARED_LOCK_ROOT = "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks"
 PYTHON_PREFIX = "/home/zechuan/miniforge3/envs/iraod"
@@ -41,6 +45,11 @@ def is_target_host():
 def map_path(value):
     """Map one path to the selected lexical home prefix; never resolve a venv."""
     value = str(value)
+    if socket.gethostname() == CAPACITY_HOST_67:
+        for source, target in CAPACITY_HOST_67_PREFIXES:
+            if value == source or value.startswith(source + "/"):
+                return target + value[len(source):]
+        return value
     if is_target_host():
         for source, target in PREFIXES:
             if value == source or value.startswith(source + "/"):
