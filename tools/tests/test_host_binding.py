@@ -196,6 +196,9 @@ assert host.map_path('/home/zechuan/miniforge3/envs/iraod/bin/python') == (
 assert host.map_path(
     '/mnt/HDD_14TB/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
 ) == '/home/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
+assert host.map_path(
+    '/mnt/HDD_14TB/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
+) == '/home/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
 assert host.python_prefix() == '/home/zechuan/anaconda3/envs/iraod'
 env = host.native_environment()
 assert env['CONDA_PREFIX'] == host.python_prefix()
