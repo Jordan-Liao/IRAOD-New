@@ -1,7 +1,8 @@
 # Selected target execution binding
 
 This is an operational overlay for exact hostnames `73F3-5xA6000-221`
-(owner's endpoint `20138`) and `73F3-8x4090-134` (SSH `20134`), not a fleet scheduler.
+(owner's endpoint `20138`), `73F3-8x4090-134` (SSH `20134`), and
+`7352-10x4090-183` (SSH `20183`), not a fleet scheduler.
 
 ## Interfaces
 
@@ -15,7 +16,9 @@ This is an operational overlay for exact hostnames `73F3-5xA6000-221`
 - `is_target_host()`: exact hostname membership, no environment override.
 - `approved_gpus()` / `pair_ports()`:221 singles `0..4`, pairs
   `0,1:29804` and `2,3:29806`;134 singles **physical4..7 only**, pairs
-  **`4,5:29804` and `6,7:29806`**.134 never inherits221 GPU0-3 or its pairs.
+  **`4,5:29804` and `6,7:29806`**;183 singles **physical1..9 only**, pairs
+  **`1,2:29804`, `3,4:29806`, `5,6:29808`, and `7,8:29810`**.
+  GPU0 on183 remains foreign and is never admitted.
   Unknown hosts retain historical singles `4..7` and pairs `4,5:29804`,
   `6,7:29806`, without enabling the overlay or granting new authorization.
 - `finite_resumer.lock_root(queue)` returns the target's one shared directory:
@@ -35,8 +38,11 @@ do not append wrapper statuses to copied Q752.
 
 ## Owner launch contract
 
-Set the current integration checkout as `PYTHONPATH` and use exactly
-`/home/zechuan/miniforge3/envs/iraod/bin/python`.
+Set the current integration checkout as `PYTHONPATH`. Use exactly
+`/home/zechuan/miniforge3/envs/iraod/bin/python` on221/134 and
+`/home/zechuan/anaconda3/envs/iraod/bin/python` on183. The183 binding maps
+the recorded selected-host interpreter prefix to that existing environment;
+scientific paths and metadata remain unchanged.
 
 Outer LoRA, TAM and TSD ownership uses:
 

@@ -1,4 +1,4 @@
-"""Operational bindings for the selected221 and134 hosts, not a scheduler.
+"""Operational bindings for the selected221,134 and183 hosts, not a scheduler.
 
 Importing this module requires only stdlib (including from standalone LoRA).
 Copied metadata and model checkouts are never rewritten.
@@ -22,6 +22,7 @@ from types import ModuleType
 
 TARGET_HOST = "73F3-5xA6000-221"
 TARGET_HOST_134 = "73F3-8x4090-134"
+TARGET_HOST_183 = "7352-10x4090-183"
 PREFIXES = (
     ("/mnt/shared/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
     ("/mnt/shared/zechuan/iraod_data", "/home/zechuan/iraod_data"),
@@ -32,16 +33,24 @@ PREFIXES = (
 )
 SHARED_LOCK_ROOT = "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks"
 PYTHON_PREFIX = "/home/zechuan/miniforge3/envs/iraod"
+PYTHON_PREFIX_183 = "/home/zechuan/anaconda3/envs/iraod"
 
 
 def is_target_host():
-    return socket.gethostname() in (TARGET_HOST, TARGET_HOST_134)
+    return socket.gethostname() in (TARGET_HOST, TARGET_HOST_134, TARGET_HOST_183)
+
+
+def python_prefix():
+    return PYTHON_PREFIX_183 if socket.gethostname() == TARGET_HOST_183 else PYTHON_PREFIX
 
 
 def map_path(value):
     """Map one path to the selected lexical home prefix; never resolve a venv."""
     value = str(value)
     if is_target_host():
+        if socket.gethostname() == TARGET_HOST_183 and (
+                value == PYTHON_PREFIX or value.startswith(PYTHON_PREFIX + "/")):
+            return PYTHON_PREFIX_183 + value[len(PYTHON_PREFIX):]
         for source, target in PREFIXES:
             if value == source or value.startswith(source + "/"):
                 return target + value[len(source):]
@@ -84,12 +93,21 @@ def same_data(first, second):
 
 
 def approved_gpus():
-    return (0, 1, 2, 3, 4) if socket.gethostname() == TARGET_HOST else (4, 5, 6, 7)
+    hostname = socket.gethostname()
+    if hostname == TARGET_HOST:
+        return (0, 1, 2, 3, 4)
+    if hostname == TARGET_HOST_183:
+        return (1, 2, 3, 4, 5, 6, 7, 8, 9)
+    return (4, 5, 6, 7)
 
 
 def pair_ports():
-    return ({(0, 1): 29804, (2, 3): 29806} if socket.gethostname() == TARGET_HOST
-            else {(4, 5): 29804, (6, 7): 29806})
+    hostname = socket.gethostname()
+    if hostname == TARGET_HOST:
+        return {(0, 1): 29804, (2, 3): 29806}
+    if hostname == TARGET_HOST_183:
+        return {(1, 2): 29804, (3, 4): 29806, (5, 6): 29808, (7, 8): 29810}
+    return {(4, 5): 29804, (6, 7): 29806}
 
 
 def read_path(value):
@@ -209,11 +227,12 @@ def native_command(command, entry):
 
 def native_environment():
     """Keep frozen entrypoints from re-execing away the active path-only overlay."""
-    env = {**os.environ, "IRAOD_RUNTIME_READY": "1", "IRAOD_CONDA_PREFIX": PYTHON_PREFIX,
-           "CONDA_PREFIX": PYTHON_PREFIX, "PYTHONNOUSERSITE": "1",
+    prefix = python_prefix()
+    env = {**os.environ, "IRAOD_RUNTIME_READY": "1", "IRAOD_CONDA_PREFIX": prefix,
+           "CONDA_PREFIX": prefix, "PYTHONNOUSERSITE": "1",
            "PYTHONDONTWRITEBYTECODE": "1"}
-    for key, first in (("PATH", PYTHON_PREFIX + "/bin"),
-                       ("LD_LIBRARY_PATH", PYTHON_PREFIX + "/lib")):
+    for key, first in (("PATH", prefix + "/bin"),
+                       ("LD_LIBRARY_PATH", prefix + "/lib")):
         rest = [part for part in env.get(key, "").split(os.pathsep)
                 if part and part != first]
         env[key] = os.pathsep.join([first, *rest])

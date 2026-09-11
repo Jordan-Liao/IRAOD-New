@@ -175,6 +175,35 @@ with patch.object(training, '_train', return_value='routed'):
             text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_cold_183_imports_exclude_foreign_gpu0_and_use_real_environment(self):
+        bootstrap = """
+import socket
+socket.gethostname = lambda: '7352-10x4090-183'
+from experiments.comparison import host_binding as host
+from experiments.comparison import extension_training as training, finite_resumer as finite
+from experiments.comparison import mixed_queue, train_tam
+assert host.is_target_host()
+expected = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+for actual in (host.approved_gpus(), training.ALLOWED_GPUS, finite.APPROVED,
+               mixed_queue.ALLOWED_GPUS, train_tam.GPUS):
+    assert actual == expected, actual
+expected_pairs = {(1, 2): 29804, (3, 4): 29806, (5, 6): 29808, (7, 8): 29810}
+for actual in (host.pair_ports(), training.PAIR_PORTS, finite.PAIR_PORTS,
+               mixed_queue.PAIR_PORTS):
+    assert actual == expected_pairs, actual
+assert host.map_path('/home/zechuan/miniforge3/envs/iraod/bin/python') == (
+    '/home/zechuan/anaconda3/envs/iraod/bin/python')
+assert host.python_prefix() == '/home/zechuan/anaconda3/envs/iraod'
+env = host.native_environment()
+assert env['CONDA_PREFIX'] == host.python_prefix()
+assert env['PATH'].split(':')[0] == host.python_prefix() + '/bin'
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", bootstrap], cwd=training.ROOT,
+            env={**os.environ, "PYTHONNOUSERSITE": "1", "CUDA_VISIBLE_DEVICES": ""},
+            text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_cold_native_entry_retains_frozen_imports_and_maps_config(self):
         for hostname in (host.TARGET_HOST, host.TARGET_HOST_134):
             with self.subTest(hostname=hostname):
