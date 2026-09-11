@@ -373,8 +373,14 @@ assert env['PATH'].split(':')[0] == host.python_prefix() + '/bin'
                 extension_manifest.evaluate_binding(cell, runtime, 0)
 
     def test_old_and_new_gpu_domains_pairs_and_ports(self):
-        with patch.object(host.socket, "gethostname", return_value="unknown"), \
-                patch.object(training, "_train", return_value="routed"):
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(host.socket, "gethostname", return_value="unknown"))
+            for module, name in ((training, "ALLOWED_GPUS"), (finite, "APPROVED"),
+                                 (mixed_queue, "ALLOWED_GPUS")):
+                stack.enter_context(patch.object(module, name, host.approved_gpus()))
+            for module in (training, finite, mixed_queue):
+                stack.enter_context(patch.object(module, "PAIR_PORTS", host.pair_ports()))
+            stack.enter_context(patch.object(training, "_train", return_value="routed"))
             for gpu in range(4):
                 with self.assertRaises(ValueError):
                     training.train("q", gpu, "DIOR", "clean", 42, "B_REG")
