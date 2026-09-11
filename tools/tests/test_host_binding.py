@@ -193,6 +193,9 @@ for actual in (host.pair_ports(), training.PAIR_PORTS, finite.PAIR_PORTS,
     assert actual == expected_pairs, actual
 assert host.map_path('/home/zechuan/miniforge3/envs/iraod/bin/python') == (
     '/home/zechuan/anaconda3/envs/iraod/bin/python')
+assert host.map_path(
+    '/mnt/HDD_14TB/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
+) == '/home/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
 assert host.python_prefix() == '/home/zechuan/anaconda3/envs/iraod'
 env = host.native_environment()
 assert env['CONDA_PREFIX'] == host.python_prefix()

@@ -30,6 +30,7 @@ PREFIXES = (
     ("/mnt/SSD2_8TB/zechuan", "/home/zechuan"),
     # The owner's selected artifact root is a symlink to this same storage.
     ("/mnt/HDD_14TB/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
+    ("/mnt/HDD_14TB/zechuan/iraod_weights", "/home/zechuan/iraod_weights"),
 )
 SHARED_LOCK_ROOT = "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks"
 PYTHON_PREFIX = "/home/zechuan/miniforge3/envs/iraod"

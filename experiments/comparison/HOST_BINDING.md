@@ -6,9 +6,10 @@ This is an operational overlay for exact hostnames `73F3-5xA6000-221`
 
 ## Interfaces
 
-- `host_binding.map_path(str | Path) -> str`: maps the four selected old
+- `host_binding.map_path(str | Path) -> str`: maps the selected old
   prefixes to `/home/zechuan`; canonicalizes the equivalent HDD artifact
-  prefix to the same home spelling. Never resolves the Python executable.
+  and weight prefixes to the same home spelling. On183 it also maps the
+  recorded selected-host interpreter prefix to the existing Conda environment.
 - `map_data(value)`: copies dict/list/tuple containers, mapping only path
   strings. Keys, source SHAs, tensors, numeric settings and budgets are unchanged.
 - `same_path(a, b)`: compares native artifact identities through the mapped
