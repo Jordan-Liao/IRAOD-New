@@ -30,6 +30,7 @@ PREFIXES = (
     ("/mnt/SSD2_8TB/zechuan", "/home/zechuan"),
     # The owner's selected artifact root is a symlink to this same storage.
     ("/mnt/HDD_14TB/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
+    ("/mnt/HDD1_3TB/zechuan/iraod_artifacts", "/home/zechuan/iraod_artifacts"),
     ("/mnt/HDD_14TB/zechuan/iraod_weights", "/home/zechuan/iraod_weights"),
     ("/mnt/HDD_14TB/zechuan/IRAOD-New-oracle72-599de03-20260909",
      "/home/zechuan/IRAOD-New-oracle72-599de03-20260909"),

@@ -197,6 +197,9 @@ assert host.map_path(
     '/mnt/HDD_14TB/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
 ) == '/home/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors'
 assert host.map_path(
+    '/mnt/HDD1_3TB/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder.pt'
+) == '/home/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder.pt'
+assert host.map_path(
     '/mnt/HDD_14TB/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
 ) == '/home/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
 assert host.python_prefix() == '/home/zechuan/anaconda3/envs/iraod'
