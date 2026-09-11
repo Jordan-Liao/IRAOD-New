@@ -770,7 +770,7 @@ def choose_training(ready, free):
 
 def run_finite(cells, backend, external=(), external_owners=None, *,
                previous_state=None, hold_cells=(), release_cells=(), retry_cells=(),
-               aasfod_fns_evidence=None, aasfod_fns_code=None):
+               aasfod_fns_evidence=None, aasfod_fns_code=None, train_only=False):
     external = set(external)
     external_owners = external_owners or {}
     state = {c.key: {"cell": asdict(c), "train_requested": requested,
@@ -954,10 +954,13 @@ def run_finite(cells, backend, external=(), external_owners=None, *,
                               and not state[c.key]["held"]
                               and cells[c] and c.role == "ema"
                               and (c, "train") not in attempted]
-                    evaluations = [c for c in cells if c.model not in occupied
-                                   and not state[c.key]["held"]
-                                   and state[c.key]["train"] == "complete"
-                                   and state[c.key]["eval"] == "ready" and (c, "eval") not in attempted]
+                    evaluations = [] if train_only else [
+                        c for c in cells if c.model not in occupied
+                        and not state[c.key]["held"]
+                        and state[c.key]["train"] == "complete"
+                        and state[c.key]["eval"] == "ready"
+                        and (c, "eval") not in attempted
+                    ]
                     if not trains and not evaluations:
                         break
                     free = backend.available() - {g for h in active.values() for g in h["gpus"]}
@@ -1109,6 +1112,8 @@ def main():
                             help="Accepted cbd0f75 FNS model code for fresh AASFOD and selected recovery; not retry permission")
         resume.add_argument("--handoff-confirmed", action="store_true",
                             help="Competing primary producers stopped; declared external owners and GPU jobs preserved")
+        resume.add_argument("--train-only", action="store_true",
+                            help="Preserve the full finite ledger and scope while deferring all new evaluations")
     run_worker = commands.add_parser("worker")
     run_worker.add_argument("job")
     args = parser.parse_args()
@@ -1155,7 +1160,8 @@ def main():
                             previous_state=args.previous_state, hold_cells=args.hold_cell,
                             release_cells=args.release_cell, retry_cells=args.retry_cell,
                             aasfod_fns_evidence=args.aasfod_fns_evidence,
-                            aasfod_fns_code=args.aasfod_fns_code)
+                            aasfod_fns_code=args.aasfod_fns_code,
+                            train_only=args.train_only)
     except Blocked as error:
         print(f"blocked: {error}", file=sys.stderr)
         raise SystemExit(2)

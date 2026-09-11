@@ -262,6 +262,25 @@ else: raise SystemExit(2)
         self.assertEqual(state["status"], "complete")
         self.assertEqual(len({e["name"] for e in self.events if e["event"] == "start"}), 8)
 
+    def test_train_only_preserves_eval_scope_without_admitting_evaluations(self):
+        cell = Cell("RSAR", "clean", 43, "C")
+        process, directory = self.start(
+            [cell], eval_cells=(cell,), controls=("--train-only",))
+        started = self.next_start()
+        self.assertEqual(
+            (started["name"], started["phase"]),
+            (cell.session("train"), "train"),
+        )
+        self.release(started["name"])
+        self.assertEqual(process.wait(timeout=8), 2)
+        state = json.loads((directory / "state.json").read_text())
+        row = state["cells"][0]
+        self.assertEqual((row["train"], row["eval"]), ("complete", "ready"))
+        self.assertEqual(
+            [event["phase"] for event in self.events if event["event"] == "start"],
+            ["train"],
+        )
+
     def test_two_supported_pairs_run_concurrently_and_correct_api(self):
         cells = [Cell("RSAR", "clean", 43, "E"), Cell("DIOR", "clean", 43, "F")]
         process, _ = self.start(cells)
