@@ -10,25 +10,34 @@ from experiments.comparison.result_completion import (
     load_run, native_binding_evidence, read_json, FEATURE_POINT, FEATURE_VERSION)
 
 
-def require_owned_gpu(run):
+def require_owned_gpu(run, selected_gpu=None):
     if os.environ.get("IRAOD_GPU_LOCKED") != "1":
         raise RuntimeError("Port ROI extraction requires the existing owner's actual GPU lock")
-    if os.environ.get("CUDA_VISIBLE_DEVICES") not in tuple(map(str, run["allowed_gpus"])):
-        raise ValueError("Port ROI extraction requires one bound physical GPU4,5,6")
+    visible = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if not visible.isdecimal() or str(int(visible)) != visible:
+        raise ValueError("Port ROI extraction requires one matching single physical GPU")
+    physical_gpu = int(visible)
+    if selected_gpu is not None:
+        if selected_gpu < 0 or selected_gpu != physical_gpu:
+            raise ValueError("Port ROI extraction requires one matching single physical GPU")
+    elif physical_gpu not in run["allowed_gpus"]:
+        raise ValueError("Port ROI extraction requires an explicit physical GPU selection")
+    return physical_gpu
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", required=True)
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--physical-gpu", type=int)
     args = parser.parse_args()
     run = load_run(args.plan, args.run_id)
     code_commit = subprocess.check_output(
         ["git", "-C", str(Path(__file__).resolve().parents[3]), "rev-parse", "HEAD"],
         text=True).strip()
-    native = predictions = prediction_indices = None
+    native = predictions = prediction_indices = physical_gpu = None
     if "native_prediction" in run:
-        require_owned_gpu(run)
+        physical_gpu = require_owned_gpu(run, args.physical_gpu)
         native = native_binding_evidence(run)
         if native["status"] != "complete":
             raise ValueError(f"ROI pending native inputs: {native['missing']}")
@@ -121,6 +130,7 @@ def main():
     }
     if native is not None:
         index["native_prediction"] = native
+        index["physical_gpu"] = physical_gpu
     (out / "index.json").write_text(json.dumps(index, indent=2) + "\n")
     print(f"Completed {run['run_id']}: {len(records)} images -> {out}")
 

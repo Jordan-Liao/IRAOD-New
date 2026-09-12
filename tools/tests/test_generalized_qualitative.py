@@ -273,16 +273,24 @@ class GeneralizedQualitativeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "binding mismatch"):
             native_binding_evidence(run)
 
-    def test_port_roi_requires_owned_single_gpu_and_excludes_foreign_seven(self):
+    def test_port_roi_requires_locked_explicit_single_gpu_selection(self):
         from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import require_owned_gpu
 
         run = {"allowed_gpus": [4, 5, 6]}
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "6"}):
-            require_owned_gpu(run)
-        for device in ("7", "4,5", ""):
+            self.assertEqual(require_owned_gpu(run), 6)
+        for device in ("3", "7"):
+            with patch.dict(os.environ, {
+                    "IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": device}):
+                self.assertEqual(require_owned_gpu(run, int(device)), int(device))
+        with patch.dict(os.environ, {
+                "IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "7"}):
+            with self.assertRaisesRegex(ValueError, "explicit physical GPU"):
+                require_owned_gpu(run)
+        for device, selected in (("4,5", 4), ("", 4), ("3", 7), ("-1", -1)):
             with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": device}):
-                with self.assertRaisesRegex(ValueError, "bound physical"):
-                    require_owned_gpu(run)
+                with self.assertRaisesRegex(ValueError, "single physical GPU"):
+                    require_owned_gpu(run, selected)
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "0", "CUDA_VISIBLE_DEVICES": "4"}):
             with self.assertRaisesRegex(RuntimeError, "actual GPU lock"):
                 require_owned_gpu(run)
