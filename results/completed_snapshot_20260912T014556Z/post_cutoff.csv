@@ -1,0 +1,2 @@
+dataset,domain,method,seed,unit,host,completed_at,evidence
+RSAR,am_noise_horizontal,LoRA-CGA,44,TRAIN,67,2026-09-12T01:54:11+00:00,.67:/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_rsar48_20260909/rsar/am_noise_horizontal/seed_44/methods/LoRA-CGA/terminal_status

@@ -1,0 +1,166 @@
+{
+  "reviewed_head": "702f4b373890d69961c5781ab3abb5f76c3be9ef",
+  "evidence_scope": "Five RSAR seed-44 EMA checkpoints classified as numerically invalid in PR21.",
+  "method": {
+    "execution": "Read-only, in-place checkpoint inspection on the source host.",
+    "device_policy": "CPU only; CUDA_VISIBLE_DEVICES was set to an empty string.",
+    "python": "/home/zechuan/miniforge3/envs/iraod/bin/python",
+    "pytorch_version": "2.0.1+cu118",
+    "load_call": "torch.load(checkpoint_path, map_location=\"cpu\")",
+    "counting": "Recursively traverse tensors under each top-level state; for floating-point or complex tensors, count torch.isnan and torch.isinf elements.",
+    "command_template": "CUDA_VISIBLE_DEVICES=\"\" /home/zechuan/miniforge3/envs/iraod/bin/python <read-only tensor inspection script>"
+  },
+  "checkpoints": [
+    {
+      "dataset": "RSAR",
+      "domain": "noise_suppression",
+      "method": "IRG",
+      "seed": 44,
+      "role": "ema",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_runs_a39c832/rsar/noise_suppression/seed_44/methods/IRG/work/iter_266_ema.pth",
+      "bytes": 380953791,
+      "top_level_keys": [
+        "meta",
+        "state_dict",
+        "optimizer"
+      ],
+      "states": {
+        "state_dict": {
+          "tensor_count": 396,
+          "element_count": 43939094,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43632395,
+          "inf_element_count": 0
+        },
+        "optimizer": {
+          "tensor_count": 213,
+          "element_count": 51245601,
+          "nonfinite_tensor_count": 213,
+          "nan_element_count": 51242763,
+          "inf_element_count": 0
+        }
+      }
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "noise_suppression",
+      "method": "LPLD",
+      "seed": 44,
+      "role": "ema",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_runs_a39c832/rsar/noise_suppression/seed_44/methods/LPLD/work/iter_266_ema.pth",
+      "bytes": 350506979,
+      "top_level_keys": [
+        "meta",
+        "state_dict",
+        "optimizer"
+      ],
+      "states": {
+        "state_dict": {
+          "tensor_count": 396,
+          "element_count": 43939094,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43632395,
+          "inf_element_count": 0
+        },
+        "optimizer": {
+          "tensor_count": 195,
+          "element_count": 43635233,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43632395,
+          "inf_element_count": 0
+        }
+      }
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "noise_suppression",
+      "method": "SFUT",
+      "seed": 44,
+      "role": "ema",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_runs_a39c832/rsar/noise_suppression/seed_44/methods/SFUT/work/iter_266_ema.pth",
+      "bytes": 350506979,
+      "top_level_keys": [
+        "meta",
+        "state_dict",
+        "optimizer"
+      ],
+      "states": {
+        "state_dict": {
+          "tensor_count": 396,
+          "element_count": 43939094,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43632392,
+          "inf_element_count": 0
+        },
+        "optimizer": {
+          "tensor_count": 195,
+          "element_count": 43635233,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43632392,
+          "inf_element_count": 0
+        }
+      }
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "point_target",
+      "method": "IRG",
+      "seed": 44,
+      "role": "ema",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_runs_a39c832/rsar/point_target/seed_44/methods/IRG/work/iter_266_ema.pth",
+      "bytes": 380953727,
+      "top_level_keys": [
+        "meta",
+        "state_dict",
+        "optimizer"
+      ],
+      "states": {
+        "state_dict": {
+          "tensor_count": 396,
+          "element_count": 43939094,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43634201,
+          "inf_element_count": 0
+        },
+        "optimizer": {
+          "tensor_count": 213,
+          "element_count": 51245601,
+          "nonfinite_tensor_count": 213,
+          "nan_element_count": 51244569,
+          "inf_element_count": 0
+        }
+      }
+    },
+    {
+      "dataset": "RSAR",
+      "domain": "point_target",
+      "method": "LPLD",
+      "seed": 44,
+      "role": "ema",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_runs_a39c832/rsar/point_target/seed_44/methods/LPLD/work/iter_266_ema.pth",
+      "bytes": 350506915,
+      "top_level_keys": [
+        "meta",
+        "state_dict",
+        "optimizer"
+      ],
+      "states": {
+        "state_dict": {
+          "tensor_count": 396,
+          "element_count": 43939094,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43634201,
+          "inf_element_count": 0
+        },
+        "optimizer": {
+          "tensor_count": 195,
+          "element_count": 43635233,
+          "nonfinite_tensor_count": 195,
+          "nan_element_count": 43634201,
+          "inf_element_count": 0
+        }
+      }
+    }
+  ],
+  "conclusion": "All five EMA model state_dict objects are overwhelmingly NaN (approximately 99.30% of state_dict elements) with zero Inf elements. This directly supports numerical invalidity and exclusion from eligible aggregate statistics; it is not evidence derived from Student checkpoints or from low evaluator scores."
+}
