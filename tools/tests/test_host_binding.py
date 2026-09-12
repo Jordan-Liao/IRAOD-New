@@ -198,6 +198,20 @@ class HostBindingTest(unittest.TestCase):
                 self.assertEqual(host.map_data(raw), raw)
                 self.assertEqual(host.approved_gpus(), (4, 5, 6, 7))
 
+    def test_capacity_host_maps_oracle_assets_only(self):
+        with patch.object(host.socket, "gethostname", return_value=host.CAPACITY_HOST_67):
+            self.assertFalse(host.is_target_host())
+            self.assertEqual(
+                host.map_path("/mnt/HDD_14TB/zechuan/iraod_weights/sarclip/model"),
+                "/mnt/shared/zechuan/iraod_weights/sarclip/model")
+            self.assertEqual(
+                host.map_path("/home/zechuan/iraod_artifacts/adapter.pth"),
+                "/mnt/shared/zechuan/iraod_artifacts/adapter.pth")
+            self.assertEqual(
+                host.map_path("/home/zechuan/iraod_data/RSAR/val/images"),
+                "/mnt/shared/zechuan/iraod_data/RSAR/val/images")
+            self.assertEqual(host.map_path(PYTHON), PYTHON)
+
     def test_selected_host_path_identity_handles_actual_symlink_without_changing_python(self):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             target(stack)
