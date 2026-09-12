@@ -237,6 +237,15 @@ with patch.object(training, '_train', return_value='routed'):
             self.assertEqual(host.map_path(source), expected)
             self.assertEqual(host.map_data({"checkpoint": source}), {"checkpoint": expected})
             self.assertEqual(host.map_path(shared), shared)
+            self.assertEqual(
+                host.map_path("/mnt/HDD_14TB/zechuan/iraod_weights/sarclip/model"),
+                "/mnt/shared/zechuan/iraod_weights/sarclip/model")
+            self.assertEqual(
+                host.map_path("/home/zechuan/iraod_artifacts/adapter.pth"),
+                "/mnt/shared/zechuan/iraod_artifacts/adapter.pth")
+            self.assertEqual(
+                host.map_path("/home/zechuan/iraod_data/RSAR/val/images"),
+                "/mnt/shared/zechuan/iraod_data/RSAR/val/images")
             self.assertEqual(host.map_path(PYTHON), PYTHON)
 
     def check_exact_host_prefixes(self, hostname):

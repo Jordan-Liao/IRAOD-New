@@ -33,6 +33,11 @@ PREFIXES = (
 )
 CAPACITY_HOST_67_PREFIXES = (
     ("/mnt/HDD1_3TB/zechuan/iraod_artifacts", "/mnt/shared/zechuan/iraod_artifacts"),
+    ("/mnt/HDD_14TB/zechuan/iraod_artifacts", "/mnt/shared/zechuan/iraod_artifacts"),
+    ("/mnt/HDD_14TB/zechuan/iraod_weights", "/mnt/shared/zechuan/iraod_weights"),
+    ("/home/zechuan/iraod_artifacts", "/mnt/shared/zechuan/iraod_artifacts"),
+    ("/home/zechuan/iraod_weights", "/mnt/shared/zechuan/iraod_weights"),
+    ("/home/zechuan/iraod_data", "/mnt/shared/zechuan/iraod_data"),
 )
 SHARED_LOCK_ROOT = "/home/zechuan/iraod_artifacts/comparison/xaf_s424344/gpu_locks"
 PYTHON_PREFIX = "/home/zechuan/miniforge3/envs/iraod"
