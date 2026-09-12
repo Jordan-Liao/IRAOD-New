@@ -36,6 +36,13 @@ def target(stack, hostname=host.TARGET_HOST):
 
 
 class HostBindingTest(unittest.TestCase):
+    def test_host183_maps_frozen_oracle_evaluation_checkout(self):
+        with patch.object(host.socket, "gethostname", return_value=host.TARGET_HOST_183):
+            self.assertEqual(
+                host.map_path("/mnt/HDD_14TB/zechuan/IRAOD-New-rc331d213/test.py"),
+                "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            )
+
     def test_nested_rsar_ema_config_resolves_original_relative_base(self):
         from mmcv import Config
 
@@ -202,6 +209,9 @@ assert host.map_path(
 assert host.map_path(
     '/mnt/HDD_14TB/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
 ) == '/home/zechuan/IRAOD-New-oracle72-599de03-20260909/train.py'
+assert host.map_path(
+    '/mnt/HDD_14TB/zechuan/IRAOD-New-rc331d213/test.py'
+) == '/home/zechuan/IRAOD-New-rc331d213/test.py'
 assert host.python_prefix() == '/home/zechuan/anaconda3/envs/iraod'
 env = host.native_environment()
 assert env['CONDA_PREFIX'] == host.python_prefix()
