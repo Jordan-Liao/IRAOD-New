@@ -1,0 +1,298 @@
+{
+  "snapshot_cutoff_utc": "2026-09-12T01:45:56+00:00",
+  "snapshot_cutoff_china": "2026-09-12T09:45:56+08:00",
+  "created_at_utc": "2026-09-12T02:15:05.655334+00:00",
+  "baseline_commit": "3272217",
+  "native_evaluator_commit": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "report_helper_commit": "44ac421",
+  "source_ids": {
+    "RSAR": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+    "DIOR": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a"
+  },
+  "source_provenance": {
+    "RSAR": {
+      "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "weights_sha256": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+      "producer_record": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt",
+      "producer_record_snapshot": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/source_records/RSAR_producer_git_commit.txt",
+      "actual_source_producer_sha": "b474aaa5f7718746215ce13beceb071617bb823e",
+      "record_status": "present"
+    },
+    "DIOR": {
+      "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "weights_sha256": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a",
+      "producer_record": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt",
+      "producer_record_snapshot": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/source_records/DIOR_producer_git_commit.txt",
+      "actual_source_producer_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+      "record_status": "present"
+    }
+  },
+  "manifests": [
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/repo_manifests_37c65b6/student_queue/runtime.json",
+      "mtime_utc": "2026-09-08T04:20:55+00:00",
+      "bound_entries": 180,
+      "training_cells_declared": null,
+      "evaluation_cells_declared": null
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/formal_ports_manifests_a39c832/runtime.json",
+      "mtime_utc": "2026-09-08T06:06:58+00:00",
+      "bound_entries": 108,
+      "training_cells_declared": 108,
+      "evaluation_cells_declared": 108
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_manifests_0e5f8f7/runtime.json",
+      "mtime_utc": "2026-09-08T07:04:21+00:00",
+      "bound_entries": 36,
+      "training_cells_declared": 36,
+      "evaluation_cells_declared": 36
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_manifests_daa3992/runtime.json",
+      "mtime_utc": "2026-09-08T10:03:35+00:00",
+      "bound_entries": 72,
+      "training_cells_declared": 72,
+      "evaluation_cells_declared": 72
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_manifests_84a1aeb/runtime.json",
+      "mtime_utc": "2026-09-08T10:24:44+00:00",
+      "bound_entries": 36,
+      "training_cells_declared": 36,
+      "evaluation_cells_declared": 36
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/aasfod_manifests_36c2053/runtime.json",
+      "mtime_utc": "2026-09-08T10:52:01+00:00",
+      "bound_entries": 36,
+      "training_cells_declared": 36,
+      "evaluation_cells_declared": 36
+    },
+    {
+      "host": "67",
+      "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/port_student_manifests_b87f34e/runtime.json",
+      "mtime_utc": "2026-09-08T12:38:46+00:00",
+      "bound_entries": 360,
+      "training_cells_declared": 0,
+      "evaluation_cells_declared": 180
+    },
+    {
+      "host": "221",
+      "path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_rsar48_manifests_20260909/runtime.json",
+      "mtime_utc": "2026-09-09T01:34:03.935217+00:00",
+      "bound_entries": 48,
+      "training_cells_declared": 48,
+      "evaluation_cells_declared": 48
+    },
+    {
+      "host": "221",
+      "path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_dior24_manifests_20260909/runtime.json",
+      "mtime_utc": "2026-09-09T01:34:04.120223+00:00",
+      "bound_entries": 24,
+      "training_cells_declared": 24,
+      "evaluation_cells_declared": 24
+    }
+  ],
+  "collections": {
+    "67": {
+      "root": "/mnt/shared/zechuan/iraod_artifacts/comparison",
+      "collected_at": "2026-09-12T01:56:09.837403+00:00",
+      "errors": []
+    },
+    "221": {
+      "root": "/home/zechuan/iraod_artifacts/comparison",
+      "collected_at": "2026-09-12T01:56:14.758202+00:00",
+      "errors": []
+    },
+    "183": {
+      "root": "/home/zechuan/iraod_artifacts/comparison",
+      "collected_at": "2026-09-12T01:55:56.071441+00:00",
+      "errors": []
+    },
+    "134": {
+      "root": "/home/zechuan/iraod_artifacts/comparison",
+      "collected_at": "2026-09-12T01:55:55.518635+00:00",
+      "errors": []
+    }
+  },
+  "native_cpu_validation": {
+    "host": "221",
+    "cells": 232,
+    "invalid": 0,
+    "helpers": [
+      "report_inputs.prediction_evidence",
+      "report_inputs.class_table"
+    ],
+    "tensor_loading": false,
+    "gpu_or_new_evaluation": false
+  },
+  "counts": {
+    "expected_test_roles": 912,
+    "valid_test_roles": 671,
+    "native_metric_records": 676,
+    "training_expected": 540,
+    "training_terminal_complete": 483,
+    "known_nan_training_cells": 5,
+    "source_models": 2,
+    "prerequisite_cells": 52,
+    "roi_expected_groups": 732,
+    "roi_complete_groups": 132,
+    "roi_held_groups": 10,
+    "roi_missing_groups": 590
+  },
+  "units": {
+    "native_mAP50": "ratio [0,1] exactly as metric.mAP",
+    "mAP50_percent": "100 * eligible native_mAP50",
+    "delta_vs_source_pp": "percentage points",
+    "sample_std_percent": "sample standard deviation (ddof=1) over actual independent detector seeds"
+  },
+  "null_policy": "CSV empty field means unavailable/ineligible. Native known-NaN zero retained only in native_mAP50/native_AP50.",
+  "selection": "Accepted core/Student/ports report checkpoints fixed at final; native execution paths plus actual terminal/final pairs for extensions. Host ownership, not scores, chooses physical copy.",
+  "scope_authority": {
+    "authorization_record": "iraod-extension-authorizations.json, approved 2026-09-08",
+    "latest_partition_record": "IRAOD_ACTIVE_HOST_PARTITION.json, effective evidence 2026-09-11T23:23:49Z",
+    "nan_ledger_record": "IRAOD_CURRENT_RUNTIME_AUTHORITY.json / mandatory_exclusions",
+    "TAM_running_receipt": "IRAOD_67_TAM3_ORACLE_PROBE_CHECKPOINT_20260912.json, written_utc 2026-09-12T00:43:10Z",
+    "attempt_ledger_record": "IRAOD_183_CANONICAL_ATTEMPT_LEDGER_AND_ORACLE_RELEASE_20260911T232349Z.json",
+    "note": "Session stores are not committed; only the scientific scope/evidence facts are summarized here."
+  },
+  "qualitative": {
+    "roi_expected_image_roles": 1267816,
+    "roi_identified_image_roles": 1267816,
+    "roi_complete": 1267816,
+    "roi_detection_rows": 18468211,
+    "roi_inspected_groups": 132,
+    "roi_complete_groups": 132,
+    "vis_expected_image_roles": 3520,
+    "vis_complete": 3520,
+    "embeddings_expected": 24,
+    "embeddings_complete": 24,
+    "embedding_points": 141984,
+    "roi_scope": "full_test",
+    "full_test_roi": "complete",
+    "roi_image_manifest": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/roi_vis_coverage.csv",
+    "evidence_reuse": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/qualitative_summary.json",
+    "validation_scope": "accepted streaming NPZ audit reused; current plan/index bindings and counts"
+  },
+  "formal_exclusions": {
+    "student_test": [
+      [
+        "RSAR",
+        "noise_suppression",
+        "IRG",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "LPLD",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "SFUT",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "IRG",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "LPLD",
+        44,
+        "student"
+      ]
+    ],
+    "roi": [
+      [
+        "RSAR",
+        "noise_suppression",
+        "IRG",
+        44,
+        "ema"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "IRG",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "LPLD",
+        44,
+        "ema"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "LPLD",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "SFUT",
+        44,
+        "ema"
+      ],
+      [
+        "RSAR",
+        "noise_suppression",
+        "SFUT",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "IRG",
+        44,
+        "ema"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "IRG",
+        44,
+        "student"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "LPLD",
+        44,
+        "ema"
+      ],
+      [
+        "RSAR",
+        "point_target",
+        "LPLD",
+        44,
+        "student"
+      ]
+    ],
+    "DRU": "explicitly excluded; no source-trained decoder-depth predictions"
+  },
+  "full_experiment_objective_complete": false
+}
