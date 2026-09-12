@@ -72,7 +72,7 @@ def approved_gpus():
 
 
 def pair_ports():
-    return ({(0, 1): 29804, (2, 3): 29806} if is_target_host()
+    return ({(0, 1): 29804, (1, 2): 29805, (2, 3): 29806} if is_target_host()
             else {(4, 5): 29804, (6, 7): 29806})
 
 

@@ -284,13 +284,13 @@ class HostBindingTest(unittest.TestCase):
             with ExitStack() as stack:
                 target(stack)
                 self.assertEqual(host.approved_gpus(), (0, 1, 2, 3, 4))
-                self.assertEqual(host.pair_ports(), {(0, 1): 29804, (2, 3): 29806})
+                self.assertEqual(host.pair_ports(), {(0, 1): 29804, (1, 2): 29805, (2, 3): 29806})
                 self.assertEqual(finite.allowed_gpus(SimpleNamespace(
                     DATA={"allowed_gpus": [4, 5, 6, 7]})), (0, 1, 2, 3, 4))
                 for gpu in (5, 6, 7):
                     with self.assertRaises(ValueError):
                         training.train("q", gpu, "DIOR", "clean", 42, "B_REG")
-                for pair, port in (("0,1", 29804), ("2,3", 29806)):
+                for pair, port in (("0,1", 29804), ("1,2", 29805), ("2,3", 29806)):
                     self.assertEqual(training.train_ddp(
                         "q", pair, port, "DIOR", "clean", 42, "F_text_only"), "routed")
                 for pair, port in (("4,5", 29804), ("2,3", 29804), ("0,2", 29804)):
