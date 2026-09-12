@@ -1,0 +1,90 @@
+{
+  "snapshot_cutoff_utc": "2026-09-12T01:45:56Z",
+  "validation_is_post_snapshot_evidence_not_new_experiments": true,
+  "native_source_checks": [
+    {
+      "host": "67",
+      "command": "python3 validate_artifacts.py --source-host 67",
+      "status": "PASS",
+      "native_records_checked": 480
+    },
+    {
+      "host": "221",
+      "command": "python3 validate_artifacts.py --source-host 221",
+      "status": "PASS",
+      "native_records_checked": 196
+    }
+  ],
+  "native_source_scope": "Compare all 676 original metric.mAP JSON values, all 7304 printed native class AP values and native pred_count.txt image counts against the frozen CSVs.",
+  "precision_basis": {
+    "native_mAP50": "JSON metric.mAP and CSV native_mAP50 parsed as Python float; math.isclose uses rel_tol=1e-9 and abs_tol=1e-12 in native ratio units.",
+    "native_mAP50_acceptance_bound": "abs(a-b) <= max(1e-9 * max(abs(a), abs(b)), 1e-12). This is a validation tolerance, not rounding or changing published values.",
+    "native_class_AP50": "Exact dictionary equality after parsing the native printed class_ap.txt AP and CSV native_AP50 as float; original printed precision, usually three decimal places, is retained.",
+    "image_counts": "Exact integer equality against pred_count.txt.",
+    "file_and_archive_integrity": "Exact source byte sizes/SHA256; exact source whole-file MD5 versus Baidu PCS meta.block_list single entry and size. The listing md5 field is obfuscated and is not used as a genuine MD5. MD5 is not described as SHA256; no numerical tolerance.",
+    "raw_values_modified": false
+  },
+  "file_manifest_check": {
+    "host": "67",
+    "command": "python3 validate_artifacts.py --file-manifests <all nine files-*.jsonl.gz manifests>",
+    "status": "PASS",
+    "manifest_records_checked": 1278342,
+    "checks": [
+      "All six native files per 676 recorded evaluation roles are present",
+      "Unique physical source paths and unique archive members",
+      "Per-file SHA256 shape and nonnegative byte counts",
+      "No post-cutoff scientific files or model-weight files included",
+      "676 predictions.pkl files",
+      "1267816 ROI NPZ files with exact per-group image counts for 132 groups",
+      "3520 PNG files",
+      "24 embedding groups: 72 data files and 168 plots",
+      "Each image-bearing archive contains attribution NOTICE and full CC BY-NC4.0 text"
+    ]
+  },
+  "packaging_check": {
+    "status": "PASS",
+    "method": "Small standard-library temporary fixtures, no new test framework",
+    "checks": [
+      "Archive member bytes and per-file SHA256 match fixture source",
+      "Archive and manifest sizes/SHA256 match emitted registry",
+      "Deduplicate repeated physical input paths",
+      "Exclude post-cutoff files, model weights and unlicensed pixel fixtures",
+      "Retain numeric visualization indexes",
+      "Licensed image archives include the two required notice files and account for auxiliary entries"
+    ]
+  },
+  "archive_integrity": "Each source file's size and mtime_ns were checked before and after reading; file SHA256 was computed from the bytes given to tar. Each completed archive has an independent source-host SHA256. The ByPy uploader recomputes source SHA256 and MD5 from retained archives, rejects differing existing cloud files, and records exact Baidu provider size/MD5 matches per asset in artifact_manifest.json.",
+  "representative_large_archive_check": {
+    "name": "results-67-roi-0013.tar",
+    "status": "PASS",
+    "bytes": 1160243200,
+    "source_sha256": "af54daf214fe5c42ac7dc3d68aa3fd210fc9629c488345e3d7a3e563d2a6f9a3",
+    "source_md5": "9e557c2126a0736d998dceae73e75243",
+    "provider_md5": "9e557c2126a0736d998dceae73e75243",
+    "provider_size": 1160243200,
+    "provider_hash_semantics": "The largest actual archive was streamed as one complete file using native ByPy slice_size=2147483648. PCS meta.block_list contained exactly one entry equal to independently computed MD5 of every source byte; no multipart first-block-only match was accepted.",
+    "verified_at_utc": "2026-09-12T05:01:20.086643+00:00",
+    "scope": "This representative proves the large-file route, not completion of the remaining uploads; final per-file coverage is bound in artifact_manifest.json."
+  },
+  "bypy_asset_check": {
+    "status": "PASS",
+    "files": 92,
+    "bytes": 48650476805,
+    "archive_files": 63,
+    "file_manifests": 9,
+    "exclusion_manifests": 9,
+    "archive_registries": 9,
+    "notice_and_license_files": 2,
+    "unverified_files": 0,
+    "last_asset_verified_at_utc": "2026-09-12T11:46:17.172959+00:00",
+    "method": "Every source SHA256 matches the original packaging registry; every provider size and complete single-entry meta.block_list matches independently computed source size and whole-file MD5. A final scoped directory listing and per-file metadata pass exactly cover the closed 92-file plan.",
+    "source_archives_retained": true,
+    "public_share_created": false,
+    "github_release_storage": false
+  },
+  "secrets_gate": "All published source text/log/config files were scanned during packaging for private-key and credential token patterns; zero findings. No credentials, private keys, session stores or model weights were packaged.",
+  "new_training_or_evaluation_runs": 0,
+  "gpu_usage": false,
+  "checkpoint_downloads": 0,
+  "live_artifact_or_pause_gate_mutations": false
+}

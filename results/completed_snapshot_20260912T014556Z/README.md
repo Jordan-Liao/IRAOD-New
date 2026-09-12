@@ -112,7 +112,7 @@ Oracle 的 RSAR 3 个截止前完成格实际是 `clean/42/LoRA-CGA`、`am_noise
 | 类别 | 明确证据 / 范围 | 本快照处理 |
 |---|---|---|
 | 已知 NaN | RSAR seed44：IRG/LPLD × point_target；IRG/LPLD/SFUT × noise_suppression | TRAIN 终结但异常；5 个 Student TEST held，10 个 EMA/Student ROI held |
-| 已存在的 NaN EMA 零分 | 上述 5 个模型已有原生 EMA evaluator 输出 0 | 仅 `native_mAP50/native_AP50` 保留原值；合格 `mAP50/AP50` 为 NA，不纳入均值；不新增正式 EMA hold |
+| 已存在的 NaN EMA 零分 | 上述 5 个 EMA checkpoint 经独立 CPU 检查，各有 195 个 state tensors 含 NaN，约占 state elements 的 99.30%；原生 evaluator 输出 0 | 仅 `native_mAP50/native_AP50` 保留原值；合格 `mAP50/AP50` 为 NA，不纳入均值；不新增正式 EMA hold，也不因低分排除 |
 | 真实 48GB OOM | `.183`：SFYOLO 6 格；RSAR Oracle clean 5 格。旧 B_REG/F 48GB 失败另有终结证据 | 是容量失败，不是模型得分；新环境有效重试按同一逻辑格只计一次 |
 | 基础设施 / 路径 / ABI | 旧运行与移交中的 canonical config、adapter 路径、依赖/ABI 问题；已修复后存在合法 final 的格 | 旧失败保留为历史，不扩大成科学排除，不按重试次数增加分母 |
 | 定时人工中断 | 2026-09-10 01:00 UTC 的 `.221/.134` 人工 STOP | 与科学失败区分；`.134` 仍 paused，本报告只读 |
@@ -121,10 +121,44 @@ Oracle 的 RSAR 3 个截止前完成格实际是 `clean/42/LoRA-CGA`、`am_noise
 
 可定位的原生失败记录见 [attempts.csv](attempts.csv)。其行是物理历史尝试而非独立实验；逻辑格是否完成以 [training_status.csv](training_status.csv) 为准。Oracle clean44/+VLST 的既有输入竞争尝试无合法 final，也不能随其同架构 OOM 扩大记为第 6 个 OOM。
 
+[ema_numerical_evidence.json](ema_numerical_evidence.json) 保存上述 5 个冻结 EMA 的逐模型 tensor/element 计数、原路径和文件大小。该复核在快照之后对既有 checkpoint 原地只读执行，`map_location="cpu"` 且禁用 CUDA；不是新增训练、TEST 或改变截止时间。Student 的异常未被用来推断 EMA 异常。
+
 ## 5. 溯源与复算
 
 - [provenance.json](provenance.json) 记录批准 runtime manifests、source producer 修正、各主机采集时间、固定截止与精确排除角色。每个 TEST/TRAIN 单元有真实原路径及指标/终结时间。历史 accepted core、B–F Student、IRG/LPLD/SFUT EMA 的固定 checkpoint/eval 选择被保留，并对照现存原生指标文件；没有按最佳分数或最新 mtime 挑重试。
 - 新归集的 `.221` 既有预测使用 `44ac421` 的 `report_inputs.prediction_evidence` 和 `class_table` 在远端单线程 CPU 检查 **232 个唯一评估目录**：完整 TEST image IDs / 顺序、预测数量与类别形状、有限检测框/分数、类别 AP。RSAR 每格 8538 张，DIOR 11738 张。结合原生 execution、eval_status、final checkpoint、source identity、配置与实际 evaluator `331d2131b84651f0a2930a3d53faeefad8701531`；没有新推理或 checkpoint tensor 加载。
 - 复算以 CSV 为输入：先筛 `status=valid_native_test`，按 `(dataset, domain, method, seed, role)` 唯一键聚合；source 使用相同 dataset/domain 的 A/source/42。全域完整 seed 才进入 `summary.csv`，std 使用样本标准差；不做插值、零填补、显著性检验或跨预算排名。
 
-原 core ROI/可视化/embedding 沿用其已验收的产物索引，没有再次加载大规模特征。扩展 ROI 的 600 个批准输出位置在 `.67/.221` 均未出现输出目录；不能因模型完成而推定导出完成。本 PR 只交付表格快照，不包含 session stores、命令日志全集、权重、数据集或预测 pickle。
+原 core ROI/可视化/embedding 沿用其已验收的产物索引。全批准 ROI 范围为 **7,030,616 个 image roles**，其中既有 core 的 **1,267,816 个**完成；“full TEST”只描述已完成组内的图片覆盖，不代表全部 732 组完成。扩展 ROI 的 600 个批准输出位置在 `.67/.221` 均未出现输出目录；不能因模型完成而推定导出完成。权重、数据集、session stores 不属于普通 Git 结果交付。
+
+## 6. 原始结果归档：私有百度网盘
+
+大文件使用 **ByPy / 百度网盘**，不使用 GitHub Release。实际私有目录：
+
+```text
+/apps/bypy/IRAOD-New/results/completed_snapshot_20260912T014556Z
+```
+
+[artifact_manifest.json](artifact_manifest.json) 是完整归档清单，记录每个文件的大小、源 SHA256、源 MD5、百度返回的 MD5/大小、实际路径和验证时间。[validation_evidence.json](validation_evidence.json) 保留 676 个原生指标/类别 AP/图片数与冻结 CSV 的一致性，以及 1,278,342 条逐文件记录检查。百度列表的 `md5` 字段是混淆值，不能作为真实 MD5；这里使用 PCS `meta.block_list` 的单项值，与源文件完整 MD5 严格相等。不是百度提供了 SHA256，也不是仅凭大小声称校验通过。
+
+**92 个文件、48,650,476,805 字节已全部上传并逐一验证**；最终目录清单与预定文件集合完全一致，0 个未完成上传。
+
+| 网盘文件类型 | 数量 |
+|---|---:|
+| 独立结果归档（含 39 个 ROI tar） | 63 |
+| 逐文件索引 / 排除清单 | 9 / 9 |
+| 原始归档注册清单 | 9 |
+| 署名通知 / 完整许可 | 2 |
+
+网盘中包含原生数值及训练/失败/选择依据、676 份预测、132 个完成组的 1,267,816 份 ROI NPZ、3,520 张可视化 PNG、24 组 embedding，以及压缩逐文件索引和排除清单。每个 `results-*.tar[.gz]` 可独立解包；`files-*.jsonl.gz` 给出源主机/路径、归档成员、大小、SHA256 和逻辑单元绑定。`excluded-*.jsonl.gz` 中 `separate_bundle` 表示已在另一归档内，不是全局缺失。归档源文件保留在原主机，未上传模型权重、独立数据集/输入图片、凭据或 session stores。
+
+只有现有网盘账号所有者可访问；没有公开分享链接或提取码。已授权且登录同一账号的 ByPy 客户端使用 **相对 app 根目录**的路径，不能重复加 `/apps/bypy`：
+
+```bash
+bypy list IRAOD-New/results/completed_snapshot_20260912T014556Z
+bypy downfile IRAOD-New/results/completed_snapshot_20260912T014556Z/assets-67-roi.json ./assets-67-roi.json
+```
+
+其他归档文件按清单中的 `bypy_path` 下载。公开 Git 仓库仅保存小型表格、紧凑清单、验证器和许可说明；未经账号所有者授权的读者不能直接下载私有 payload，因此这是可校验的私有归档交付，不是公开下载的完整数据发布。错误创建的 GitHub draft Release 已删除，不再作为当前存储入口。
+
+可视化归档附有 [RESULT_ASSET_NOTICE.md](RESULT_ASSET_NOTICE.md) 及完整 [CC-BY-NC-4.0.txt](CC-BY-NC-4.0.txt)。保留上游来源、署名、非商业限制和修改说明；数据集衍生产物许可不替代各代码项目许可。许可文件中的官方 GitHub 来源链接是溯源依据，不是结果存储链接。
