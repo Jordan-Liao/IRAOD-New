@@ -42,6 +42,14 @@ class HostBindingTest(unittest.TestCase):
                 host.map_path("/mnt/HDD_14TB/zechuan/IRAOD-New-rc331d213/test.py"),
                 "/home/zechuan/IRAOD-New-rc331d213/test.py",
             )
+            self.assertEqual(
+                host.map_path(
+                    "/mnt/shared/zechuan/iraod_code/worktrees/"
+                    "oracle72-05de468-67-20260912/train.py"
+                ),
+                "/home/zechuan/iraod_code/worktrees/"
+                "oracle72-05de468-67-20260912/train.py",
+            )
 
     def test_nested_rsar_ema_config_resolves_original_relative_base(self):
         from mmcv import Config
