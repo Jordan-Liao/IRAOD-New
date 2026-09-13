@@ -355,6 +355,96 @@ for every exported image. Other unbound B-F references in a partial derived
 plan are not jobs and cannot be extracted. `native_inputs_ready` means metadata
 binding passed, not that ROI extraction or scientific validation is complete.
 
+## Opt-in single-forward native + ROI candidate
+
+`roi_joint_native.py` is a separate entry, not a change to the running queue or
+the default two-pass mode. It uses the selected profile's existing native
+producer and original `test.py`: model/config/checkpoint loading, FP32, batch1,
+evaluation mode, preprocessing, full TEST, AP computation and prediction/ID
+serialization remain native. The original training/source/role metadata is
+retained. The actual evaluator SHA and the separate joint-exporter SHA are both
+recorded; using a wrapper is not permission to claim a different model checkout.
+
+The versioned child is named `joint_native/test.py` deliberately: existing host
+wrappers enable their loaded-model finite check by the `test.py` basename.
+The same wrapper, runtime bootstrap, evaluator cwd and package root are retained.
+An observation of the existing native loop's forward call uses
+`AlignedRoICapture`; it returns the detector result unchanged, saves one image
+NPZ under `roi.unverified`, and clears captured proposal features immediately.
+Only the native loop's usual CPU predictions and small image metadata persist.
+No second model pass, second NMS, AMP, batching, compile or backend flag changes
+are introduced.
+
+Capture completion is not publication. The authentic native producer must
+return its successful status, full AP table and same-inference prediction/ID
+checks before the normal binding helper creates a new candidate plan.
+Publication reuses `native_binding_evidence`, the streaming ROI checker and
+unchanged exact `validate_native_predictions` against the newly serialized
+native result for every image. Only then is `index.json` written and the
+unverified directory renamed to the plan's fresh ROI directory. A failed
+forward, incomplete coverage, native/AP failure, nonfinite feature or prediction
+mismatch leaves no published ROI index. Original outputs and metrics are not
+rewritten; unselected plan rows are preserved.
+
+### One proposed validation case, not execution authorization
+
+The parent must select and admit **one unstarted already-authorized key**.
+Use its unchanged spec/profile and one approved GPU. Under the existing owner
+lock and cumulative deadline, command1 is ordinary full native TEST; after its
+CPU binding, command2 is the joint candidate on the same case/host/GPU. Do not
+also launch `BASELINE_ROOT/roi_entry.sh`: that would be a third start.
+
+```bash
+# Variables are the operator's already selected profile/case paths, not new defaults.
+IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES="$GPU" \
+  "$NATIVE_PYTHON" "$PRODUCTION_NATIVE_ENTRY" "$CASE_SPEC" "$GPU"
+CUDA_VISIBLE_DEVICES= \
+  "$NATIVE_PYTHON" "$PRODUCTION_BIND_ENTRY" "$BASELINE_ROOT"
+
+# Only after parent admission; CANDIDATE_ROOT must not exist.
+IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES="$GPU" \
+  "$NATIVE_PYTHON" "$JOINT_CODE/experiments/comparison/roi_joint_native.py" \
+  --spec "$CASE_SPEC" --out "$CANDIDATE_ROOT" \
+  --physical-gpu "$GPU" --baseline-root "$BASELINE_ROOT"
+```
+
+`BASELINE_ROOT` is the unchanged spec's `case_root`. The candidate copies only
+that output-root choice into a new local spec, never changing the source spec.
+The optional `--baseline-root` is **required for this first validation**. It
+requires the same profile, physical GPU, scientific inputs and evaluator
+revision, exact full same-inference ID order, class AP table and every native
+prediction array's shape/dtype/value/order. Any mismatch blocks ROI publication,
+even if candidate self-alignment succeeds. ROI features must pass the existing
+full-coverage, finite and proposal/class provenance checker; this two-start
+proposal does not independently re-run a third ROI forward to compare features.
+Only a genuinely complete joint output counts the same canonical key once.
+Never select between baseline/candidate by TEST score.
+
+The allowance remains at most2 starts and1800 allocated GPU-wall seconds
+including loads, metadata/publication gaps and teardown, with no retry.
+The operator accounts for the **remaining** deadline after command1, not another
+1800 seconds for command2. Failure of either command stops this case. No joint
+rollout or GPU trial is authorized by the implementation alone; live queue
+entries remain untouched.
+
+The expected gain is eliminating one duplicated detector pass. It is not a
+measured speedup: native AP, CPU prediction serialization, feature compression
+and final streamed checks still cost time. Record baseline-native and
+candidate-joint wall times, counts and exact parity in this one validation;
+do not turn different-output workload timings into a claimed speedup.
+
+CPU-only contract check (synthetic arrays, no detector/model/checkpoint load):
+
+```bash
+CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 \
+  /tmp/iraod-int-venv/bin/python -m unittest \
+  tools.tests.test_joint_roi tools.tests.test_roi_rollout -v
+```
+
+This exercises one forward per synthetic image through the real alignment/ID
+helpers, delayed success publication, native/AP/coverage/alignment/finite/baseline
+failure cases, and the affected default two-pass binder.
+
 ## Actual extraction and artifact binding
 
 Only the compute owner executes `export_argv` in its recorded `cwd` with its

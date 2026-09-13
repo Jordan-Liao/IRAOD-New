@@ -23,8 +23,8 @@ def load_host(profile):
     return host
 
 
-def main():
-    root = Path(sys.argv[1]).resolve()
+def bind_plan(root, export_code_sha="860d4a0afb32a8e75e612aec65398a73e4747877"):
+    root = Path(root).resolve()
     passed = json.loads((root / "native_pass.json").read_text())
     if passed["status"] != "complete":
         raise ValueError("Existing native producer has not completed")
@@ -78,7 +78,7 @@ def main():
     run.update(
         **{key: cell[key] for key in ("checkpoint", "config", "ann_file", "img_prefix")},
         out_dir=str(root / "roi"), native_prediction=reference,
-        export_code_sha="860d4a0afb32a8e75e612aec65398a73e4747877",
+        export_code_sha=export_code_sha,
         allowed_gpus=[passed["physical_gpu"]] if passed["kind"] == "bf" else run["allowed_gpus"],
     )
     if Path(run["out_dir"]).exists():
@@ -94,13 +94,20 @@ def main():
     filename = root / "roi_plan.json"
     with filename.open("x") as stream:
         json.dump(plan, stream, indent=2)
+    return passed, run, filename
+
+
+def main():
+    root = Path(sys.argv[1]).resolve()
+    passed, run, filename = bind_plan(root)
+    profile = passed["profile"]
     gpu = passed["physical_gpu"]
     code = profile["roi_code"]
     command = [
         "env", "IRAOD_GPU_LOCKED=1", f"CUDA_VISIBLE_DEVICES={gpu}", f"PYTHONPATH={code}",
         "PYTHONDONTWRITEBYTECODE=1", profile["python"], profile["resolver"], "native",
         str(Path(code) / "experiments/comparison/dior_recovery/extract_roi_pre_fc_cls.py"),
-        "--plan", str(filename), "--run-id", original["run_id"],
+        "--plan", str(filename), "--run-id", run["run_id"],
         "--physical-gpu", str(gpu),
     ]
     with (root / "roi_entry.sh").open("x") as stream:
