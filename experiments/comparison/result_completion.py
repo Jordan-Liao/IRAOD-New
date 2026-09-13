@@ -46,11 +46,71 @@ def comparison_runs(plan, dataset, domain, role):
     return selected
 
 
+def same_native_path(recorded, selected):
+    """Accept spelling differences or real aliases, never guessed prefix remapping."""
+    recorded, selected = Path(recorded), Path(selected)
+    return recorded == selected or (
+        recorded.exists() and selected.exists() and recorded.samefile(selected))
+
+
+def core_report_execution(run):
+    """Read the retained B-F execution registry, not a reconstructed execution.json."""
+    if run["method"] not in "BCDEF" or run["seed"] not in (43, 44):
+        raise ValueError("Core-report native bindings are only for pending B-F seed43/44 exports")
+    binding = run["native_prediction"]
+    report = read_json(binding["report"])
+    if (report["schema"] != "iraod-comparison-report-v1"
+            or report["code_commit"] != binding["report_code_sha"]):
+        raise ValueError("B-F native report schema/producer differs from the binding")
+    entry = report["raw_results"][binding["report_entry"]]
+    identity = ("dataset", "domain", "seed", "method", "role")
+    key = tuple(run[field] for field in identity)
+    matches = [row for row in report["raw_results"]
+               if tuple(row[field] for field in identity) == key]
+    source = report["source_provenance"][run["dataset"]]
+    checkpoints = [row for row in report["checkpoints"]
+                   if tuple(row[field] for field in identity) == key]
+    if (len(matches) != 1 or matches[0] != entry or len(checkpoints) != 1
+            or entry["status"] != "complete" or entry["problems"]
+            or entry["source_id"] != report["source_ids"][run["dataset"]]
+            or source["weights_sha256"] != entry["source_id"]
+            or source["record_status"] != "present" or not source["actual_source_producer_sha"]
+            or entry["training_code_sha"] != entry["effective_training_code_sha"]):
+        raise ValueError("B-F native report has missing/conflicting execution or source evidence")
+    checkpoint = checkpoints[0]
+    if (checkpoint["verified"] is not True or checkpoint["selection"] != "final"
+            or checkpoint["iteration"] != {"RSAR": 266, "DIOR": 185}[run["dataset"]]
+            or not same_native_path(checkpoint["path"], run["checkpoint"])
+            or checkpoint["source_id"] != entry["source_id"]):
+        raise ValueError("B-F native report checkpoint/source proof differs from the selected file")
+    size = Path(run["checkpoint"]).stat().st_size
+    if "bytes" in checkpoint:
+        if checkpoint["bytes"] != size:
+            raise ValueError("B-F native report checkpoint bytes differ from the selected file")
+    elif (run["role"] != "student" or Path(checkpoint["accepted_ema_checkpoint"]) !=
+          Path(checkpoint["path"]).with_name(f"iter_{checkpoint['iteration']}_ema.pth")):
+        raise ValueError("B-F native report lacks the accepted final Student/EMA checkpoint proof")
+    if binding["checkpoint_bytes"] != size:
+        raise ValueError("B-F checkpoint bytes changed since native binding preparation")
+    root = Path(binding["eval_dir"])
+    files = {"eval_dir": root, "eval_status": root / "eval_status",
+             "predictions": root / "predictions.pkl",
+             "prediction_image_ids": root / "predictions.pkl.image_ids.json"}
+    if (any(not same_native_path(entry[field], path) for field, path in files.items())
+            or entry["n_predictions"] != len(run["image_ids"])):
+        raise ValueError("B-F native report prediction files/TEST count differ from the binding")
+    return entry
+
+
 def native_binding_evidence(run):
     """Inspect real native completion; absent inputs are pending, never backfilled."""
     binding = run["native_prediction"]
     root = Path(binding["eval_dir"])
-    required = [Path(run["checkpoint"]), root / "eval_status", root / "execution.json",
+    core_report = binding.get("format") == "comparison-report-v1"
+    if binding.get("format") not in (None, "comparison-report-v1"):
+        raise ValueError("Unsupported explicit native prediction provenance format")
+    provenance_file = Path(binding["report"]) if core_report else root / "execution.json"
+    required = [Path(run["checkpoint"]), root / "eval_status", provenance_file,
                 root / "predictions.pkl", root / "predictions.pkl.image_ids.json"]
     missing = [str(p) for p in required if not p.is_file() or not p.stat().st_size]
     if missing:
@@ -61,24 +121,35 @@ def native_binding_evidence(run):
                   if "=" in token) if records else {}
     wanted = {"eval_exit": "0", "name": run["method"], "domain": run["domain"],
               "seed": str(run["seed"]), "role": run["role"], "checkpoint": run["checkpoint"]}
-    if any(fields.get(key) != value for key, value in wanted.items()):
+    if core_report and run["role"] in fields:
+        wanted.pop("checkpoint")
+        wanted[run["role"]] = run["checkpoint"]
+        if run["role"] == "ema" and "role" not in fields:
+            wanted.pop("role")
+    status_paths = ("checkpoint", "ema", "student") if core_report else ()
+    if (any(fields.get(key) != value for key, value in wanted.items() if key not in status_paths)
+            or any(not fields.get(key) or not same_native_path(fields[key], value)
+                   for key, value in wanted.items() if key in status_paths)):
         return {"status": "pending", "missing": ["successful_native_evaluation"]}
-    execution = read_json(root / "execution.json")
+    execution = core_report_execution(run) if core_report else read_json(provenance_file)
     identity = {key: run[key] for key in ("dataset", "domain", "seed", "method", "role",
                                          "checkpoint", "config")}
     identity.update(source_id=binding["source_id"],
                     evaluation_code_sha=binding["evaluation_code_sha"])
-    if (any(execution.get(key) != value for key, value in identity.items())
+    path_fields = ("checkpoint", "config") if core_report else ()
+    if (any(execution.get(key) != value for key, value in identity.items() if key not in path_fields)
+            or any(not same_native_path(execution[key], run[key]) for key in path_fields)
             or not execution.get("training_code_sha")):
         raise ValueError("Native evaluation execution identity differs from ROI binding")
     sidecar = read_json(root / "predictions.pkl.image_ids.json")
     ids = sidecar["image_ids"]
+    paths_match = (all(same_native_path(sidecar[key], run[key]) for key in ("checkpoint", "config"))
+                   if core_report else all(sidecar[key] == run[key] for key in ("checkpoint", "config")))
     if (sidecar["schema"] != "iraod-prediction-image-order-v1"
             or sidecar["origin"] != "inference_batch_img_metas"
             or sidecar["status"] != "complete"
             or sidecar["predictions_file"] != "predictions.pkl"
-            or sidecar["checkpoint"] != run["checkpoint"]
-            or sidecar["config"] != run["config"]
+            or not paths_match
             or sidecar["training_code_sha"] != execution["training_code_sha"]
             or sidecar["evaluation_code_sha"] != binding["evaluation_code_sha"]
             or sidecar["n_images"] != len(run["image_ids"])
@@ -90,11 +161,17 @@ def native_binding_evidence(run):
                    for i, r in enumerate(sidecar["records"]))):
         raise ValueError("Native prediction checkpoint/config/code/TEST ID binding mismatch")
     options = sidecar["cfg_options"]
-    if (options["data.test.ann_file"] != run["ann_file"]
-            or options["data.test.img_prefix"] != run["img_prefix"]):
+    split_matches = (all(same_native_path(options[f"data.test.{key}"], run[key])
+                         for key in ("ann_file", "img_prefix")) if core_report else
+                     all(options[f"data.test.{key}"] == run[key]
+                         for key in ("ann_file", "img_prefix")))
+    if not split_matches:
         raise ValueError("Native prediction TEST split/domain differs from ROI")
+    provenance = ({"report": str(provenance_file), "report_entry": binding["report_entry"],
+                   "report_code_sha": binding["report_code_sha"]}
+                  if core_report else {"execution": str(provenance_file)})
     return {"status": "complete", "sidecar": str(root / "predictions.pkl.image_ids.json"),
-            "execution": str(root / "execution.json"),
+            **provenance,
             "checkpoint_bytes": Path(run["checkpoint"]).stat().st_size,
             "prepared_training_code_sha": binding["prepared_training_code_sha"],
             "training_code_sha": sidecar["training_code_sha"],

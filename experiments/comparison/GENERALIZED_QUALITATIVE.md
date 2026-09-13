@@ -93,6 +93,76 @@ No `train.list`, `eval.list`, Student queue or scheduler is written here.
 The original `extension_manifest prepare` and `seeded_plan` APIs remain the
 legacy B-F APIs; **do not rerun them to prepare this extension**.
 
+## Bind pending B-F seed43/44 exports to native evaluations
+
+The existing B-F seeded plans already have unique output roots. Their legacy
+run objects do not contain native prediction bindings, however, and must not
+be used for new unbound exports. New B-F seed43/44 extraction now rejects
+missing native bindings before GPU/runtime imports. Seed42 legacy readers and
+completed exports remain unchanged.
+
+After the operator has located/staged the authentic native evaluation, prepare
+only the missing group(s), using the existing CPU environment:
+
+```bash
+CUDA_VISIBLE_DEVICES="" "$NATIVE_CPU_PY" -m experiments.comparison.extension_manifest \
+  prepare-bf-qualitative \
+  --bf-plan "$EXISTING_SEED43_PLAN" \
+  --native-report "$AUTHENTIC_CORE_REPORT" --core-paths "$ORIGINAL_CORE_PATHS" \
+  --native-eval "$EXACT_NATIVE_EVAL_DIR" \
+  --eval-code "$EXPORT_CODE" --python "$NATIVE_GPU_PY" \
+  --physical-gpu "$OWNED_PHYSICAL_GPU" --out-dir "$NEW_BF_METADATA"
+```
+
+Repeat `--bf-plan` for seed44, `--native-report` for the accepted Student report,
+and `--native-eval` for additional explicitly selected EMA/Student groups.
+Use the exact native directory spelling recorded in the report. The authentic
+`iraod-comparison-report-v1` report's `raw_results` entry supplies the
+dataset/domain/seed/method/role, source identity and training/evaluation
+revisions; its verified checkpoint and source-provenance entries must agree.
+Historical B-F evaluations have no `execution.json`: the binding explicitly
+records the report path, producer SHA and row index instead of inventing that
+file or falling back from a missing port execution record. The original
+`xaf_s424344/paths.py` must resolve the same final role-specific checkpoint.
+The preparation-time training revision is the actual native producer, not an
+invented earlier queue revision. The export SHA comes from `--eval-code`.
+
+The shared `native_binding_evidence` check must pass before publishing:
+checkpoint, config, successful final status, sidecar code/TEST IDs/order,
+split and domain must match the existing run. Missing or incompatible native
+metadata is an explicit preparation error, not permission to reconstruct an
+`execution.json`, weaken equality, or launch the legacy plan. The original
+port execution-record path remains supported unchanged. Staging and runtime
+compatibility remain the operator's responsibility.
+
+Original report/sidecar strings are retained. A trailing directory slash is
+equivalent; different absolute namespaces are accepted only when actual
+filesystem aliases identify the same files/directories (`samefile`), never by
+stripping or replacing prefixes. The operator must provide legitimate
+canonical-namespace aliases when staged files live elsewhere. This code
+neither creates aliases nor rewrites historical metadata. Historical report
+checkpoint byte counts are checked when recorded. The accepted Student report
+instead records its verified final checkpoint's exact paired EMA path; it did
+not retain a historical byte-count field. Every new B-F binding separately
+records and rechecks the selected checkpoint's current byte count. Transfer
+hashes, when independently verified by the operator, remain transfer evidence
+rather than invented historical report fields.
+
+This writes only new `qualitative_seed43.json` / `qualitative_seed44.json`
+metadata and `roi_jobs.json`. Selected runs gain `native_prediction`,
+`export_code_sha` and `allowed_gpus`; their original output paths and all
+scientific fields remain unchanged. All unselected run objects are retained
+exactly. Existing selected output directories are refused; preserve completed
+or quarantined unverified files rather than deleting/resuming them. The
+metadata destination must also be new.
+
+Only the operator executes a selected job's `export_argv` in its recorded
+`cwd`, under the existing real GPU lock and matching single-device visibility.
+The command includes `--physical-gpu`; native prediction equality still runs
+for every exported image. Other unbound B-F references in a partial derived
+plan are not jobs and cannot be extracted. `native_inputs_ready` means metadata
+binding passed, not that ROI extraction or scientific validation is complete.
+
 ## Actual extraction and artifact binding
 
 Only the compute owner executes `export_argv` in its recorded `cwd` with its
