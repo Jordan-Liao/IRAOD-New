@@ -274,6 +274,51 @@ Both stages use fresh directories under
 reference is unchanged. Count this existing ROI key once only after complete
 validated output; new local native metrics are not canonical TEST replacements.
 
+### Authorized finite342 rollout
+
+The user authorized `iraod-roi-local-native-rollout-342-20260913` at
+`2026-09-13T19:26:26.560Z`: remaining PORT EMA102 (IRG33/LPLD34/SFUT35)
+and B-F seeds43/44, EMA+Student240. Each key has one GPU, at most2 GPU
+command starts and1800 allocated GPU-wall seconds including held metadata gaps
+and teardown. The aggregate ceiling is684 starts/615600 seconds. The operator
+owns atomic key/host assignment and skips completed or failed keys; no retry.
+
+Use the finite parameterized interface rather than conversation per case:
+
+```bash
+python /CODE/experiments/comparison/roi_rollout_specs.py \
+  --profile HOST_PROFILE_JSON --port-plan PLAN42 --port-plan PLAN43 \
+  --port-plan PLAN44 --bf-input AUTHENTIC_BF240_INPUTS --out CASE_SPECS
+
+# Operator-selected pending key and GPU; absolute entry keeps writer imports separate.
+IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES=GPU \
+NATIVE_PYTHON /CODE/experiments/comparison/roi_rollout_native.py CASE_SPEC GPU
+CUDA_VISIBLE_DEVICES= NATIVE_PYTHON /CODE/experiments/comparison/roi_rollout_bind.py CASE_ROOT
+bash CASE_ROOT/roi_entry.sh
+```
+
+Host profiles bind the actual host-aware writer, evaluator, native Python,
+approved resolver and frozen860 ROI checkout. Host221 uses its own miniforge
+environment and approved GPUs1-4, not host183's anaconda/GPU8-9 assumptions.
+
+BF original comparison reports remain historical inputs, with authentic report
+row/source/checkpoint proofs retained. A successful NEW destination evaluation
+genuinely creates `execution.json`; the new ROI binding explicitly selects the
+existing native-execution format (`format: null`,
+`record_kind: fresh-successful-destination-native-execution`). It does not
+fabricate a historical execution or force an unnecessary old-format report.
+The frozen validator still checks the new tuple/source/code/sidecar/full-TEST
+identity and the full ROI forward still requires exact native equality.
+
+Do not invent a missing checkpoint hash or rescan a model to create a new gate.
+Existing input proofs are preserved when available. Original literal native
+bindings retain that existing path; new execution/sidecar identities are
+recorded, and native_prediction is never removed. Preserve all completed
+bindings/outputs, including earlier valid BF report-format results.
+Old67/PR25 raw900 metrics, fixed model/source/split/budget and the canonical720
+ROI denominator remain unchanged. The six nonfinite training cells are not
+authorized for retraining by this rollout.
+
 Only the operator executes a selected job's `export_argv` in its recorded
 `cwd`, under the existing real GPU lock and matching single-device visibility.
 The command includes `--physical-gpu`; native prediction equality still runs
