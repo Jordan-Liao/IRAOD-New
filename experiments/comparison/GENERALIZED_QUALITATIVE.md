@@ -241,6 +241,39 @@ records this import origin without changing the script's package-search
 semantics. This narrow entry check proves neither configuration/native-binding
 completion nor strict forward prediction equality; those remain separate.
 
+### Authorized host183 local-native reference pilot
+
+At `2026-09-13T18:33:05.691Z` the user accepted the single-case pilot
+`iraod-roi183-native-reference-pilot-20260913`: fixed
+`DIOR/brightness/42/IRG/ema`, one predeclared host183 GPU, one fresh11738-image
+native TEST reference solely for ROI, then one full11738-image ROI pass.
+The same checkpoint/config/source/split/model protocol is retained. This is
+not a rollout to other cases or permission to select a better TEST score.
+
+The operator alone owns at most2 GPU-bearing command starts and1800 cumulative
+allocated GPU-wall seconds, including loading, held-GPU metadata gaps,
+verification waits and teardown. Startup failure consumes a start; no retries
+or old-grant renewal. Old67 predictions/execution, PR25 raw900 metrics and
+failed outputs remain immutable. The canonical720 ROI denominator is unchanged.
+
+Invoke `roi183_pilot_native.py` by absolute path with the selected GPU integer.
+It uses the existing host-aware7ae `evaluate_binding` (not the fixed4-7 writer),
+establishes its package/runtime context, and records the actual frozen331d
+evaluator identity. `native_pass.json` appears only after the real producer
+returns its full AP/status/sidecar checks.
+
+After native success, run `roi183_pilot_bind.py` on CPU with the same GPU integer.
+It creates one versioned plan from the real new reference, computes only the
+new execution/sidecar content proofs, reuses verified checkpoint/config proof,
+and preserves unselected runs. It writes `roi_entry.sh`, which calls the
+already-tested host183 envelope and frozen860 consumer. Do not insert repeated
+old preflights; the existing producer and consumer checks remain authoritative.
+
+Both stages use fresh directories under
+`roi183_native_reference_pilot_20260913`. Strict `np.array_equal` to the new
+reference is unchanged. Count this existing ROI key once only after complete
+validated output; new local native metrics are not canonical TEST replacements.
+
 Only the operator executes a selected job's `export_argv` in its recorded
 `cwd`, under the existing real GPU lock and matching single-device visibility.
 The command includes `--physical-gpu`; native prediction equality still runs
