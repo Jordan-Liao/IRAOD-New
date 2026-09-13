@@ -137,10 +137,9 @@ compatibility remain the operator's responsibility.
 
 Original report/sidecar strings are retained. A trailing directory slash is
 equivalent; different absolute namespaces are accepted only when actual
-filesystem aliases identify the same files/directories (`samefile`), never by
-stripping or replacing prefixes. The operator must provide legitimate
-canonical-namespace aliases when staged files live elsewhere. This code
-neither creates aliases nor rewrites historical metadata. Historical report
+filesystem aliases identify the same files/directories (`samefile`), or through
+the explicit verified path binding below. There is no implicit prefix or suffix
+remapping. This code neither creates aliases nor rewrites historical metadata. Historical report
 checkpoint byte counts are checked when recorded. The accepted Student report
 instead records its verified final checkpoint's exact paired EMA path; it did
 not retain a historical byte-count field. Every new B-F binding separately
@@ -155,6 +154,59 @@ scientific fields remain unchanged. All unselected run objects are retained
 exactly. Existing selected output directories are refused; preserve completed
 or quarantined unverified files rather than deleting/resuming them. The
 metadata destination must also be new.
+
+### Explicit relocated native inputs
+
+For an already-prepared, still-pending port or native-bound B-F run, create a
+separate plan with the shared CPU/native-consumer binding:
+
+```bash
+python -m experiments.comparison.result_completion bind-native-paths \
+  --plan EXISTING_PLAN --run-id EXACT_RUN_ID \
+  --binding APPROVED_PATH_BINDING_JSON \
+  --out NEW_PLAN_JSON
+```
+
+The binding is explicit operator evidence, not a discovered/default mapping:
+
+```json
+{
+  "resolver": {"path": "/absolute/reviewed/host_binding.py", "sha256": "APPROVED_RESOLVER_SHA256"},
+  "artifacts": {
+    "checkpoint": {"bytes": 381069439, "sha256": "VERIFIED_TRANSFER_SHA256"},
+    "config": {"bytes": 11637, "sha256": "VERIFIED_TRANSFER_SHA256"},
+    "execution_json": {"bytes": 3348, "sha256": "VERIFIED_TRANSFER_SHA256"},
+    "prediction_sidecar": {"bytes": 2067394, "sha256": "VERIFIED_TRANSFER_SHA256"}
+  }
+}
+```
+
+Use the independently verified source-to-staged byte counts and hashes, not
+newly invented historical fields. B-F `comparison-report-v1` bindings use
+`native_report` instead of `execution_json`. The resolver must expose
+`map_path`; its exact file hash is checked before importing it. A reviewed
+host-specific resolver may map the recorded paths to existing selected
+files/directories, but an undeclared namespace or missing mapped path is not
+equivalent.
+
+Preparation rechecks all four artifact identities and requires
+`native_binding_evidence(...)["status"] == "complete"` before publishing.
+The command returns JSON with that explicit status and the checked native
+evidence; absence of an exception alone is not admission. The new plan embeds this same binding in
+the selected run's `native_prediction.path_binding` and binds that run's
+export SHA to the preparation module's own checkout (not a selectable old
+exporter). All other run objects, native history and scientific identities
+remain unchanged. Existing selected output directories and plan destinations
+are refused.
+
+Run the original `extract_roi_pre_fc_cls --plan NEW_PLAN_JSON --run-id EXACT_RUN_ID
+--physical-gpu OWNED_GPU` from the new export checkout. The actual consumer
+and subsequent `load_export` recheck the resolver, content identities, tuple,
+source/code revisions, full TEST IDs and split before accepting the binding.
+The forward-time native prediction equality check is unchanged. CPU
+`complete` means native inputs are ready, not that a GPU ROI export completed.
+Unbound legacy plans/readers retain their previous behavior; no frozen
+resolver, source asset, numerical-diagnostic file or completed output changes.
 
 Only the operator executes a selected job's `export_argv` in its recorded
 `cwd`, under the existing real GPU lock and matching single-device visibility.
