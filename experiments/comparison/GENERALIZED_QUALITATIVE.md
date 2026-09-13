@@ -208,6 +208,39 @@ The forward-time native prediction equality check is unchanged. CPU
 Unbound legacy plans/readers retain their previous behavior; no frozen
 resolver, source asset, numerical-diagnostic file or completed output changes.
 
+### Absolute native-wrapper entry on host183
+
+An absolute Python script does not automatically put its working directory at
+the package import root. The audited `host_binding.py native ABSOLUTE_SCRIPT`
+entry adds the consumer script's directory, not the checkout root. A successful
+CPU binding gate therefore does not prove that the actual consumer can import
+`experiments.comparison.result_completion`.
+
+Use the versioned `dior_recovery/host183_roi_entry.sh` envelope with `bash`.
+It fixes cwd and sets `PYTHONPATH` to only the accepted860 checkout **before**
+Python starts, preserving the existing anaconda interpreter, audited183
+wrapper and native arguments. It does not edit the frozen consumer, alter the
+resolver, force runtime-ready, create an environment or change model settings.
+The existing runtime helper copies this package-root environment if it re-execs.
+
+```bash
+# CPU import-boundary check only; no plan/data/model work.
+CUDA_VISIBLE_DEVICES= bash /VERSIONED_CODE/experiments/comparison/dior_recovery/host183_roi_entry.sh --help
+
+# Only after separate operator/parent GPU admission, not an automatic retry.
+IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES=OWNED_GPU \
+bash /VERSIONED_CODE/experiments/comparison/dior_recovery/host183_roi_entry.sh \
+  --plan /home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_roi183_860d4a0/qualitative_seed42.irg-brightness-ema.json \
+  --run-id DIOR/brightness/seed_42/IRG/ema --physical-gpu OWNED_GPU
+```
+
+Validate the actual native `--help` return code and Python import trace:
+`experiments.comparison.result_completion` must load from that accepted860
+checkout, not an old331d checkout or installed package. `PYTHONVERBOSE=1`
+records this import origin without changing the script's package-search
+semantics. This narrow entry check proves neither configuration/native-binding
+completion nor strict forward prediction equality; those remain separate.
+
 Only the operator executes a selected job's `export_argv` in its recorded
 `cwd`, under the existing real GPU lock and matching single-device visibility.
 The command includes `--physical-gpu`; native prediction equality still runs
