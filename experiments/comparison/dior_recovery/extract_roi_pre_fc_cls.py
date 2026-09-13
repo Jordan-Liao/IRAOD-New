@@ -4,7 +4,9 @@ import argparse
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
+import sys
 
 from experiments.comparison.result_completion import (
     load_run, native_binding_evidence, read_json, FEATURE_POINT, FEATURE_VERSION)
@@ -23,6 +25,19 @@ def require_owned_gpu(run, selected_gpu=None):
     elif physical_gpu not in run["allowed_gpus"]:
         raise ValueError("Port ROI extraction requires an explicit physical GPU selection")
     return physical_gpu
+
+
+def runtime_provenance(np, torch, mmcv, mmdet, physical_gpu):
+    return {
+        "hostname": socket.gethostname(),
+        "physical_gpu": physical_gpu,
+        "python": sys.executable,
+        "torch": torch.__version__,
+        "cuda": torch.version.cuda,
+        "numpy": np.__version__,
+        "mmcv": mmcv.__version__,
+        "mmdet": mmdet.__version__,
+    }
 
 
 def main():
@@ -56,6 +71,8 @@ def main():
     ensure_iraod_runtime()
     import numpy as np
     import torch
+    import mmcv
+    import mmdet
     from mmcv import Config
     from mmcv.parallel import MMDataParallel
     from mmcv.runner import load_checkpoint, wrap_fp16_model
@@ -126,6 +143,8 @@ def main():
         "feature_point": FEATURE_POINT, "feature_version": FEATURE_VERSION,
         "checkpoint_meta": {key: checkpoint.get("meta", {}).get(key)
                             for key in ("epoch", "iter")},
+        "execution_runtime": runtime_provenance(
+            np, torch, mmcv, mmdet, physical_gpu),
         "records": records,
     }
     if native is not None:

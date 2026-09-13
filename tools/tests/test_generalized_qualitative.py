@@ -274,7 +274,8 @@ class GeneralizedQualitativeTest(unittest.TestCase):
             native_binding_evidence(run)
 
     def test_port_roi_requires_locked_explicit_single_gpu_selection(self):
-        from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import require_owned_gpu
+        from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import (
+            require_owned_gpu, runtime_provenance)
 
         run = {"allowed_gpus": [4, 5, 6]}
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "1", "CUDA_VISIBLE_DEVICES": "6"}):
@@ -294,6 +295,21 @@ class GeneralizedQualitativeTest(unittest.TestCase):
         with patch.dict(os.environ, {"IRAOD_GPU_LOCKED": "0", "CUDA_VISIBLE_DEVICES": "4"}):
             with self.assertRaisesRegex(RuntimeError, "actual GPU lock"):
                 require_owned_gpu(run)
+        modules = [
+            types.SimpleNamespace(__version__=version)
+            for version in ("1.26.4", "2.0.1+cu118", "1.7.2", "2.28.0")
+        ]
+        modules[1].version = types.SimpleNamespace(cuda="11.8")
+        with patch("socket.gethostname", return_value="runtime-host"):
+            provenance = runtime_provenance(*modules, 7)
+        self.assertEqual(
+            {key: provenance[key] for key in (
+                "hostname", "physical_gpu", "torch", "cuda", "numpy", "mmcv", "mmdet")},
+            {
+                "hostname": "runtime-host", "physical_gpu": 7,
+                "torch": "2.0.1+cu118", "cuda": "11.8", "numpy": "1.26.4",
+                "mmcv": "1.7.2", "mmdet": "2.28.0",
+            })
 
     def test_report_reuses_bf_qualitative_references_without_recollecting_quantities(self):
         from experiments.comparison.final_report import build_report
