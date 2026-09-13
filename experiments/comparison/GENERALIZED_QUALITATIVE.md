@@ -283,6 +283,35 @@ command starts and1800 allocated GPU-wall seconds including held metadata gaps
 and teardown. The aggregate ceiling is684 starts/615600 seconds. The operator
 owns atomic key/host assignment and skips completed or failed keys; no retry.
 
+The native entry loads the exact SHA-verified `profile.resolver` as the writer's
+`experiments.comparison.host_binding` dependency. It imports `extension_manifest`
+from the explicitly selected `profile.writer_code`, not implicitly from the
+resolver checkout. Runtime bootstrap and the evaluator's cwd/PYTHONPATH remain
+unchanged.
+
+For future unstarted host221 cases, the versioned resolver-v2 profile explicitly
+selects the existing `accepted-d668a77-67-20260912` host-aware writer. The old
+`integration_code_8fe3f55` writer lacks `host_binding` and hardcodes GPUs4-7;
+loading the separate resolver alone does not make that writer host-aware.
+Keep both original files unchanged, regenerate specs into a new versioned
+directory, and retain all consumed failed keys as no-retry. Host183's working
+entry need not be replaced.
+
+The single host221 CPU interface regression is:
+
+```bash
+CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 /EXISTING_NATIVE_PYTHON \
+  tools/tests/roi221_profile_producer_cpu_check.py \
+  --entry /VERSIONED/roi_rollout_native.py \
+  --old-profile /RETAINED/profile221.json --new-profile /VERSIONED/profile221-v2.json
+```
+
+It requires the old missing-resolver ImportError, then checks the actual selected
+resolver/writer origins, host-approved GPU1 and native child command. A sentinel
+blocks the child before evaluation; no model, data, checkpoint or CUDA work is
+performed, and the temporary planned fixture is removed. This proves the entry
+interface only, not a completed native or ROI evaluation.
+
 Use the finite parameterized interface rather than conversation per case:
 
 ```bash

@@ -1,10 +1,32 @@
 """One assigned rollout case through the existing authentic native producer."""
 
+import hashlib
+import importlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+
+
+def load_profile_producer(profile):
+    """Keep the selected writer package, but bind its explicit external resolver."""
+    path = Path(profile["resolver"])
+    if hashlib.sha256(path.read_bytes()).hexdigest() != profile["resolver_sha256"]:
+        raise ValueError("Selected profile resolver identity differs")
+    name = "experiments.comparison.host_binding"
+    spec = importlib.util.spec_from_file_location(name, path)
+    host = importlib.util.module_from_spec(spec)
+    sys.modules[name] = host
+    spec.loader.exec_module(host)
+    package = importlib.import_module("experiments.comparison")
+    package.host_binding = host
+    writer = importlib.import_module("experiments.comparison.extension_manifest")
+    expected = Path(profile["writer_code"]) / "experiments/comparison/extension_manifest.py"
+    if not Path(writer.__file__).samefile(expected):
+        raise ValueError("Native producer did not resolve from the selected writer checkout")
+    return host, writer.evaluate_binding
 
 
 def main():
@@ -20,8 +42,7 @@ def main():
     sys.argv = [str(Path(__file__).resolve()), str(spec_path), str(gpu)]
     from iraod_runtime import ensure_iraod_runtime
     ensure_iraod_runtime()
-    from experiments.comparison import host_binding as host
-    from experiments.comparison.extension_manifest import evaluate_binding
+    host, evaluate_binding = load_profile_producer(profile)
 
     if gpu not in profile["allowed_gpus"] or gpu not in host.approved_gpus():
         raise ValueError("Use the operator-assigned approved GPU for this case/host")
