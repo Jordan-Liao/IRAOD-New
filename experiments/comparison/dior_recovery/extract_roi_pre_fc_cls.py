@@ -47,6 +47,10 @@ def main():
     parser.add_argument("--physical-gpu", type=int)
     args = parser.parse_args()
     run = load_run(args.plan, args.run_id)
+    if (run["method"] in "BCDEF" and run["seed"] in (43, 44)
+            and any(not run.get(key) for key in ("native_prediction", "export_code_sha", "allowed_gpus"))):
+        raise ValueError("B-F seed43/44 extraction requires a native-bound plan; "
+                         "use extension_manifest prepare-bf-qualitative")
     code_commit = subprocess.check_output(
         ["git", "-C", str(Path(__file__).resolve().parents[3]), "rev-parse", "HEAD"],
         text=True).strip()

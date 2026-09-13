@@ -13,7 +13,7 @@ from experiments.comparison.collect_report_manifest import load_resolver
 from experiments.comparison.report_inputs import class_table, EXPECTED_IMAGES
 from experiments.comparison.report_qualitative import validate_plan
 from experiments.comparison.result_completion import (
-    read_json, write_json, PORT_METHODS, DOMAINS, native_binding_evidence)
+    read_json, write_json, PORT_METHODS, DOMAINS, native_binding_evidence, same_native_path)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -210,6 +210,91 @@ def seeded_plan(base, paths, seed, output):
     return plan
 
 
+def prepare_bf_qualitative(bf_plans, native_evals, out_dir, eval_code, python, physical_gpu,
+                           native_reports, core_paths):
+    """Bind selected pending B-F exports to actual native evaluations; never run a model."""
+    if not bf_plans or not native_evals or not native_reports or physical_gpu < 0:
+        raise ValueError("Existing B-F plans/reports, native evaluations and a physical GPU are required")
+    plans, runs = {}, {}
+    identity_fields = ("dataset", "domain", "seed", "method", "role")
+    for filename in bf_plans:
+        plan = read_json(filename)
+        validate_plan(plan)
+        seed = plan.get("adaptation_seed", 42)
+        if seed not in (43, 44) or seed in plans:
+            raise ValueError("Supply unique existing seed43/44 plans; preserve seed42 unchanged")
+        plans[seed] = plan
+        for run in plan["runs"]:
+            if run["method"] in "BCDEF":
+                runs[tuple(run[key] for key in identity_fields)] = run
+    if len({run["out_dir"] for run in runs.values()}) != len(runs):
+        raise ValueError("Distinct B-F dataset/domain/seed/method/role identities share an output")
+    reports = [(Path(filename).resolve(), read_json(filename)) for filename in native_reports]
+    paths = load_resolver(core_paths)
+    code = Path(eval_code).resolve()
+    sha = subprocess.check_output(["git", "-C", str(code), "rev-parse", "HEAD"], text=True).strip()
+    out = Path(out_dir).resolve()
+    selected, jobs = {}, []
+    for directory in native_evals:
+        native_root = Path(directory).absolute()
+        matches = [(filename, report, index, row) for filename, report in reports
+                   for index, row in enumerate(report["raw_results"])
+                   if Path(row["eval_dir"]) == native_root]
+        if len(matches) != 1:
+            raise ValueError(f"Native evaluation requires one explicit report entry: {native_root}")
+        report_file, report, index, execution = matches[0]
+        identity = tuple(execution[key] for key in identity_fields)
+        if identity not in runs or identity in selected:
+            raise ValueError(f"Native evaluation has an unselected or duplicate B-F identity: {identity}")
+        original = runs[identity]
+        resolve = paths.ema_path if original["role"] == "ema" else paths.student_path
+        if not same_native_path(resolve(original["dataset"], original["domain"],
+                                        str(original["seed"]), original["method"]),
+                                original["checkpoint"]):
+            raise ValueError(f"B-F checkpoint differs from the original core paths: {identity}")
+        if Path(original["out_dir"]).exists():
+            raise FileExistsError(f"Preserve existing ROI output: {original['out_dir']}")
+        run = {
+            **original, "export_code_sha": sha, "allowed_gpus": [physical_gpu],
+            "native_prediction": {
+                "format": "comparison-report-v1",
+                "report": str(report_file), "report_entry": index,
+                "report_code_sha": report["code_commit"],
+                "checkpoint_bytes": Path(original["checkpoint"]).stat().st_size,
+                "eval_dir": str(native_root),
+                "prepared_training_code_sha": execution["training_code_sha"],
+                "evaluation_code_sha": execution["evaluation_code_sha"],
+                "source_id": execution["source_id"],
+            },
+        }
+        evidence = native_binding_evidence(run)
+        if evidence["status"] != "complete":
+            raise ValueError(f"B-F ROI pending native inputs for {identity}: {evidence['missing']}")
+        selected[identity] = run
+        filename = out / f"qualitative_seed{run['seed']}.json"
+        jobs.append({
+            **{key: run[key] for key in (*identity_fields, "run_id", "checkpoint", "out_dir",
+                                        "export_code_sha", "allowed_gpus", "native_prediction")},
+            "plan": str(filename), "input_evidence": evidence, "status": "native_inputs_ready",
+            "cwd": str(code),
+            "export_argv": [python, "-m", "experiments.comparison.dior_recovery.extract_roi_pre_fc_cls",
+                            "--plan", str(filename), "--run-id", run["run_id"],
+                            "--physical-gpu", str(physical_gpu)],
+        })
+    prepared = {}
+    for seed, plan in plans.items():
+        derived = {**plan, "runs": [
+            selected.get(tuple(run[key] for key in identity_fields), run)
+            for run in plan["runs"]]}
+        validate_plan(derived)
+        prepared[out / f"qualitative_seed{seed}.json"] = derived
+    out.mkdir(parents=True, exist_ok=False)
+    for filename, plan in prepared.items():
+        write_json(filename, plan)
+    write_json(out / "roi_jobs.json", jobs)
+    return out
+
+
 def prepare(base_plan, core_report, core_paths, out_dir, eval_code, python, artifact_root=None):
     base = read_json(base_plan)
     report = read_json(core_report)
@@ -394,6 +479,15 @@ def main():
     qualitative_parser.add_argument("--runtime", dest="runtimes", action="append", required=True)
     qualitative_parser.add_argument("--methods", nargs="+", choices=PORT_METHODS, required=True)
     qualitative_parser.add_argument("--cpu-python", help="Separate existing CPU visualization/t-SNE environment")
+    bf_parser = commands.add_parser("prepare-bf-qualitative")
+    bf_parser.add_argument("--bf-plan", dest="bf_plans", action="append", required=True)
+    bf_parser.add_argument("--native-eval", dest="native_evals", action="append", required=True,
+                           help="Exact existing native evaluation directory named in the core report")
+    bf_parser.add_argument("--native-report", dest="native_reports", action="append", required=True,
+                           help="Authentic iraod-comparison-report-v1 report.json execution registry")
+    for name in ("out-dir", "eval-code", "python", "core-paths"):
+        bf_parser.add_argument("--" + name, required=True)
+    bf_parser.add_argument("--physical-gpu", type=int, required=True)
     evaluate_parser = commands.add_parser("evaluate")
     for name in ("queue", "dataset", "domain", "method", "role"):
         evaluate_parser.add_argument("--" + name, required=True)
@@ -401,7 +495,8 @@ def main():
     evaluate_parser.add_argument("--seed", required=True, type=int)
     args = vars(parser.parse_args())
     command = args.pop("command")
-    handlers = {"prepare": prepare, "prepare-qualitative": prepare_qualitative, "evaluate": evaluate}
+    handlers = {"prepare": prepare, "prepare-qualitative": prepare_qualitative,
+                "prepare-bf-qualitative": prepare_bf_qualitative, "evaluate": evaluate}
     result = handlers[command](**args)
     if result is not None:
         print(result)
