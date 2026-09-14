@@ -355,9 +355,9 @@ for every exported image. Other unbound B-F references in a partial derived
 plan are not jobs and cannot be extracted. `native_inputs_ready` means metadata
 binding passed, not that ROI extraction or scientific validation is complete.
 
-## Opt-in single-forward native + ROI candidate
+## Single-forward native + ROI mode
 
-`roi_joint_native.py` is a separate entry, not a change to the running queue or
+`roi_joint_native.py` is a separate entry, not a change to already-started jobs or
 the default two-pass mode. It uses the selected profile's existing native
 producer and original `test.py`: model/config/checkpoint loading, FP32, batch1,
 evaluation mode, preprocessing, full TEST, AP computation and prediction/ID
@@ -391,52 +391,91 @@ forward, incomplete coverage, native/AP failure, nonfinite feature or prediction
 mismatch leaves no published ROI index. Original outputs and metrics are not
 rewritten; unselected plan rows are preserved.
 
-### One proposed validation case, not execution authorization
+### Authorized future-key production routing
 
-The parent must select and admit **one unstarted already-authorized key**.
-Use its unchanged spec/profile and one approved GPU. Under the existing owner
-lock and cumulative deadline, command1 is ordinary full native TEST; after its
-CPU binding, command2 is the joint candidate on the same case/host/GPU. Do not
-also launch `BASELINE_ROOT/roi_entry.sh`: that would be a third start.
+At `2026-09-14T01:24:43.531Z`, the parent approved production adoption within the
+existing342-key scope. The operator may select **ready keys with zero starts**
+on host183 immediately. Host221 joint admission is currently held: its actual
+joint-specific CPU check assembled the correct writer/resolver/command but
+reported OpenCV bootstrap recursion while the d98 wrapper entered
+`native_config_paths`/MMCV imports, before model work. Keep its normal two-pass
+queue unchanged; no rerun, deployment or joint adoption is authorized for that
+blocked check. A single corrected probe matched the native writer's startup
+`PYTHONNOUSERSITE=1`; user-site disappeared from `sys.path`, but the same OpenCV
+recursion remained. That difference was not a sufficient explanation, and no
+OpenCV reinstall or production fix is justified by these results. The failure
+precedes the joint child entry; whether other probe-created import state or the
+real entry context causes it remains unverified. Both probes performed zero
+model/checkpoint/forward work or GPU evaluation-child launches.
+The prior host221 host-aware writer/evaluation dispatch proof
+remains valid and was reused, not repeated. No new221 GPU baseline or candidate
+trial was launched. Existing scientific readiness, profile GPU restrictions and budgets
+remain authoritative; this does not admit held nonfinite cases or other hosts.
+
+Use the existing validated `92068ccb7ca19570e02880415671b6627ce769ca` runtime
+checkout, not a policy-only documentation branch, with the actual host profile's
+Python, writer, resolver and frozen evaluator. The finite operator interface is:
 
 ```bash
-# Variables are the operator's already selected profile/case paths, not new defaults.
-IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES="$GPU" \
-  "$NATIVE_PYTHON" "$PRODUCTION_NATIVE_ENTRY" "$CASE_SPEC" "$GPU"
-CUDA_VISIBLE_DEVICES= \
-  "$NATIVE_PYTHON" "$PRODUCTION_BIND_ENTRY" "$BASELINE_ROOT"
-
-# Only after parent admission; CANDIDATE_ROOT must not exist.
+JOINT_ROOT="${CASE_ROOT}.joint920"  # Must not exist; preserve the original case root.
 IRAOD_GPU_LOCKED=1 CUDA_VISIBLE_DEVICES="$GPU" \
   "$NATIVE_PYTHON" "$JOINT_CODE/experiments/comparison/roi_joint_native.py" \
-  --spec "$CASE_SPEC" --out "$CANDIDATE_ROOT" \
-  --physical-gpu "$GPU" --baseline-root "$BASELINE_ROOT"
+  --spec "$CASE_SPEC" --out "$JOINT_ROOT" --physical-gpu "$GPU"
 ```
 
-`BASELINE_ROOT` is the unchanged spec's `case_root`. The candidate copies only
-that output-root choice into a new local spec, never changing the source spec.
-The optional `--baseline-root` is **required for this first validation**. It
-requires the same profile, physical GPU, scientific inputs and evaluator
-revision, exact full same-inference ID order, class AP table and every native
-prediction array's shape/dtype/value/order. Any mismatch blocks ROI publication,
-even if candidate self-alignment succeeds. ROI features must pass the existing
-full-coverage, finite and proposal/class provenance checker; this two-start
-proposal does not independently re-run a third ROI forward to compare features.
-Only a genuinely complete joint output counts the same canonical key once.
-Never select between baseline/candidate by TEST score.
+Omit `--baseline-root` in production. The source spec is read-only; the entry
+copies it with the new output root. It produces its own genuine full native
+reference, exact same-forward ROI binding and completed index. The absence of
+an independent baseline does not remove `native_prediction`, native completion
+or strict saved-prediction/ROI comparisons.
+Do not pre-create `JOINT_ROOT` for logs or staging; the entry owns its creation.
+Keep operator logs outside that fresh directory. In production the terminal
+`ordinary_native_exact_parity: false` means no independent baseline was
+requested, not a failed own-native/ROI check; do not require that pilot-only
+flag to be true.
 
-The allowance remains at most2 starts and1800 allocated GPU-wall seconds
-including loads, metadata/publication gaps and teardown, with no retry.
-The operator accounts for the **remaining** deadline after command1, not another
-1800 seconds for command2. Failure of either command stops this case. No joint
-rollout or GPU trial is authorized by the implementation alone; live queue
-entries remain untouched.
+| Operator mode | Eligible work | GPU commands and completion |
+|---|---|---|
+| Existing two-pass | Already-started cases keep their recorded mode and paths | Finish their original stages; do not switch or restart |
+| `joint920` | Approved ready zero-start keys on the admitted host | One joint command; use `JOINT_ROOT/native_pass.json`, `roi_plan.json` and `roi/index.json` |
 
-The expected gain is eliminating one duplicated detector pass. It is not a
-measured speedup: native AP, CPU prediction serialization, feature compression
-and final streamed checks still cost time. Record baseline-native and
-candidate-joint wall times, counts and exact parity in this one validation;
-do not turn different-output workload timings into a claimed speedup.
+After a successful joint command, do **not** run the external binder or a second
+`roi_entry.sh`: binding and ROI publication already happened inside the joint
+entry. Record `JOINT_ROOT` as this key's actual output root and count the same
+canonical key once through the existing completion path, requiring successful
+`JOINT_NATIVE_ROI_COMPLETE` and the full ROI index, not `native_pass.json` alone.
+A nonzero exit is a
+failed attempt, not permission to retry, clear partial files or fall back to
+two-pass. No model selection is based on TEST scores.
+
+Keep the current per-key/global ledger, including every consumed failure.
+The current amended global ceiling remains688 starts/615600 seconds; changing
+mode does not reset it or add starts.
+Ordinary keys retain their existing maximum2 starts/1800 allocated GPU-wall
+seconds; a successful joint command normally consumes one start, not a new
+budget entitlement. Loading, publication, held gaps and teardown count.
+The separately authorized contrast43/E/EMA validation used all3 of its amended
+starts and is closed; it is not a template for three-start production retries.
+Default two-pass commands, live jobs, old67/PR25 raw900 metrics, failed outputs
+and the canonical720 ROI denominator are unchanged.
+
+### Completed one-case validation and timing limits
+
+On host183 GPU8, `DIOR/contrast/43/E/ema` produced11738 ROI NPZ plus index with
+the repaired920 entry. Whole native prediction arrays (shape/dtype/value/order),
+same-inference ID order and printed class AP tables matched its ordinary native
+baseline. The existing full-ROI finite/feature/proposal/class checks passed
+before publication. No full-precision metric JSON parity or independent
+third-forward feature-value parity is claimed.
+
+The repaired joint command took420 seconds end-to-end; the ordinary native-only
+baseline took316 seconds. Including the retained1-second gap and4-second failed
+startup,741 allocated wall seconds were charged across3 starts. The104-second
+joint-minus-native difference compares different-output workloads; it is neither
+isolated ROI overhead nor a head-to-head two-pass speedup measurement. This case
+has no ordinary separate-ROI timing, and another method/seed/domain's earlier
+314s+410s pilot is not a substitute. Native AP, serialization, compression and
+streamed publication checks remain part of joint cost.
 
 CPU-only contract check (synthetic arrays, no detector/model/checkpoint load):
 
