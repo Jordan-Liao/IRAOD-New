@@ -395,21 +395,30 @@ rewritten; unselected plan rows are preserved.
 
 At `2026-09-14T01:24:43.531Z`, the parent approved production adoption within the
 existing342-key scope. The operator may select **ready keys with zero starts**
-on host183 immediately. Host221 joint admission is currently held: its actual
-joint-specific CPU check assembled the correct writer/resolver/command but
-reported OpenCV bootstrap recursion while the d98 wrapper entered
-`native_config_paths`/MMCV imports, before model work. Keep its normal two-pass
-queue unchanged; no rerun, deployment or joint adoption is authorized for that
-blocked check. A single corrected probe matched the native writer's startup
-`PYTHONNOUSERSITE=1`; user-site disappeared from `sys.path`, but the same OpenCV
-recursion remained. That difference was not a sufficient explanation, and no
-OpenCV reinstall or production fix is justified by these results. The failure
-precedes the joint child entry; whether other probe-created import state or the
-real entry context causes it remains unverified. Both probes performed zero
-model/checkpoint/forward work or GPU evaluation-child launches.
-The prior host221 host-aware writer/evaluation dispatch proof
-remains valid and was reused, not repeated. No new221 GPU baseline or candidate
-trial was launched. Existing scientific readiness, profile GPU restrictions and budgets
+on host183 immediately. Host221 passed its actual joint-specific CPU import
+boundary and the operator activated the same future-zero-start policy after
+that result. Existing started two-pass cases remain unchanged. The earlier
+host221 host-aware writer/resolver/evaluation dispatch proof and assembled joint
+command were reused, not repeated; no new221 GPU baseline or candidate trial
+was launched.
+
+The initial221 OpenCV recursion was a CPU-probe defect, not a920 runtime or
+installation defect. Matching the native writer's startup `PYTHONNOUSERSITE=1`
+removed user-site but did not fix it. Actual retained OpenCV source uses
+`l_vars = locals()` plus `exec` to load its extension paths. A paired Python3.10.21
+config-prefix replay retained the cv2 directory without profiling and lost the
+path list under the probe's global `sys.setprofile`; the corresponding local
+Python3.12 control did not reproduce that behavior. Do not infer this native
+runtime's behavior from a stand-in interpreter.
+
+The corrected CPU probe leaves imports unprofiled and guards only the actual
+native module's `main` after module loading. The real221 wrapper then loaded
+`cv2/cv2.abi3.so`, resolved the helper from920 and the native loop/ID helper/sfod
+from331d, and stopped before native `main`: zero model/checkpoint/forward or GPU
+evaluation-child calls, CUDA uninitialized. No OpenCV/package, environment
+installation or production-code change was needed. This is import compatibility
+evidence, not a221 model/parity or speed measurement.
+Existing scientific readiness, profile GPU restrictions and budgets
 remain authoritative; this does not admit held nonfinite cases or other hosts.
 
 Use the existing validated `92068ccb7ca19570e02880415671b6627ce769ca` runtime
