@@ -77,7 +77,7 @@ class OperandTest(unittest.TestCase):
                     torch.manual_seed(44)
                     before_rng = torch.get_rng_state().clone()
                     runner = RunnerFixture()
-                    pred = torch.nn.Parameter(torch.full((3, 5), .2))
+                    pred = torch.nn.Parameter(torch.full((4, 5), .2))
                     optimizer = torch.optim.SGD([pred], lr=.02, momentum=.9)
                     updates, losses = 0, []
                     failure = Path(temporary) / mode
@@ -95,16 +95,21 @@ class OperandTest(unittest.TestCase):
                             if i == 2 and mode == "target_nan":
                                 proposals[0, 2] = gt[0, 2] = 0
                                 gt[0, 0] = proposals[0, 0]
-                            labels, label_weights, targets, weights = runner.head._get_target_single(
+                            empty = runner.head._get_target_single(
+                                source_boxes[:0], source_boxes[:1], torch.empty(0),
+                                torch.empty(0, dtype=torch.long), types.SimpleNamespace(pos_weight=-1))
+                            positive = runner.head._get_target_single(
                                 proposals, source_boxes[:1], gt, torch.tensor([0, 1]),
                                 types.SimpleNamespace(pos_weight=-1))
+                            labels, label_weights, targets, weights = [
+                                torch.cat((left, right)) for left, right in zip(empty, positive)]
                             current_pred = pred
                             if i == 2 and mode == "pred_nan":
                                 current_pred = pred * torch.tensor(-1.).sqrt()
                             elif i == 2 and mode == "reduction_inf":
                                 current_pred = pred * 0 + torch.tensor(1e38)
                             result = runner.head.loss(
-                                None, current_pred, torch.zeros(3, 6), labels,
+                                None, current_pred, torch.zeros(4, 6), labels,
                                 label_weights, targets, weights)["loss_bbox"]
                             checks.require_finite(result, "fixture loss before backward")
                             losses.append(result.item())
@@ -124,7 +129,7 @@ class OperandTest(unittest.TestCase):
                         self.assertEqual(updates, 265)
                         self.assertFalse(failure.exists())
                         self.assertGreater(losses[0], 0)
-                        self.assertFalse(torch.equal(pred, torch.full((3, 5), .2)))
+                        self.assertFalse(torch.equal(pred, torch.full((4, 5), .2)))
                         if mode == "baseline":
                             reference = (pred.detach().clone(), optimizer.state_dict(), losses)
                         else:
@@ -142,7 +147,7 @@ class OperandTest(unittest.TestCase):
                         self.assertEqual(metadata["update_one_based"], 3)
                         self.assertEqual(metadata["positive_count"], 2)
                         self.assertEqual(metadata["geometry_positive_count"], 2)
-                        self.assertEqual(metadata["avg_factor_repr"], "3")
+                        self.assertEqual(metadata["avg_factor_repr"], "4")
                         self.assertTrue(metadata["avg_factor_isfinite"])
                         self.assertIsNotNone(metadata["per_element_loss"])
                         self.assertEqual(metadata["stage"], "bbox_reduction_output"
@@ -150,13 +155,21 @@ class OperandTest(unittest.TestCase):
                         payload = torch.load(failure / "bbox_loss_operands.pt",
                                              map_location="cpu", weights_only=False)
                         self.assertEqual(payload["pred"].shape, (2, 5))
-                        self.assertEqual(len(payload["positive_geometry"]), 1)
+                        self.assertEqual(len(payload["positive_geometry"]), 2)
+                        self.assertEqual(payload["positive_geometry"][0]["gt_boxes"].shape, (0,))
+                        self.assertEqual(payload["positive_geometry"][0]["encoded_targets"].shape, (0, 5))
+                        self.assertIsNone(metadata["geometry"][0]["gt_nonpositive_wh"])
+                        self.assertFalse(metadata["geometry"][0]["encode_called"])
+                        self.assertTrue(metadata["geometry"][1]["encode_called"])
+                        self.assertTrue(torch.equal(
+                            torch.isnan(payload["positive_geometry"][1]["encoded_targets"]),
+                            torch.isnan(payload["target"])))
                         self.assertFalse({"model", "optimizer", "features", "cls_score", "batch"} & payload.keys())
                         self.assertEqual(set(p.name for p in failure.iterdir()),
                                          {"failure.json", "bbox_loss_operands.pt"})
                         if mode == "target_nan":
                             self.assertGreater(metadata["encoded_targets"]["nan_count"], 0)
-                            self.assertGreater(metadata["geometry"][0]["proposal_nonpositive_wh"], 0)
+                            self.assertGreater(metadata["geometry"][1]["proposal_nonpositive_wh"], 0)
                         elif mode == "pred_nan":
                             self.assertGreater(metadata["pred"]["nan_count"], 0)
                         else:
