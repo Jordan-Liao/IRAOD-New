@@ -13,6 +13,8 @@ from unittest.mock import patch
 import numpy as np
 
 from experiments.comparison.aligned_roi import AlignedRoICapture, validate_native_predictions
+# Resolve exporter-only helpers before selecting the frozen model checkout.
+from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import runtime_provenance
 from experiments.comparison.result_completion import (
     EXPECTED_TEST_IMAGES, FEATURE_POINT, FEATURE_VERSION, SCHEMA,
     iter_export_records, load_run, native_binding_evidence, read_json, validate_run,
@@ -101,7 +103,6 @@ def capture_native():
     import mmcv
     import mmdet
     from mmrotate.models.roi_heads.bbox_heads import rotated_bbox_head
-    from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import runtime_provenance
 
     module_spec = importlib.util.spec_from_file_location("joint_actual_native_test", entry)
     native = importlib.util.module_from_spec(module_spec)
