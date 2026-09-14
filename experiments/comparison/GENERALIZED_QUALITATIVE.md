@@ -368,6 +368,11 @@ recorded; using a wrapper is not permission to claim a different model checkout.
 The versioned child is named `joint_native/test.py` deliberately: existing host
 wrappers enable their loaded-model finite check by the `test.py` basename.
 The same wrapper, runtime bootstrap, evaluator cwd and package root are retained.
+Exporter-only `runtime_provenance` is bound while the candidate checkout is
+selected, before switching to the native/model checkout. Frozen331d does not
+export that helper; importing it after the path switch selects the wrong module.
+`tools.tests.test_joint_roi_import` replays this exact dual-checkout child entry
+using the real331d module source and CPU import-only library fixtures.
 An observation of the existing native loop's forward call uses
 `AlignedRoICapture`; it returns the detector result unchanged, saves one image
 NPZ under `roi.unverified`, and clears captured proposal features immediately.
