@@ -35,6 +35,12 @@ def cpu_tensor(value):
     return value.detach().cpu() if value is not None else None
 
 
+def nonpositive_wh(value):
+    if value.ndim < 2 or value.shape[-1] < 4:
+        return None
+    return int((value[..., 2:4] <= 0).sum().item())
+
+
 class BBoxLossProbe:
     def __init__(self, failure_dir, require_finite, save_data, loss_utils=None):
         self.failure_dir = Path(failure_dir)
@@ -77,8 +83,10 @@ class BBoxLossProbe:
             "geometry": [{
                 "image_index": i, "proposals": tensor_info(row["proposals"]),
                 "gt_boxes": tensor_info(row["gt_boxes"]),
-                "proposal_nonpositive_wh": int((row["proposals"][:, 2:4] <= 0).sum().item()),
-                "gt_nonpositive_wh": int((row["gt_boxes"][:, 2:4] <= 0).sum().item()),
+                "proposal_nonpositive_wh": nonpositive_wh(row["proposals"]),
+                "gt_nonpositive_wh": nonpositive_wh(row["gt_boxes"]),
+                "encode_called": row["encode_called"],
+                "native_encoded_targets": tensor_info(row["encoded_targets"]),
             } for i, row in enumerate(self.geometry)],
             "configuration": self.config, "sources": self.sources,
             "capture_status": "pending", "operand_file": "bbox_loss_operands.pt",
@@ -98,6 +106,8 @@ class BBoxLossProbe:
             "positive_geometry": [{
                 "image_index": i, "proposals": cpu_tensor(row["proposals"]),
                 "gt_boxes": cpu_tensor(row["gt_boxes"]), "gt_labels": cpu_tensor(row["gt_labels"]),
+                "encoded_targets": cpu_tensor(row["encoded_targets"]),
+                "encode_called": row["encode_called"],
             } for i, row in enumerate(self.geometry)],
         }, temporary)
         temporary.replace(self.failure_dir / "bbox_loss_operands.pt")
@@ -140,6 +150,8 @@ class BBoxLossProbe:
                     result = original_target(pos_bboxes, neg_bboxes, pos_gt_bboxes, pos_gt_labels, cfg)
                     self.geometry.append({
                         "proposals": pos_bboxes, "gt_boxes": pos_gt_bboxes, "gt_labels": pos_gt_labels,
+                        "encoded_targets": result[2][:pos_bboxes.shape[0]],
+                        "encode_called": bool(pos_bboxes.shape[0]) and not head.reg_decoded_bbox,
                     })
                     return result
 
