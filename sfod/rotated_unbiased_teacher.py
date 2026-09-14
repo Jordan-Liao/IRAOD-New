@@ -52,6 +52,17 @@ class UnbiasedTeacher(SemiTwoStageDetector):
         self.score_thr = cfg.get('score_thr', 0.7)
         self.weight_u = cfg.get('weight_u', 1.0)
         self.weight_l = cfg.get('weight_l', 0.0)
+        self.strict_source_free = bool(cfg.get('strict_source_free', False))
+        if self.strict_source_free:
+            if 'weight_l' not in cfg or 'weight_u' not in cfg:
+                raise ValueError(
+                    'strict_source_free requires explicit weight_l and weight_u')
+            if float(self.weight_l) != 0.0:
+                raise ValueError(
+                    'strict_source_free requires weight_l=0')
+            if float(self.weight_u) <= 0.0:
+                raise ValueError(
+                    'strict_source_free requires weight_u>0')
         self.use_bbox_reg = cfg.get('use_bbox_reg', False)
         self.momentum = cfg.get('momentum', 0.998)
 
@@ -188,6 +199,60 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             return float(self.dynamic_score_thresholds[cls])
         return float(self.score_thr)
 
+    @staticmethod
+    def _assert_strict_empty_targets(**target_batches):
+        for name, batch in target_batches.items():
+            if batch is None:
+                raise ValueError(
+                    f'strict_source_free requires explicit empty {name}')
+            for index, target in enumerate(batch):
+                if not torch.is_tensor(target) or target.numel() != 0:
+                    raise ValueError(
+                        'strict_source_free rejects nonempty target ground '
+                        f'truth: {name}[{index}]')
+
+    def forward(self, img, img_metas, return_loss=True,
+                gen_embeddings=False, **kwargs):
+        if return_loss and self.strict_source_free:
+            required = (
+                'gt_bboxes',
+                'gt_labels',
+                'img_unlabeled_1',
+                'img_metas_unlabeled_1',
+                'gt_bboxes_unlabeled_1',
+                'gt_labels_unlabeled_1',
+            )
+            missing = [name for name in required if name not in kwargs]
+            if missing:
+                raise ValueError(
+                    'strict_source_free batch is missing fields: '
+                    + ', '.join(missing))
+            gt_bboxes = kwargs.pop('gt_bboxes')
+            gt_labels = kwargs.pop('gt_labels')
+            if kwargs.keys() - {
+                    'img_unlabeled_1',
+                    'img_metas_unlabeled_1',
+                    'gt_bboxes_unlabeled_1',
+                    'gt_labels_unlabeled_1'}:
+                raise ValueError(
+                    'strict_source_free batch contains unsupported fields: '
+                    + ', '.join(sorted(kwargs.keys() - {
+                        'img_unlabeled_1',
+                        'img_metas_unlabeled_1',
+                        'gt_bboxes_unlabeled_1',
+                        'gt_labels_unlabeled_1'})))
+            return self.forward_train_semi(
+                img, img_metas, gt_bboxes, gt_labels,
+                img, img_metas, gt_bboxes, gt_labels,
+                kwargs.pop('img_unlabeled_1'),
+                kwargs.pop('img_metas_unlabeled_1'),
+                kwargs.pop('gt_bboxes_unlabeled_1'),
+                kwargs.pop('gt_labels_unlabeled_1'),
+            )
+        return super().forward(
+            img, img_metas, return_loss=return_loss,
+            gen_embeddings=gen_embeddings, **kwargs)
+
     def set_epoch(self, epoch): 
         self.roi_head.cur_epoch = epoch 
         self.roi_head.bbox_head.cur_epoch = epoch
@@ -198,19 +263,39 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             img_unlabeled, img_metas_unlabeled, gt_bboxes_unlabeled, gt_labels_unlabeled,
             img_unlabeled_1, img_metas_unlabeled_1, gt_bboxes_unlabeled_1, gt_labels_unlabeled_1,
     ):
-        device = img.device
+        strict_source_free = getattr(self, 'strict_source_free', False)
+        if strict_source_free:
+            self._assert_strict_empty_targets(
+                gt_bboxes=gt_bboxes,
+                gt_labels=gt_labels,
+                gt_bboxes_unlabeled=gt_bboxes_unlabeled,
+                gt_labels_unlabeled=gt_labels_unlabeled,
+                gt_bboxes_unlabeled_1=gt_bboxes_unlabeled_1,
+                gt_labels_unlabeled_1=gt_labels_unlabeled_1,
+            )
+
+        device = img_unlabeled.device
         self.image_num += len(img_metas_unlabeled)
         self.update_ema_model(self.momentum)
         self.cur_iter += 1
         # # ---------------------label data---------------------
-        losses = self.forward_train(img, img_metas, gt_bboxes, gt_labels)
-        losses = self.parse_loss(losses)
-        for key, val in losses.items():
-            if key.find('loss') == -1:
-                continue
-            else:
-                losses[key] = self.weight_l * val
+        if strict_source_free:
+            losses = {}
+        else:
+            losses = self.forward_train(img, img_metas, gt_bboxes, gt_labels)
+            losses = self.parse_loss(losses)
+            for key, val in losses.items():
+                if key.find('loss') == -1:
+                    continue
+                else:
+                    losses[key] = self.weight_l * val
         # # -------------------unlabeled data-------------------
+        analysis_gt_bboxes = (
+            None if strict_source_free else gt_bboxes_unlabeled)
+        analysis_gt_labels = (
+            None if strict_source_free else gt_labels_unlabeled)
+        analysis_img_metas = (
+            None if strict_source_free else img_metas_unlabeled)
         bbox_transform = []
         proto_filter_mode = os.environ.get(
             "CGA_FILTER_MODE", "").strip().lower()
@@ -242,28 +327,28 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 self._prototype_bank_update(ema_host, strong_results)
             gt_bboxes_pred, gt_labels_pred = self.create_pseudo_results(
                 img_unlabeled_1, bbox_results, bbox_transform, device,
-                gt_bboxes_unlabeled, gt_labels_unlabeled, img_metas_unlabeled)
+                analysis_gt_bboxes, analysis_gt_labels, analysis_img_metas)
             self.analysis()
             losses_unlabeled = self.forward_train(
                 img_unlabeled_1, img_metas_unlabeled_1,
                 gt_bboxes_pred, gt_labels_pred)
             if proto_v2:
-                # GT is consumed only by the explicitly named evaluation
-                # diagnostic.  It is never passed to the prototype-bank update
-                # interface, whose candidates and labels remain teacher-only.
-                try:
-                    self._accumulate_prototype_v2_paired_diagnostics(
-                        ema_host,
-                        gt_bboxes_unlabeled,
-                        gt_labels_unlabeled,
-                        img_metas_unlabeled,
-                    )
-                except Exception:
-                    diag = getattr(ema_host, "_proto_diag", None)
-                    if diag is not None:
-                        diag["alignment_error_count"] += 1
-                    if bool(getattr(ema_host, "cga_strict", False)):
-                        raise
+                if not strict_source_free:
+                    # GT is consumed only by this evaluation diagnostic.  The
+                    # prototype update below remains teacher-only.
+                    try:
+                        self._accumulate_prototype_v2_paired_diagnostics(
+                            ema_host,
+                            gt_bboxes_unlabeled,
+                            gt_labels_unlabeled,
+                            img_metas_unlabeled,
+                        )
+                    except Exception:
+                        diag = getattr(ema_host, "_proto_diag", None)
+                        if diag is not None:
+                            diag["alignment_error_count"] += 1
+                        if bool(getattr(ema_host, "cga_strict", False)):
+                            raise
                 self._prototype_bank_update(ema_host, strong_results)
         elif self.semantic_reweight:
             bbox_results, cga_meta = self.inference_unlabeled(
@@ -273,8 +358,8 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             gt_bboxes_pred, gt_labels_pred, gt_semantic_weights_pred = \
                 self.create_pseudo_results(
                     img_unlabeled_1, bbox_results, bbox_transform, device,
-                    gt_bboxes_unlabeled, gt_labels_unlabeled,
-                    img_metas_unlabeled,  # for analysis
+                    analysis_gt_bboxes, analysis_gt_labels,
+                    analysis_img_metas,
                     cga_meta=cga_meta, return_semantic_weights=True
                 )
             self.analysis()
@@ -287,7 +372,7 @@ class UnbiasedTeacher(SemiTwoStageDetector):
             )
             gt_bboxes_pred, gt_labels_pred = self.create_pseudo_results(
                 img_unlabeled_1, bbox_results, bbox_transform, device,
-                gt_bboxes_unlabeled, gt_labels_unlabeled, img_metas_unlabeled  # for analysis
+                analysis_gt_bboxes, analysis_gt_labels, analysis_img_metas
             )
             self.analysis()
             losses_unlabeled = self.forward_train(img_unlabeled_1, img_metas_unlabeled_1,
@@ -303,8 +388,10 @@ class UnbiasedTeacher(SemiTwoStageDetector):
         losses.update({f'{key}_unlabeled': val for key, val in losses_unlabeled.items()})
         extra_info = {
             'pseudo_num': torch.Tensor([self.pseudo_num.sum() / self.image_num]).to(device),
-            'pseudo_num(acc)': torch.Tensor([self.pseudo_num_tp.sum() / self.pseudo_num.sum()]).to(device)
         }
+        if not strict_source_free:
+            extra_info['pseudo_num(acc)'] = torch.Tensor(
+                [self.pseudo_num_tp.sum() / self.pseudo_num.sum()]).to(device)
         if self.semantic_reweight:
             # effective pseudo count = sum of semantic weights / image_num
             extra_info['pseudo_effective_num'] = torch.Tensor(
@@ -688,11 +775,19 @@ class UnbiasedTeacher(SemiTwoStageDetector):
     def analysis(self):
         if self.cur_iter % 500 == 0 and get_dist_info()[0] == 0:
             logger = get_root_logger()
-            info = ' '.join([f'{b / (a + 1e-10):.2f}({a}-{cls})' for cls, a, b
-                             in zip(self.CLASSES, self.pseudo_num, self.pseudo_num_tp)])
-            info_gt = ' '.join([f'{a}' for a in self.pseudo_num_gt])
-            logger.info(f'pseudo pos: {info}')
-            logger.info(f'pseudo gt: {info_gt}')
+            if getattr(self, 'strict_source_free', False):
+                info = ' '.join(
+                    f'{int(count)}({cls})'
+                    for cls, count in zip(self.CLASSES, self.pseudo_num))
+                logger.info(f'pseudo admitted: {info}')
+            else:
+                info = ' '.join([
+                    f'{b / (a + 1e-10):.2f}({a}-{cls})'
+                    for cls, a, b in zip(
+                        self.CLASSES, self.pseudo_num, self.pseudo_num_tp)])
+                info_gt = ' '.join([f'{a}' for a in self.pseudo_num_gt])
+                logger.info(f'pseudo pos: {info}')
+                logger.info(f'pseudo gt: {info_gt}')
             if getattr(self, 'semantic_reweight', False):
                 admitted = float(self.pseudo_num.sum())
                 eff = float(self.pseudo_sem_weight.sum())

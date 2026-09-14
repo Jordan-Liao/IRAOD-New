@@ -1,0 +1,20 @@
+% RSAR seed=42 final-EMA. Bold = best in column among A-F. Single seed, no std.
+\begin{tabular}{lcccccccc}
+\toprule
+Method & clean & chaff & pt & gauss & noise & smart & am\_h & am\_v \\
+\midrule
+A Source Only & 0.531 & \textbf{0.472} & \textbf{0.516} & \textbf{0.528} & 0.163 & 0.144 & 0.206 & 0.191 \\
+B ST & -- & 0.463 & 0.496 & 0.520 & 0.181 & 0.143 & 0.227 & 0.237 \\
+C CLIP-CGA & -- & 0.466 & 0.511 & 0.521 & \textbf{0.186} & \textbf{0.181} & 0.229 & 0.240 \\
+D SARCLIP-CGA & -- & 0.459 & 0.500 & 0.511 & 0.165 & 0.146 & 0.189 & 0.176 \\
+E VLST & -- & 0.464 & 0.511 & 0.523 & 0.182 & 0.155 & \textbf{0.235} & \textbf{0.250} \\
+F CGA+VLST & -- & 0.449 & 0.508 & 0.521 & 0.141 & 0.132 & 0.159 & 0.171 \\
+\midrule
+A mPC/rPC & \multicolumn{8}{l}{0.317 / 59.7\% ; mean $\Delta$ada=+0.000} \\
+B mPC/rPC & \multicolumn{8}{l}{0.324 / 61.0\% ; mean $\Delta$ada=+0.007} \\
+C mPC/rPC & \multicolumn{8}{l}{0.334 / 62.8\% ; mean $\Delta$ada=+0.016} \\
+D mPC/rPC & \multicolumn{8}{l}{0.307 / 57.7\% ; mean $\Delta$ada=-0.010} \\
+E mPC/rPC & \multicolumn{8}{l}{0.331 / 62.4\% ; mean $\Delta$ada=+0.014} \\
+F mPC/rPC & \multicolumn{8}{l}{0.297 / 56.0\% ; mean $\Delta$ada=-0.020} \\
+\bottomrule
+\end{tabular}

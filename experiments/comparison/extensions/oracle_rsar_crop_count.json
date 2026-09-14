@@ -1,0 +1,67 @@
+{
+  "dataset": "RSAR",
+  "split": "train",
+  "status": "count_only_no_patch_artifacts",
+  "crop_mode": "aabb",
+  "crop_expand": 0.4,
+  "force_rgb": true,
+  "classes": [
+    "ship",
+    "aircraft",
+    "car",
+    "tank",
+    "bridge",
+    "harbor"
+  ],
+  "valid_crop_count": 1047844,
+  "per_class": {
+    "ship": 650650,
+    "aircraft": 48160,
+    "car": 66969,
+    "tank": 66353,
+    "bridge": 192584,
+    "harbor": 23128
+  },
+  "per_corruption": {
+    "chaff": 149692,
+    "gaussian_white_noise": 149692,
+    "point_target": 149692,
+    "noise_suppression": 149692,
+    "am_noise_horizontal": 149692,
+    "smart_suppression": 149692,
+    "am_noise_vertical": 149692
+  },
+  "rejections": {
+    "reason": "empty_expanded_aabb_after_clipping",
+    "total": 0,
+    "per_class": {
+      "ship": 0,
+      "aircraft": 0,
+      "car": 0,
+      "tank": 0,
+      "bridge": 0,
+      "harbor": 0
+    },
+    "per_corruption": {
+      "chaff": 0,
+      "gaussian_white_noise": 0,
+      "point_target": 0,
+      "noise_suppression": 0,
+      "am_noise_horizontal": 0,
+      "smart_suppression": 0,
+      "am_noise_vertical": 0
+    }
+  },
+  "canonical_budget": {
+    "epochs": 10,
+    "batch_size": 64,
+    "updates": 163730,
+    "sampler": "WeightedRandomSampler",
+    "draws_per_epoch": 1047844,
+    "replacement": true,
+    "drop_last": false
+  },
+  "full_source_summary": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_counts_d823c02/RSAR/summary.json",
+  "expected_optimizer_updates": 163730,
+  "expected_patch_draws": 10478440
+}

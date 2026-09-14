@@ -1,0 +1,24 @@
+% Requires booktabs, graphicx, and xcolor with the table option.
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Final Student checkpoints (B--F) and the fixed source (A). Source-Free, OBB, target labels for offline evaluation only. Source-available and target-supervised groups are not run. Mean $\pm$ sample std over three adaptation seeds; A is one fixed source (SD N/A). AP and $\Delta_A$ in percentage points; historical rPC in percent. Bold: best mean within the displayed Source-Free group, separately per dataset/metric.}
+\label{tab:student-native-test}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lllcccccccc@{}}
+\toprule
+Method & VLM & Target labels & \multicolumn{4}{c}{RSAR} & \multicolumn{4}{c}{DIOR-R} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+ & & & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ & Clean $\uparrow$ & mPC $\uparrow$ & rPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\
+\midrule
+A Source Only & none & eval only & $\mathbf{53.14}\;(\mathrm{N/A})$ & $\mathbf{31.71}\;(\mathrm{N/A})$ & $\mathbf{59.68}\;(\mathrm{N/A})$ & $\mathbf{0.00}\;(\mathrm{N/A})$ & $\mathbf{29.49}\;(\mathrm{N/A})$ & $\mathbf{27.12}\;(\mathrm{N/A})$ & $\mathbf{91.96}\;(\mathrm{N/A})$ & $\mathbf{0.00}\;(\mathrm{N/A})$ \\
+B ST Mean Teacher & none & eval only & $28.34 \pm 1.72$ & $18.39 \pm 0.81$ & $34.60 \pm 1.52$ & $-13.33 \pm 0.81$ & $27.59 \pm 0.43$ & $25.47 \pm 0.22$ & $86.38 \pm 0.74$ & $-1.65 \pm 0.22$ \\
+C CLIP-CGA & CLIP-RN50x64 & eval only & $32.67 \pm 1.05$ & $22.06 \pm 0.23$ & $41.52 \pm 0.43$ & $-9.65 \pm 0.23$ & $26.70 \pm 0.64$ & $25.09 \pm 0.12$ & $85.10 \pm 0.40$ & $-2.02 \pm 0.12$ \\
+D SARCLIP-CGA & SARCLIP-ViT-B-32 & eval only & $33.46 \pm 4.22$ & $17.49 \pm 2.91$ & $32.90 \pm 5.48$ & $-14.23 \pm 2.91$ & $20.73 \pm 0.84$ & $19.36 \pm 0.58$ & $65.65 \pm 1.96$ & $-7.76 \pm 0.58$ \\
+E VLST & SARCLIP-ViT-B-32 & eval only & $24.60 \pm 1.02$ & $17.25 \pm 0.79$ & $32.46 \pm 1.49$ & $-14.47 \pm 0.79$ & $26.60 \pm 1.02$ & $25.27 \pm 0.70$ & $85.68 \pm 2.38$ & $-1.85 \pm 0.70$ \\
+\rowcolor{blue!7}
+F CGA+VLST & SARCLIP-ViT-B-32 & eval only & $25.91 \pm 2.49$ & $15.03 \pm 1.50$ & $28.29 \pm 2.82$ & $-16.68 \pm 1.50$ & $19.91 \pm 0.54$ & $17.93 \pm 0.43$ & $60.80 \pm 1.47$ & $-9.19 \pm 0.43$ \\
+\bottomrule
+\end{tabular}}
+\end{table*}

@@ -1,0 +1,19 @@
+% Requires booktabs. Missing complete seed blocks remain --.
+\begin{table*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{common\_one\_epoch / ema. Mean $\pm$ sample standard deviation over three adaptation seeds; A is one fixed reference. Values in percentage points. No cross-budget or cross-supervision ranking.}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Method & \multicolumn{3}{c}{RSAR} & \multicolumn{3}{c}{DIOR-R} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+ & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$ & Clean $\uparrow$ & mPC $\uparrow$ & $\Delta_A$ $\uparrow$ \\
+\midrule
+A & $53.14$ & $31.71$ & $0.00$ & $29.49$ & $27.12$ & $0.00$ \\
+IRG & $54.80 \pm 0.24$ & $30.62 \pm 5.97$ & $-1.09 \pm 5.97$ & $29.78 \pm 0.03$ & $27.39 \pm 0.11$ & $0.27 \pm 0.11$ \\
+LPLD & $53.39 \pm 0.31$ & $28.86 \pm 6.25$ & $-2.85 \pm 6.25$ & $29.86 \pm 0.16$ & $27.55 \pm 0.13$ & $0.43 \pm 0.13$ \\
+SFUT & $54.64 \pm 0.20$ & $32.25 \pm 1.32$ & $0.54 \pm 1.32$ & $29.60 \pm 0.01$ & $27.29 \pm 0.01$ & $0.17 \pm 0.01$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

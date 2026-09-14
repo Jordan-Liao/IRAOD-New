@@ -78,17 +78,19 @@ class SemiDIORDataset(Dataset):
                  proposal_file_u=None,
                  classes=None,
                  filter_empty_gt=True,
+                 version='oc',
                  ):
         super().__init__()
                      
         self.dior_labeled = DIORDataset(
             ann_file, pipeline, ann_subdir=ann_subdir, data_root=data_root, img_prefix=img_prefix,
             proposal_file=proposal_file, test_mode=False,
-            filter_empty_gt=filter_empty_gt, classes=classes)
+            filter_empty_gt=filter_empty_gt, classes=classes,
+            version=version)
         self.dior_unlabeled = DIORDataset(
             ann_file_u, pipeline_u_share, ann_subdir=ann_subdir, data_root=data_root_u, img_prefix=img_prefix_u,
             proposal_file=proposal_file_u, test_mode=False,
-            filter_empty_gt=False, classes=classes)
+            filter_empty_gt=False, classes=classes, version=version)
         self.CLASSES = classes
         self.pipeline_u = Compose(pipeline_u)
         self.pipeline_u_1 = Compose(pipeline_u_1) if pipeline_u_1 else None

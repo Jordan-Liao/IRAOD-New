@@ -1,0 +1,51 @@
+{
+  "cell": "RSAR/clean/42/B_REG:train",
+  "classification": "actual_same_config_cuda_oom_incompatible_with_49140MiB_A6000",
+  "decision": "preserve actual OOM and keep remaining 23 B_REG held; no batch/world/budget reduction and no surrogate smoke",
+  "frozen_eval_checkout_repair": {
+    "head": "331d2131b84651f0a2930a3d53faeefad8701531",
+    "metadata": "complete .git directory from verified full bundle",
+    "path": "/home/zechuan/IRAOD-New-rc331d213",
+    "receipt": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/FROZEN_EVAL_CHECKOUT_REPAIR_20260909T012841Z.json"
+  },
+  "held_cells": [
+    "RSAR/clean/43/B_REG:train",
+    "RSAR/clean/44/B_REG:train",
+    "RSAR/chaff/42/B_REG:train",
+    "RSAR/chaff/43/B_REG:train",
+    "RSAR/chaff/44/B_REG:train",
+    "RSAR/gaussian_white_noise/42/B_REG:train",
+    "RSAR/gaussian_white_noise/43/B_REG:train",
+    "RSAR/gaussian_white_noise/44/B_REG:train",
+    "RSAR/point_target/42/B_REG:train",
+    "RSAR/point_target/43/B_REG:train",
+    "RSAR/point_target/44/B_REG:train",
+    "RSAR/noise_suppression/42/B_REG:train",
+    "RSAR/noise_suppression/43/B_REG:train",
+    "RSAR/noise_suppression/44/B_REG:train",
+    "RSAR/am_noise_horizontal/42/B_REG:train",
+    "RSAR/am_noise_horizontal/43/B_REG:train",
+    "RSAR/am_noise_horizontal/44/B_REG:train",
+    "RSAR/smart_suppression/42/B_REG:train",
+    "RSAR/smart_suppression/43/B_REG:train",
+    "RSAR/smart_suppression/44/B_REG:train",
+    "RSAR/am_noise_vertical/42/B_REG:train",
+    "RSAR/am_noise_vertical/43/B_REG:train",
+    "RSAR/am_noise_vertical/44/B_REG:train"
+  ],
+  "held_count": 23,
+  "oom": "Tried to allocate 512.00 MiB; 47.40 GiB total, 41.82 GiB allocated, 194.31 MiB free, 46.84 GiB reserved",
+  "scientific_protocol": {
+    "budget": "full_one_epoch_265_updates",
+    "code_sha": "e5089cc8ea34dfb8e8695798503aadbb66c4b1db",
+    "global_batch": 32,
+    "optimizer_lr": 0.02,
+    "samples_per_gpu": 32,
+    "world_size": 1
+  },
+  "status": "failed",
+  "terminal_status": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_42/methods/B_REG/terminal_status",
+  "train_log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_42/methods/B_REG/train.log",
+  "utc": "2026-09-09T01:41:11Z",
+  "worker_log": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/release_manifests_752a139/finite_runs/recovery-e5089cc-20260909T013149Z/logs/xaf-RSAR-clean-42-B_REG.log"
+}

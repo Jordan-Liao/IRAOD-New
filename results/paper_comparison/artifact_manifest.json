@@ -1,0 +1,7 @@
+{
+  "report_directory": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/report",
+  "quantitative_input_manifest": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/report-manifest.json",
+  "prediction_image_coverage": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/report/prediction_image_coverage.csv",
+  "roi_image_coverage": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/roi_vis_coverage.csv",
+  "qualitative_evidence": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence/qualitative_summary.json"
+}

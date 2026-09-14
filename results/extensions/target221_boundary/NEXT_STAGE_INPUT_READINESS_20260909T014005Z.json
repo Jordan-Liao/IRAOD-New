@@ -1,0 +1,62 @@
+{
+  "AASFOD36": {
+    "cells": 36,
+    "manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/aasfod_manifests_36c2053",
+    "next_dependency": "36 formal TSD GPU prerequisites; no smoke",
+    "training_code": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/integration_code_36c2053",
+    "training_code_sha": "36c20531574a3d85d0dc6f76f18d0c52cfd011c3",
+    "tsd_split_paths": 36,
+    "tsd_splits_present": 0
+  },
+  "SFYOLO36": {
+    "cells": 36,
+    "manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_manifests_84a1aeb",
+    "release_policy": "per_completed_domain",
+    "tam_checkpoints_present": 0,
+    "training_code": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/integration_code_84a1aeb",
+    "training_code_sha": "84a1aebcdf9fa6f710acc5c031dc12d4c0d465be",
+    "unique_tam_checkpoints": 12
+  },
+  "TAM12": {
+    "checkpoints_present": 0,
+    "encoder_bytes": 11667723,
+    "encoder_sha256": "158e3923122cc9cccbb26b36d1fa852b91eecd7019a9386c51d415547889d18c",
+    "encoder_tensor_count": 16,
+    "encoder_weights": "/home/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_conv1_1_to_conv4_1.pt",
+    "fits": 12,
+    "manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/tam_manifests_84a1aeb",
+    "next_dependency": "12 formal TAM fits; release SFYOLO per completed domain, no all-12 barrier"
+  },
+  "gpu_launched": false,
+  "missing_original_inputs": [],
+  "q752_source_queue_bindings": {
+    "AASFOD": 36,
+    "SFYOLO": 36,
+    "aasfod_queue": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/aasfod_manifests_36c2053",
+    "sfyolo_queue": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_manifests_84a1aeb"
+  },
+  "restored_from_source67": [
+    "aasfod_manifests_36c2053",
+    "sfyolo_manifests_84a1aeb",
+    "tam_manifests_84a1aeb",
+    "complete integration_code_36c2053",
+    "complete integration_code_84a1aeb",
+    "vgg16 Oxford 16-tensor encoder"
+  ],
+  "same_domain_val_image_counts": {
+    "/home/zechuan/iraod_artifacts/dior_splits/brightness/val": 5863,
+    "/home/zechuan/iraod_artifacts/dior_splits/clean/val": 5863,
+    "/home/zechuan/iraod_artifacts/dior_splits/cloudy/val": 5863,
+    "/home/zechuan/iraod_artifacts/dior_splits/contrast/val": 5863,
+    "/home/zechuan/iraod_data/RSAR/corruptions/am_noise_horizontal/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/am_noise_vertical/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/chaff/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/gaussian_white_noise/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/noise_suppression/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/point_target/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/corruptions/smart_suppression/val/images": 8467,
+    "/home/zechuan/iraod_data/RSAR/val/images": 8467
+  },
+  "status": "cpu_inputs_ready_gpu_prerequisites_pending",
+  "utc": "2026-09-09T01:40:05Z"
+}

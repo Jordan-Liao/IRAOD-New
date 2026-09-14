@@ -4,8 +4,8 @@ custom_imports = dict(
     imports=['sfod', 'mmdet_extension'],
     allow_failed_imports=False)
 
-# This checkpoint should be trained from an OrthoNet RSAR source baseline first.
-load_from = 'baseline/rsar_orthonet_oriented_rcnn_cga_epoch_12.pth'
+# Clean-source OrthoNet RSAR checkpoint supplied for this workspace.
+load_from = '/myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth'
 
 ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_rsar_cga_orthonet.py'
 

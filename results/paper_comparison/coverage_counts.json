@@ -1,0 +1,28 @@
+{
+  "quantitative_cells": {
+    "RSAR": 128,
+    "DIOR": 64
+  },
+  "native_image_prediction_records": {
+    "RSAR": 1092864,
+    "DIOR": 751232
+  },
+  "native_image_prediction_total": 1844096,
+  "per_class_rows": {
+    "RSAR": 768,
+    "DIOR": 1280
+  },
+  "per_class_total": 2048,
+  "status": "declared_scopes_complete",
+  "parent_terminal_status": "complete",
+  "new_training_complete": 130,
+  "native_evaluation_complete": 192,
+  "qualitative_scope": "separate seed42 accepted streaming audit",
+  "qualitative_counts": {
+    "roi_complete_groups": 132,
+    "roi_complete": 1267816,
+    "roi_detection_rows": 18468211,
+    "vis_complete": 3520,
+    "embeddings_complete": 24
+  }
+}

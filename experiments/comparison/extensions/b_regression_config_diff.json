@@ -1,0 +1,1118 @@
+{
+  "RSAR/clean/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/clean/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/clean/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/clean/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/chaff/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/chaff/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "chaff",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/chaff/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/chaff/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "chaff",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/chaff/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/chaff/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "chaff",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/chaff/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/gaussian_white_noise/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/gaussian_white_noise/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "gaussian_white_noise",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/gaussian_white_noise/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/gaussian_white_noise/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "gaussian_white_noise",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/gaussian_white_noise/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/gaussian_white_noise/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "gaussian_white_noise",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/gaussian_white_noise/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/point_target/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/point_target/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "point_target",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/point_target/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/point_target/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "point_target",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/point_target/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/point_target/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "point_target",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/point_target/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/noise_suppression/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "noise_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/noise_suppression/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "noise_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/noise_suppression/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "noise_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/noise_suppression/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_horizontal/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_horizontal/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_horizontal",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_horizontal/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_horizontal/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_horizontal",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_horizontal/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_horizontal/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_horizontal",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_horizontal/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/smart_suppression/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/smart_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "smart_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/smart_suppression/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/smart_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "smart_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/smart_suppression/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/smart_suppression/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "smart_suppression",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/smart_suppression/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_vertical/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_vertical/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_vertical",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_vertical/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_vertical/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_vertical",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "RSAR/am_noise_vertical/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/am_noise_vertical/val/images",
+      "data.train.unlabeled_epoch_size": 8467,
+      "corrupt": "am_noise_vertical",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/rsar/am_noise_vertical/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/clean/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/clean/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/clean/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/clean/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/clean/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/clean/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "clean",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/clean/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/brightness/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/brightness/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "brightness",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/brightness/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/brightness/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "brightness",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/brightness/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/brightness/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "brightness",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/brightness/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/cloudy/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/cloudy/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "cloudy",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/cloudy/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/cloudy/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "cloudy",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/cloudy/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/cloudy/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "cloudy",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/cloudy/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/contrast/42/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/contrast/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "contrast",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 42,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_42/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/contrast/43/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/contrast/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "contrast",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 43,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_43/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  },
+  "DIOR/contrast/44/B_REG": {
+    "method": "B_REG",
+    "reference_config": "/mnt/shared/zechuan/iraod_artifacts/comparison/dior/queue_0f98a48/configs/dior_B_strict.py",
+    "training_code": "/mnt/SSD2_8TB/zechuan/IRAOD-New-strict-af",
+    "training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+    "config_diff": [
+      {
+        "path": "model.cfg.use_bbox_reg",
+        "before": false,
+        "after": true
+      }
+    ],
+    "operational_note": "Common launch overrides apply equally to B and B_REG. Seed/work_dir may differ from historical B; no algorithm fields change except model.cfg.use_bbox_reg. Launch frozen training_code at global batch 32.",
+    "common_launch_overrides": {
+      "data.samples_per_gpu": 32,
+      "optimizer.lr": 0.02,
+      "model.cfg.strict_source_free": true,
+      "model.cfg.weight_l": 0,
+      "model.cfg.weight_u": 1,
+      "data.train.type": "StrictSourceFreeDOTADataset",
+      "data.train.img_prefix": "/mnt/shared/zechuan/iraod_artifacts/dior_splits/contrast/val",
+      "data.train.unlabeled_epoch_size": 5863,
+      "corrupt": "contrast",
+      "load_from": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "model.ema_ckpt": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "seed": 44,
+      "work_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_runs_0e5f8f7/dior/contrast/seed_44/methods/B_REG/work",
+      "checkpoint_config.max_keep_ckpts": 2,
+      "checkpoint_config.save_last": true
+    }
+  }
+}
