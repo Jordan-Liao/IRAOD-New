@@ -11,8 +11,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from iraod_runtime import ensure_iraod_runtime
 
-os.environ.setdefault("IRAOD_CONDA_PREFIX", "/home/liaojr/anaconda3/envs/cliptorch")
-ensure_iraod_runtime()
+if __name__ == "__main__":
+    os.environ.setdefault("IRAOD_CONDA_PREFIX", "/home/liaojr/anaconda3/envs/cliptorch")
+    ensure_iraod_runtime()
 
 import numpy as np
 from PIL import Image
@@ -57,7 +58,7 @@ METADATA_FIELDS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Build RSAR SARCLIP object patches from DOTA annfiles.")
-    parser.add_argument("--data-root", default="/home/storageSDA1/liaojr/dataset/RSAR")
+    parser.add_argument("--data-root", default="/mycode/dataset/RSAR/")
     parser.add_argument("--split", choices=["train", "val", "test"], required=True)
     parser.add_argument("--use-corruptions", type=int, choices=[0, 1], default=1)
     parser.add_argument("--corruptions", nargs="+", default=DEFAULT_CORRUPTIONS)

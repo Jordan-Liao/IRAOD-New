@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 from tools.cga_research.build_data_manifest import (
     DataManifestError,
+    IMAGE_ONLY_MANIFEST_TYPE,
+    build_image_only_manifest,
     build_manifest,
     canonical_json_bytes,
     main,
@@ -103,6 +105,27 @@ class BuildDataManifestTests(unittest.TestCase):
         second_digest = self._build(second)
         self.assertEqual(second.read_bytes(), self.output.read_bytes())
         self.assertEqual(second_digest, digest)
+
+    def test_image_only_manifest_never_requires_annotations(self) -> None:
+        output = self.root / "manifests" / "strict_adaptation.json"
+        digest = build_image_only_manifest(
+            image_root=self.image_root,
+            split="val",
+            corruption="synthetic_chaff",
+            class_order=self.CLASSES,
+            output=output,
+        )
+        payload = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["manifest_type"], IMAGE_ONLY_MANIFEST_TYPE)
+        self.assertNotIn("annotations", payload)
+        self.assertNotIn("alignment", payload)
+        self.assertEqual(payload["images"]["root"], str(self.image_root))
+        self.assertEqual(verify_manifest(output), digest)
+
+        (self.image_root / "alpha.JPG").write_bytes(b"changed image")
+        with self.assertRaisesRegex(DataManifestError, "no longer matches"):
+            verify_manifest(output)
 
     def test_existing_output_or_sidecar_requires_overwrite(self) -> None:
         original_digest = self._build()
@@ -262,6 +285,13 @@ class BuildDataManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(DataManifestError, "unknown fields"):
             verify_manifest(self.output)
 
+    def test_verify_rejects_non_object_json_without_traceback(self) -> None:
+        self.output.parent.mkdir(parents=True, exist_ok=True)
+        self.output.write_bytes(b"[]\n")
+        self._rewrite_sidecar(self.output)
+        with self.assertRaisesRegex(DataManifestError, "root must be an object"):
+            verify_manifest(self.output)
+
     def test_verify_rejects_boolean_counts_even_with_valid_detached_hash(self) -> None:
         self._build()
         payload = json.loads(self.output.read_text(encoding="utf-8"))
@@ -324,6 +354,30 @@ class BuildDataManifestTests(unittest.TestCase):
             status = main(["verify", "--manifest", str(output)])
         self.assertEqual(status, 2)
         self.assertIn("data manifest error", stderr.getvalue())
+
+    def test_cli_builds_image_only_adaptation_manifest(self) -> None:
+        output = self.root / "cli" / "strict_manifest.json"
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "build-image-only",
+                    "--image-root",
+                    str(self.image_root),
+                    "--split",
+                    "val",
+                    "--corruption",
+                    "synthetic",
+                    "--class-order",
+                    ",".join(self.CLASSES),
+                    "--output",
+                    str(output),
+                ]
+            )
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "built")
+        self.assertEqual(verify_manifest(output), json.loads(
+            stdout.getvalue())["sha256"])
 
 
 if __name__ == "__main__":

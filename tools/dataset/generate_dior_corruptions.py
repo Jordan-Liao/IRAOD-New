@@ -251,16 +251,20 @@ def patch_skimage_for_imagecorruptions() -> None:
     ):
         if multichannel is not None and channel_axis is None:
             channel_axis = -1 if multichannel else None
-        return gaussian(
-            image,
+        # scikit-image >= 0.20 renamed ``output`` to ``out``.  Only pass
+        # the destination argument when the caller supplied one; passing the
+        # legacy keyword unconditionally raises on current releases.
+        kwargs = dict(
             sigma=sigma,
-            output=output,
             mode=mode,
             cval=cval,
             preserve_range=preserve_range,
             truncate=truncate,
             channel_axis=channel_axis,
         )
+        if output is not None:
+            kwargs["out"] = output
+        return gaussian(image, **kwargs)
 
     skimage.filters.gaussian = gaussian_compat
 
@@ -287,9 +291,36 @@ def corrupt_one(task: Task) -> str:
     np.random.seed(task.seed)
     image = Image.open(task.src).convert("RGB")
     image_np = np.asarray(image)
-    corrupted = corrupt(
-        image_np, severity=task.severity, corruption_name=task.corruption
-    )
+    if task.corruption == "glass_blur":
+        # imagecorruptions' reference implementation performs a Python
+        # pixel-by-pixel shuffle (millions of operations per 800x800 image).
+        # Use the same local-random-shuffle idea with vectorized indexing so
+        # DIOR-C generation finishes in a practical amount of time.
+        from skimage.filters import gaussian
+
+        params = [(0.7, 1, 2), (0.9, 2, 1), (1.0, 2, 3),
+                  (1.1, 3, 2), (1.5, 4, 2)][task.severity - 1]
+        sigma, max_delta, iterations = params
+        blurred = gaussian(image_np / 255.0, sigma=sigma,
+                           channel_axis=-1, preserve_range=True)
+        shuffled = np.asarray(blurred * 255.0, dtype=np.uint8)
+        height, width = shuffled.shape[:2]
+        yy, xx = np.indices((height - 2 * max_delta,
+                             width - 2 * max_delta), dtype=np.int32)
+        yy += max_delta
+        xx += max_delta
+        for _ in range(iterations):
+            dy = np.random.randint(-max_delta, max_delta, size=yy.shape)
+            dx = np.random.randint(-max_delta, max_delta, size=xx.shape)
+            updated = shuffled.copy()
+            updated[yy, xx] = shuffled[yy + dy, xx + dx]
+            shuffled = updated
+        corrupted = gaussian(shuffled / 255.0, sigma=sigma,
+                             channel_axis=-1, preserve_range=True) * 255.0
+    else:
+        corrupted = corrupt(
+            image_np, severity=task.severity, corruption_name=task.corruption
+        )
     corrupted = np.asarray(corrupted).clip(0, 255).astype(np.uint8)
     task.dst.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(corrupted).save(task.dst, quality=95)
@@ -335,19 +366,24 @@ def run_corruption(
     done = 0
     total = len(tasks)
 
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(corrupt_one, task) for task in tasks]
-        for future in as_completed(futures):
-            result = future.result()
-            written += int(result == "written")
-            skipped += int(result == "skipped")
-            done += 1
-            if done == total or done % 500 == 0:
-                print(
-                    f"[{corruption}] {done}/{total} "
-                    f"(written={written}, skipped={skipped})",
-                    flush=True,
-                )
+    # Submit bounded batches.  Enqueuing several thousand image tasks at
+    # once can block ProcessPoolExecutor's IPC queue on this filesystem.
+    batch_size = 500
+    for batch_start in range(0, total, batch_size):
+        batch = tasks[batch_start : batch_start + batch_size]
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = [executor.submit(corrupt_one, task) for task in batch]
+            for future in as_completed(futures):
+                result = future.result()
+                written += int(result == "written")
+                skipped += int(result == "skipped")
+                done += 1
+                if done == total or done % 500 == 0:
+                    print(
+                        f"[{corruption}] {done}/{total} "
+                        f"(written={written}, skipped={skipped})",
+                        flush=True,
+                    )
     return written, skipped
 
 

@@ -1,0 +1,1149 @@
+{
+  "schema": "iraod-rsar-nonchaff-perclass-evidence-v1",
+  "seed": 42,
+  "groups": 30,
+  "class_rows": 180,
+  "mAP_source": "results/paper_comparison/raw_results.csv",
+  "records": [
+    {
+      "dataset": "RSAR",
+      "corruption": "gaussian_white_noise",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/B/eval_full_gaussian_white_noise_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/B/eval_full_gaussian_white_noise_ids_v1/eval_20260907_103723.json",
+      "observed_mAP50": 0.5201999545097351,
+      "canonical_mAP50": "0.5201999545097351",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.759"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.708"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.766"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.129"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.367"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.392"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "gaussian_white_noise",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/C/eval_full_gaussian_white_noise_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/C/eval_full_gaussian_white_noise_ids_v1/eval_20260907_105752.json",
+      "observed_mAP50": 0.5209313631057739,
+      "canonical_mAP50": "0.5209313631057739",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.761"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.662"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.767"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.153"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.380"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.403"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "gaussian_white_noise",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/D/eval_full_gaussian_white_noise_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/D/eval_full_gaussian_white_noise_ids_v1/eval_20260907_122510.json",
+      "observed_mAP50": 0.5107777118682861,
+      "canonical_mAP50": "0.5107777118682861",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.764"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.638"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.756"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.131"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.370"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.406"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "gaussian_white_noise",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/E/ddp2/eval_full_gaussian_white_noise_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/E/ddp2/eval_full_gaussian_white_noise_ids_v1/eval_20260907_123010.json",
+      "observed_mAP50": 0.522959291934967,
+      "canonical_mAP50": "0.522959291934967",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.756"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.705"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.766"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.143"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.366"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.401"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "gaussian_white_noise",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/F/ddp2/eval_full_gaussian_white_noise_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/gaussian_white_noise/seed_42/0f98a48/methods/F/ddp2/eval_full_gaussian_white_noise_ids_v1/eval_20260907_124150.json",
+      "observed_mAP50": 0.5211026072502136,
+      "canonical_mAP50": "0.5211026072502136",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.761"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.683"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.752"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.149"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.382"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.400"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "point_target",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/B/eval_full_point_target_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/B/eval_full_point_target_ids_v1/eval_20260907_125155.json",
+      "observed_mAP50": 0.4961048364639282,
+      "canonical_mAP50": "0.4961048364639282",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.737"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.627"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.763"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.127"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.336"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.386"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "point_target",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/C/eval_full_point_target_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/C/eval_full_point_target_ids_v1/eval_20260907_130506.json",
+      "observed_mAP50": 0.5113670825958252,
+      "canonical_mAP50": "0.5113670825958252",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.737"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.627"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.759"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.146"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.368"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.431"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "point_target",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/D/eval_full_point_target_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/D/eval_full_point_target_ids_v1/eval_20260907_132713.json",
+      "observed_mAP50": 0.49968791007995605,
+      "canonical_mAP50": "0.49968791007995605",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.743"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.626"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.739"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.125"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.359"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.406"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "point_target",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/E/ddp2/eval_full_point_target_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/E/ddp2/eval_full_point_target_ids_v1/eval_20260907_133705.json",
+      "observed_mAP50": 0.5110751390457153,
+      "canonical_mAP50": "0.5110751390457153",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.741"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.668"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.760"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.146"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.350"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.402"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "point_target",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/F/ddp2/eval_full_point_target_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/point_target/seed_42/0f98a48/methods/F/ddp2/eval_full_point_target_ids_v1/eval_20260907_134206.json",
+      "observed_mAP50": 0.507943332195282,
+      "canonical_mAP50": "0.507943332195282",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.748"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.626"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.736"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.151"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.369"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.418"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "noise_suppression",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/B/eval_full_noise_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/B/eval_full_noise_suppression_ids_v1/eval_20260907_142733.json",
+      "observed_mAP50": 0.18080399930477142,
+      "canonical_mAP50": "0.18080399930477142",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.519"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.104"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.001"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.347"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.113"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "noise_suppression",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/C/eval_full_noise_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/C/eval_full_noise_suppression_ids_v1/eval_20260907_144642.json",
+      "observed_mAP50": 0.18609456717967987,
+      "canonical_mAP50": "0.18609456717967987",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.525"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.114"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.004"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.343"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.130"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "noise_suppression",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/D/eval_full_noise_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/D/eval_full_noise_suppression_ids_v1/eval_20260907_151146.json",
+      "observed_mAP50": 0.16512688994407654,
+      "canonical_mAP50": "0.16512688994407654",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.460"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.099"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.001"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.324"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.107"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "noise_suppression",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/E/ddp2/eval_full_noise_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/E/ddp2/eval_full_noise_suppression_ids_v1/eval_20260907_151655.json",
+      "observed_mAP50": 0.18186284601688385,
+      "canonical_mAP50": "0.18186284601688385",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.523"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.107"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.002"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.351"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.107"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "noise_suppression",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/F/ddp2/eval_full_noise_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/noise_suppression/seed_42/0f98a48/methods/F/ddp2/eval_full_noise_suppression_ids_v1/eval_20260907_152203.json",
+      "observed_mAP50": 0.14126035571098328,
+      "canonical_mAP50": "0.14126035571098328",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.444"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.011"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.002"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.308"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.083"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_horizontal",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/B/eval_full_am_noise_horizontal_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/B/eval_full_am_noise_horizontal_ids_v1/eval_20260907_153655.json",
+      "observed_mAP50": 0.22746574878692627,
+      "canonical_mAP50": "0.22746574878692627",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.337"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.540"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.093"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.185"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.118"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_horizontal",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/C/eval_full_am_noise_horizontal_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/C/eval_full_am_noise_horizontal_ids_v1/eval_20260907_154147.json",
+      "observed_mAP50": 0.22914911806583405,
+      "canonical_mAP50": "0.22914911806583405",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.343"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.522"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.093"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.189"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.137"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_horizontal",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/D/eval_full_am_noise_horizontal_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/D/eval_full_am_noise_horizontal_ids_v1/eval_20260907_154643.json",
+      "observed_mAP50": 0.18934942781925201,
+      "canonical_mAP50": "0.18934942781925201",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.280"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.432"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.153"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.089"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_horizontal",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/E/ddp2/eval_full_am_noise_horizontal_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/E/ddp2/eval_full_am_noise_horizontal_ids_v1/eval_20260907_155150.json",
+      "observed_mAP50": 0.2348482459783554,
+      "canonical_mAP50": "0.2348482459783554",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.347"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.540"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.193"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.147"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_horizontal",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/F/ddp2/eval_full_am_noise_horizontal_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_horizontal/seed_42/0f98a48/methods/F/ddp2/eval_full_am_noise_horizontal_ids_v1/eval_20260907_155653.json",
+      "observed_mAP50": 0.15874627232551575,
+      "canonical_mAP50": "0.15874627232551575",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.266"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.328"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.045"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.155"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.067"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "smart_suppression",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/B/eval_full_smart_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/B/eval_full_smart_suppression_ids_v1/eval_20260907_160637.json",
+      "observed_mAP50": 0.14338570833206177,
+      "canonical_mAP50": "0.14338570833206177",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.430"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.029"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.008"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.004"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.270"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.119"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "smart_suppression",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/C/eval_full_smart_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/C/eval_full_smart_suppression_ids_v1/eval_20260907_161919.json",
+      "observed_mAP50": 0.18142859637737274,
+      "canonical_mAP50": "0.18142859637737274",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.436"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.115"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.013"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.003"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.285"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.237"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "smart_suppression",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/D/eval_full_smart_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/D/eval_full_smart_suppression_ids_v1/eval_20260907_162433.json",
+      "observed_mAP50": 0.1463812291622162,
+      "canonical_mAP50": "0.1463812291622162",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.377"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.029"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.002"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.002"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.284"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.185"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "smart_suppression",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/E/ddp2/eval_full_smart_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/E/ddp2/eval_full_smart_suppression_ids_v1/eval_20260907_162935.json",
+      "observed_mAP50": 0.15498436987400055,
+      "canonical_mAP50": "0.15498436987400055",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.426"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.098"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.015"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.030"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.284"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.077"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "smart_suppression",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/F/ddp2/eval_full_smart_suppression_ids_v1/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/smart_suppression/seed_42/0f98a48/methods/F/ddp2/eval_full_smart_suppression_ids_v1/eval_20260907_163430.json",
+      "observed_mAP50": 0.13210909068584442,
+      "canonical_mAP50": "0.13210909068584442",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.400"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.051"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.004"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.005"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.267"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.066"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_vertical",
+      "method": "B",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/B/eval_full_am_noise_vertical/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/B/eval_full_am_noise_vertical/eval_20260907_035718.json",
+      "observed_mAP50": 0.23654824495315552,
+      "canonical_mAP50": "0.23654824495315552",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.426"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.513"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.188"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.110"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_vertical",
+      "method": "C",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/C/eval_full_am_noise_vertical/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/C/eval_full_am_noise_vertical/eval_20260907_040221.json",
+      "observed_mAP50": 0.2399219125509262,
+      "canonical_mAP50": "0.2399219125509262",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.421"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.508"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.092"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.210"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.118"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_vertical",
+      "method": "D",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/D/eval_full_am_noise_vertical/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/D/eval_full_am_noise_vertical/eval_20260907_040221.json",
+      "observed_mAP50": 0.17605535686016083,
+      "canonical_mAP50": "0.17605535686016083",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.318"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.360"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.182"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.015"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_vertical",
+      "method": "E",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/E/ddp2/eval_full_am_noise_vertical/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/E/ddp2/eval_full_am_noise_vertical/eval_20260907_040221.json",
+      "observed_mAP50": 0.24959821999073029,
+      "canonical_mAP50": "0.24959821999073029",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.434"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.523"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.092"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.220"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.138"
+        }
+      ]
+    },
+    {
+      "dataset": "RSAR",
+      "corruption": "am_noise_vertical",
+      "method": "F",
+      "seed": 42,
+      "ckpt_role": "ema",
+      "class_ap_file": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/F/ddp2/eval_full_am_noise_vertical/class_ap.txt",
+      "eval_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/am_noise_vertical/seed_42/0f98a48/methods/F/ddp2/eval_full_am_noise_vertical/eval_20260907_040221.json",
+      "observed_mAP50": 0.17133738100528717,
+      "canonical_mAP50": "0.17133738100528717",
+      "class_AP_precision": "printed class_ap.txt, three decimals",
+      "classes": [
+        {
+          "class_name": "ship",
+          "AP50": "0.319"
+        },
+        {
+          "class_name": "aircraft",
+          "AP50": "0.000"
+        },
+        {
+          "class_name": "car",
+          "AP50": "0.391"
+        },
+        {
+          "class_name": "tank",
+          "AP50": "0.091"
+        },
+        {
+          "class_name": "bridge",
+          "AP50": "0.190"
+        },
+        {
+          "class_name": "harbor",
+          "AP50": "0.037"
+        }
+      ]
+    }
+  ]
+}

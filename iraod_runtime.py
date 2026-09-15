@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 _READY_ENV = "IRAOD_RUNTIME_READY"
-_DEFAULT_PREFIX = "/home/liaojr/anaconda3/envs/iraod"
+_DEFAULT_PREFIX = "/opt/conda/envs/iraod"
 
 
 def _prepend_env_path(env, key, value):

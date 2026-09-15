@@ -1,0 +1,110 @@
+{
+  "scope": "Target-supervised appendix adapters; prerequisite only, fixed detector sources unchanged",
+  "canonical_existing_recipe": "scripts/run_sarclip_rsar_train_corrupt_exp.sh",
+  "not_canonical": "tools/build_patches_and_train_lora.sh is a separate legacy3-epoch convenience route; its directory-valued output argument is repaired but it is not silently substituted",
+  "base": {
+    "model": "ViT-B-32",
+    "weights": "/mnt/shared/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors",
+    "initialization": "same existing base SARCLIP for each dataset-specific adapter",
+    "precision": "fp32",
+    "trainable": "visual LoRA factors plus logit_scale only; text classifier/base weights frozen"
+  },
+  "adapter_training": {
+    "epochs": 10,
+    "batch_size": 64,
+    "optimizer": "AdamW",
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "lora_rank": 8,
+    "lora_alpha": 16.0,
+    "lora_dropout": 0.0,
+    "crop_mode": "aabb",
+    "crop_expand_per_side": 0.4,
+    "force_rgb": true,
+    "max_patches": null,
+    "sampler": "inverse class-frequency, replacement=True, N accepted patches per epoch",
+    "drop_last": false,
+    "selection": "final epoch10 only, never validation/TEST-selected",
+    "updates_per_adapter": "10 * ceil(N_actual_complete_crop_manifest_rows / 64)",
+    "draws_per_adapter": "10 * N_actual_complete_crop_manifest_rows",
+    "launch_gate": "actual TRAIN crop manifest/counts and final config must be available; no GPU launched by preparation"
+  },
+  "seed_policy": {
+    "adapter_seeds": [42],
+    "adapters": 2,
+    "reuse": "one fixed dataset-specific adapter shared by both oracle variants and detector seeds42/43/44",
+    "interpretation": "detector-seed uncertainty conditional on fixed source and fixed adapter; not whole-pipeline adapter variance"
+  },
+  "datasets": {
+    "RSAR": {
+      "classes": 6,
+      "training_split": "train",
+      "corruptions": ["chaff", "gaussian_white_noise", "point_target", "noise_suppression", "am_noise_horizontal", "smart_suppression", "am_noise_vertical"],
+      "annotations": "/mnt/shared/zechuan/iraod_data/RSAR/train/annfiles",
+      "image_layout": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/<domain>/train/images",
+      "prompt": "A SAR image of a {}",
+      "output": "lora_rsar.pth",
+      "counted_valid_crops": 1047844,
+      "expected_optimizer_updates": 163730,
+      "expected_patch_draws": 10478440,
+      "crop_count_evidence": "experiments/comparison/extensions/oracle_rsar_crop_count.json",
+      "actual_patch_count": 1047844,
+      "materialization_evidence": "experiments/comparison/extensions/oracle_rsar_materialization.json",
+      "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_rsar_patches_2ecdc37/metadata.csv",
+      "metadata_bytes": 324418544,
+      "status": "Parent accepted compute-owner terminal reconciliation:1047844 metadata rows match summary/count audit, all class/domain counts match, zero rejects; no GPU adapter training"
+    },
+    "DIOR": {
+      "classes": 20,
+      "training_split": "train",
+      "corruptions": ["brightness", "cloudy", "contrast"],
+      "train_ids": "/mnt/shared/zechuan/iraod_data/DIOR/ImageSets/train.txt",
+      "annotations": "/mnt/shared/zechuan/iraod_data/DIOR/Annotations/Oriented Bounding Boxes",
+      "prompt": "an aerial image of a {}",
+      "prompt_basis": "existing optical-domain wording, explicitly parameterized for DIOR; no change to the LoRA algorithm",
+      "output": "lora_dior.pth",
+      "counted_valid_crops": 97902,
+      "expected_optimizer_updates": 15300,
+      "expected_patch_draws": 979020,
+      "crop_count_evidence": "experiments/comparison/extensions/oracle_dior_crop_count.json",
+      "resolved_train_inputs": {
+        "train_ids": 5862,
+        "available_train_images_per_corruption": 5862,
+        "folders": "/mnt/shared/zechuan/iraod_artifacts/dior_oracle_train_images/JPEGImages-<domain>",
+        "cloudy_provenance": "experiments/comparison/extensions/dior_cloudy_materialization.json",
+        "source_folders": "Original DIOR VAL/TEST corruption folders remain unchanged"
+      },
+      "actual_patch_count": 97902,
+      "materialization_evidence": "experiments/comparison/extensions/oracle_dior_materialization.json",
+      "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",
+      "adapter_completion": {
+        "evidence_source": "Sole compute owner validation accepted; not independently repeated by code owner",
+        "host": "73F3-5xA6000-221",
+        "gpu": 4,
+        "terminal_at": "2026-09-08T19:14:24Z",
+        "path": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/lora_dior.pth",
+        "bytes": 2971460,
+        "config": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/config.json",
+        "train_log": "/home/zechuan/iraod_artifacts/FORMAL_DIOR_LoRA_adapter_0fd539a_20138_20260908T183058Z/train_log.csv",
+        "training_git_sha": "0fd539a5a5b8a2ad34c0c1f97023f539acdcbf7a",
+        "status": "complete",
+        "epochs_completed": 10,
+        "selection": "final_epoch",
+        "selected_epoch": 10,
+        "training_epoch10_loss": 0.0250,
+        "training_epoch10_accuracy": 0.9922,
+        "metric_scope": "TRAIN patch classification only; not native detector TEST accuracy or mAP"
+      },
+      "detector_preparation": "DIOR-only24 cells via experiments.comparison.oracle_training; existing payload admission, no RSAR adapter dependency",
+      "status": "Owner-validated final10-epoch DIOR adapter available; detector/native TEST results not yet supplied"
+    }
+  },
+  "oracle_variants": ["SARCLIP-LoRA-CGA", "SARCLIP-LoRA-CGA+VLST"],
+  "isolation": [
+    "Explicit Target-supervised fairness group",
+    "Strict baselines and completed A-F never load these adapters",
+    "No detector-source replacement or source detector retraining",
+    "TRAIN labels only; no TEST labels or TEST-tuned checkpoint/epoch selection",
+    "No automatic visual-projection fallback masquerading as LoRA"
+  ]
+}

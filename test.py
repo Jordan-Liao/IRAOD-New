@@ -24,6 +24,7 @@ from mmrotate.datasets import build_dataset
 from mmrotate.models import build_detector
 from mmrotate.utils import compat_cfg, setup_multi_processes
 from sfod.utils import patch_config
+from tools.prediction_export import new_prediction_paths, save_predictions_with_ids
 
 def parse_args():
     """Parse parameters."""
@@ -35,6 +36,9 @@ def parse_args():
         '--work-dir',
         help='the directory to save the file containing evaluation metrics')
     parser.add_argument('--out', help='output result file in pickle format')
+    parser.add_argument(
+        '--training-code-sha',
+        help='Known training-code commit for checkpoint provenance; unknown if omitted')
     parser.add_argument(
         '--fuse-conv-bn',
         action='store_true',
@@ -117,6 +121,8 @@ def main():
 
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
+    if args.out:
+        new_prediction_paths(args.out)
 
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
@@ -229,20 +235,27 @@ def main():
     if not distributed:
         model = MMDataParallel(model, device_ids=cfg.gpu_ids)
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
-                                  args.show_score_thr)
+                                  args.show_score_thr, return_image_ids=bool(args.out))
     else:
         model = MMDistributedDataParallel(
             model.cuda(),
             device_ids=[torch.cuda.current_device()],
             broadcast_buffers=False)
         outputs = multi_gpu_test(model, data_loader, args.tmpdir,
-                                 args.gpu_collect)
+                                 args.gpu_collect, return_image_ids=bool(args.out))
+    if args.out:
+        outputs, image_records = outputs
 
     rank, _ = get_dist_info()
     if rank == 0:
         if args.out:
             print(f'\nwriting results to {args.out}')
-            mmcv.dump(outputs, args.out)
+            save_predictions_with_ids(args.out, outputs, image_records, {
+                "dataset_size": len(dataset), "dataset_type": type(dataset).__name__,
+                "config": args.config, "cfg_options": args.cfg_options,
+                "checkpoint": args.checkpoint,
+                "training_code_sha": args.training_code_sha,
+            })
         kwargs = {} if args.eval_options is None else args.eval_options
         if args.format_only:
             dataset.format_results(outputs, **kwargs)

@@ -1,0 +1,26 @@
+{
+  "schema": "iraod-source-producer-correction-audit-v1",
+  "scope": "source-only producer metadata; not new training or evaluation",
+  "quantitative_status": "pending",
+  "corrections": [
+    {
+      "dataset": "RSAR",
+      "method": "A",
+      "domain": "clean",
+      "seed": 42,
+      "role": "source",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "source_weights_sha256": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+      "sidecar": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/clean/seed_42/0f98a48/methods/A/eval_full_clean_ids_v1/predictions.pkl.image_ids.json",
+      "recorded_training_code_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+      "actual_source_producer_sha": "b474aaa5f7718746215ce13beceb071617bb823e",
+      "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+      "source_producer_record": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt",
+      "verification": "Original source commit record and sidecar fields read directly; matching source weight identity and valid predictions/IDs were confirmed by the coordinator.",
+      "original_sidecar_modified": false,
+      "prediction_or_metric_changes": false,
+      "training_or_inference_repeated": false,
+      "note": "The sidecar incorrectly inherited adaptation GIT for A. B-F adaptation producer remains 0f98a48."
+    }
+  ]
+}

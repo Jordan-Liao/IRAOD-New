@@ -7,3 +7,4 @@ from .soft_teacher import SoftTeacher
 
 from .labelmatch import LabelMatch
 from .labelmatch_online import LabelMatchOnline
+from .slrp_calibration_rcnn import SLRPCalibrationRCNN
