@@ -443,6 +443,8 @@ class UnbiasedTeacher(SemiTwoStageDetector):
         semantic weights aligned 1:1 with the admitted pseudo boxes/labels.  The
         RAW detector score (``r[:, -1]``) always decides admission; SARCLIP
         never rescales it here.  Missing/None ``cga_meta`` -> all weights 1.0.
+        Pseudo GT geometry must be finite with strictly positive width/height;
+        the same admission mask selects every aligned label/semantic field.
         """
         gt_bboxes_pred, gt_labels_pred = [], []
         gt_semantic_weights_pred = []
@@ -461,7 +463,9 @@ class UnbiasedTeacher(SemiTwoStageDetector):
                 gt_bbox_scale[:,:4] = gt_bbox[:,:4] / scale_factor
             for cls, r in enumerate(result):
                 label = cls * np.ones_like(r[:, 0], dtype=np.uint8)
-                flag = r[:, -1] >= self._pseudo_score_threshold(cls)
+                valid_geometry = (np.isfinite(r[:, :5]).all(axis=1)
+                                  & (r[:, 2] > 0) & (r[:, 3] > 0))
+                flag = (r[:, -1] >= self._pseudo_score_threshold(cls)) & valid_geometry
                 # print(flag)
                 bboxes.append(r[flag][:, :-1])
                 labels.append(label[flag])
