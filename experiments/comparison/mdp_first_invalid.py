@@ -22,8 +22,12 @@ def arguments():
     parser.add_argument('--code-root', type=Path, required=True)
     parser.add_argument('--finite-helper', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--max-updates', type=int, default=80)
     parser.add_argument('train_arguments', nargs=argparse.REMAINDER)
-    return parser.parse_args()
+    options = parser.parse_args()
+    if options.max_updates < 1:
+        parser.error('--max-updates must be positive')
+    return options
 
 
 if __name__ == '__main__':
@@ -132,6 +136,8 @@ class FirstInvalidCapture:
                 if hasattr(model, name)
             },
         }
+        if self.step == 1:
+            self.save_capture('initial', filename='initial.pt')
         if self.step >= self.anomaly_from and self.anomaly is None:
             self.anomaly = torch.autograd.detect_anomaly(check_nan=True)
             self.anomaly.__enter__()
@@ -177,18 +183,18 @@ class FirstInvalidCapture:
         with (self.output / 'steps.jsonl').open('a') as stream:
             stream.write(json.dumps(json_values(self.logs)) + '\n')
         if self.completed >= self.max_updates:
+            self.save_capture('finite_limit')
             summary = {
                 'status': 'DIAGNOSTIC_LIMIT_WITHOUT_NONFINITE',
                 'completed_updates': self.completed,
                 'valid_full_budget_model': False,
+                'capture': str(self.output / 'capture.pt'),
+                'replay_scope': 'saved optimizer step only; no dataloader or epoch resume',
             }
             (self.output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
             raise DiagnosticLimitReached('Diagnostic update boundary reached without a failure')
 
-    def fail(self, stage, error, operands=None):
-        if self.failure_saved:
-            return
-        numeric = isinstance(error, FloatingPointError) or 'returned nan values' in str(error)
+    def save_capture(self, stage, error=None, operands=None, filename='capture.pt'):
         payload = {
             'update': self.step, 'stage': stage, 'pre_forward': self.prestate,
             'teacher_state': self.teacher_state,
@@ -200,9 +206,15 @@ class FirstInvalidCapture:
                 if self.backward_started and parameter.grad is not None
             },
             'backward_started': self.backward_started,
-            'error': str(error),
+            'error': str(error) if error is not None else None,
         }
-        torch.save(payload, self.output / 'capture.pt')
+        torch.save(payload, self.output / filename)
+
+    def fail(self, stage, error, operands=None):
+        if self.failure_saved:
+            return
+        numeric = isinstance(error, FloatingPointError) or 'returned nan values' in str(error)
+        self.save_capture(stage, error, operands)
         summary = {
             'status': 'CAPTURED_NONFINITE' if numeric else 'CAPTURED_RUNTIME_FAILURE',
             'update': self.step, 'completed_updates': self.completed, 'stage': stage,
@@ -275,7 +287,7 @@ def run(options):
         forwarded = forwarded[1:]
     entry = options.code_root / 'train.py'
     sys.argv = [str(entry), *forwarded]
-    observer = FirstInvalidCapture(options.output, finite)
+    observer = FirstInvalidCapture(options.output, finite, max_updates=options.max_updates)
     try:
         with observer.install(MDPOBB, OptimizerHook):
             runpy.run_path(str(entry), run_name='__main__')

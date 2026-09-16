@@ -59,6 +59,29 @@ class MDPCaptureNativeTest(unittest.TestCase):
             self.assertEqual(capture.completed, 1)
             self.assertFalse(capture.failure_saved)
             self.assertIsNotNone(capture.teacher_state)
+            payload = torch.load(capture.output / 'capture.pt', weights_only=False)
+            self.assertEqual(payload['stage'], 'finite_limit')
+            replay, _ = fixture.initialized_model()
+            replay.ema_model.load_state_dict(payload['teacher_state'])
+            replay.load_state_dict(payload['pre_forward']['model'])
+            for name, value in payload['pre_forward']['python_state'].items():
+                setattr(replay, name, value)
+            replay_optimizer = torch.optim.SGD(replay.parameters(), lr=.001, momentum=.9)
+            replay_optimizer.load_state_dict(payload['pre_forward']['optimizer'])
+            rng = payload['pre_forward']['rng']
+            torch.set_rng_state(rng['torch'])
+            np.random.set_state(rng['numpy'])
+            diagnostic.random.setstate(rng['python'])
+            replay_runner = SimpleNamespace(model=replay, optimizer=replay_optimizer)
+            replay_runner.outputs = replay.train_step(payload['actual_batch'], replay_optimizer)
+            self.assertEqual(replay_runner.outputs['log_vars'], observed_runner.outputs['log_vars'])
+            OptimizerHook().after_train_iter(replay_runner)
+            for key, value in expected.items():
+                torch.testing.assert_close(replay.state_dict()[key], value, rtol=0, atol=0)
+            for name, parameter in replay.named_parameters():
+                if parameter.grad is not None:
+                    torch.testing.assert_close(
+                        parameter.grad, payload['gradients'][name], rtol=0, atol=0)
         self.assertEqual('train_step' not in MDPOBB.__dict__, inherited)
         self.assertFalse(torch.cuda.is_initialized())
 

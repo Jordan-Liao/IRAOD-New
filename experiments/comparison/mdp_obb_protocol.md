@@ -35,9 +35,43 @@ used, but matched native log windows already diverge within updates1-10, before
 anomaly observation starts at55. See
 [the diagnostic outcome](mdp_chaff42_diagnostic_outcome.json). Actual initial
 auxiliary state, augmented-input/RNG and GPU execution parity were not captured
-for both runs; the cause remains insufficient evidence. No further start is
-authorized, and no scientific parameter has been changed to make this result
-look successful.
+for both runs; the cause remains insufficient evidence. That authorization was
+exhausted, and no scientific parameter was changed to make the result look
+successful.
+
+The follow-up CPU startup comparison used three cold native processes:
+plain, plain-repeat and observed. After actual `model.init_weights()` and before
+dataset construction, all11 auxiliary state entries (9,473,025 elements) and
+Python/NumPy/Torch RNG states matched exactly, with maximum tensor difference0.
+It loaded the real source teacher but initialized no CUDA context and ran no
+model forward/backward. This excludes a difference in these tested current
+startup paths, not an unrecorded difference between historical GPU runs.
+The first actual32-image CPU data-loader batch also matched exactly across
+plain and observed paths, including augmented tensors, metadata and all three
+RNG states. Both used the8467-image target binding and two loader workers.
+This does not establish equality of every historical GPU batch.
+
+The observer previously discarded its in-memory replay state when a diagnostic
+reached a finite limit. A failing CPU regression reproduced that missing
+`capture.pt`. It now persists `initial.pt` before the first forward and
+`capture.pt` at either an invalid event or the finite update limit. Each contains
+the pre-forward Student/optimizer/buffers/RNG/counters, frozen teacher and actual
+batch; the terminal-step payload also retains available gradients. A finite
+terminal remains `DIAGNOSTIC_LIMIT_WITHOUT_NONFINITE`, never a repaired model.
+These files replay the saved optimizer step; they are not exact epoch resumes
+because data-loader progress is not captured. The old80-step run cannot be
+recovered retroactively.
+Seven observer/control checks and one native rotated MDP replay check pass:
+restoring the saved actual step reproduces its losses, full Student state and
+gradients exactly on CPU. This validates the repaired diagnostic, not a
+reproduction or repair of the original GPU NaN.
+
+The user subsequently authorized a new combined900 GPU-second diagnostic and
+at most two captured-batch replays within that same budget. The explicit
+observer option `--max-updates 265` permits the unchanged one-epoch training
+budget to be inspected instead of stopping at80; the default remains80.
+An invalid event still stops immediately. This authorization does not include
+other cells, altered scientific parameters, TEST/ROI, or an automatic retry.
 
 ## References and fixed interpretation
 

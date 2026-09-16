@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import torch
 from torch import nn
@@ -88,6 +89,15 @@ class FirstInvalidTest(unittest.TestCase):
         runner.outputs = model.train_step(batch, optimizer)
         OptimizerHook().after_train_iter(runner)
 
+    def test_cli_keeps_training_tail_and_explicit_diagnostic_limit(self):
+        argv = ['observer.py', '--code-root', str(ROOT),
+                '--finite-helper', 'finite.py', '--output', 'capture',
+                '--max-updates', '265', '--', 'config.py', '--seed', '42']
+        with patch.object(diagnostic.sys, 'argv', argv):
+            options = diagnostic.arguments()
+        self.assertEqual(options.max_updates, 265)
+        self.assertEqual(options.train_arguments, ['--', 'config.py', '--seed', '42'])
+
     def test_finite_updates_rng_and_optimizer_are_unchanged(self):
         torch.manual_seed(93)
         plain = ToyStep()
@@ -115,6 +125,49 @@ class FirstInvalidTest(unittest.TestCase):
             summary = json.loads((capture.output / 'summary.json').read_text())
             self.assertEqual(summary['status'], 'DIAGNOSTIC_LIMIT_WITHOUT_NONFINITE')
             self.assertFalse(summary['valid_full_budget_model'])
+
+    def test_finite_limit_retains_initial_and_last_actual_step_for_replay(self):
+        torch.manual_seed(42)
+        model = ToyStep()
+        optimizer = torch.optim.SGD(model.parameters(), lr=.1, momentum=.9)
+        batches = [{'x': torch.tensor([1., 2.])}, {'x': torch.tensor([3., 4.])}]
+        expected = []
+        with tempfile.TemporaryDirectory() as directory:
+            capture = diagnostic.FirstInvalidCapture(
+                Path(directory) / 'capture', finite, max_updates=2, anomaly_from=1)
+            with capture.install(ToyStep, OptimizerHook):
+                for index, batch in enumerate(batches):
+                    if index == 1:
+                        with self.assertRaises(diagnostic.DiagnosticLimitReached):
+                            self.step(model, optimizer, batch)
+                    else:
+                        self.step(model, optimizer, batch)
+                    expected.append({
+                        'model': diagnostic.copy_tree(model.state_dict(), to_cpu=True),
+                        'optimizer': diagnostic.copy_tree(optimizer.state_dict(), to_cpu=True),
+                        'rng': torch.get_rng_state().clone(),
+                    })
+            for index, name in ((1, 'capture.pt'), (0, 'initial.pt')):
+                payload = torch.load(capture.output / name, weights_only=False)
+                self.assertEqual(payload['update'], index + 1)
+                self.assertEqual(payload['stage'], 'initial' if index == 0 else 'finite_limit')
+                torch.testing.assert_close(payload['actual_batch']['x'], batches[index]['x'])
+                replay = ToyStep()
+                replay_optimizer = torch.optim.SGD(replay.parameters(), lr=.1, momentum=.9)
+                replay.load_state_dict(payload['pre_forward']['model'])
+                replay_optimizer.load_state_dict(payload['pre_forward']['optimizer'])
+                torch.set_rng_state(payload['pre_forward']['rng']['torch'])
+                self.step(replay, replay_optimizer, payload['actual_batch'])
+                for key, value in expected[index]['model'].items():
+                    torch.testing.assert_close(replay.state_dict()[key], value, rtol=0, atol=0)
+                torch.testing.assert_close(
+                    replay_optimizer.state[replay.weight]['momentum_buffer'],
+                    expected[index]['optimizer']['state'][0]['momentum_buffer'], rtol=0, atol=0)
+                torch.testing.assert_close(torch.get_rng_state(), expected[index]['rng'])
+            summary = json.loads((capture.output / 'summary.json').read_text())
+            self.assertEqual(summary['capture'], str(capture.output / 'capture.pt'))
+            self.assertFalse(summary['valid_full_budget_model'])
+            self.assertFalse(capture.failure_saved)
 
     def test_bad_gradient_stops_before_update_and_preserves_actual_prestate(self):
         model = GradientFailure()
