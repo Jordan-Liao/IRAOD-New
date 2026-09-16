@@ -1,0 +1,64 @@
+{
+  "schema": "iraod-mdp-gpu-acceptance-v1",
+  "status": "FAILED_NUMERICAL_ACCEPTANCE",
+  "cell": "RSAR/chaff/42/MDP",
+  "code_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "host": 67,
+  "physical_gpu": 4,
+  "gpu_type": "NVIDIA A100-SXM-64GB",
+  "starts": 1,
+  "automatic_retry": false,
+  "completed_optimizer_updates": 265,
+  "completed_epochs": 1,
+  "allocated_gpu_seconds": 553,
+  "elapsed_seconds": 552.4591489550658,
+  "numerical_evidence": {
+    "last_finite_logged_update": 60,
+    "last_finite_logged_total_loss": 101.4794,
+    "last_finite_logged_pfd_loss": 6.955,
+    "first_nonfinite_logged_update": 70,
+    "first_nonfinite_logged_components": "All MSP/AFSP/PFD loss components",
+    "log_interval_updates": 10,
+    "exact_first_bad_operation": null,
+    "causal_status": "INSUFFICIENT_EVIDENCE",
+    "note": "Logged loss growth and final NaN tensors do not identify the originating operation or justify changing the loss definition, learning rate or other scientific settings."
+  },
+  "final_checkpoint_validation": {
+    "scope": "Complete checkpoint tensor payload, including model and optimizer entries",
+    "student": {
+      "filename": "iter_266.pth",
+      "epoch": 1,
+      "iteration": 266,
+      "tensor_count": 608,
+      "nonfinite_tensors": 403,
+      "nonfinite_elements": 106176578
+    },
+    "ema": {
+      "filename": "iter_266_ema.pth",
+      "epoch": 1,
+      "iteration": 266,
+      "tensor_count": 597,
+      "nonfinite_tensors": 395,
+      "nonfinite_elements": 96718914
+    }
+  },
+  "preserved_output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_acceptance_20260916/RSAR/chaff/seed_42/MDP",
+  "retained_evidence": [
+    "mdp_chaff42_failure_result_20260916.json",
+    "mdp_chaff42_checkpoint_failure_20260916.json",
+    "mdp_chaff42_operator_20260916.log"
+  ],
+  "valid_model_or_benchmark_result": false,
+  "finite_check_placement": "Post-run checkpoint validation in the supervisor; no in-training finite hook.",
+  "gradient_clipping": null,
+  "retained_causal_replay": {
+    "finite_intermediate_checkpoint_or_optimizer": false,
+    "per_step_rng": false,
+    "exact_failure_image_ids_or_augmented_batch": false,
+    "per_step_loss_gradient_parameter_or_activation_statistics": false,
+    "red_capable_replay_available": false
+  },
+  "test_or_roi_evaluation_started": false,
+  "existing_comparison_results_changed": false,
+  "next_evidence_required": "A first-invalid-operation/gradient capture with the corresponding finite pre-state and actual input/RNG, or an already-retained causal replay. No identical retry is authorized."
+}

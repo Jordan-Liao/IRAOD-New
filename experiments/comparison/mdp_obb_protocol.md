@@ -1,8 +1,21 @@
 # MDP-OBB CPU candidate
 
-This is a preprint-guided OBB port candidate, not an executed comparison result.
+This is a preprint-guided OBB port candidate, not a validated comparison result.
 It preserves the existing source detector and does not authorize GPU training.
 The previous 540-cell matrix and published metrics are unchanged.
+
+**GPU acceptance update:** the first `RSAR/chaff/42` attempt completed265 updates
+but failed numerical acceptance. Update60 was the last finite logged point;
+update70 had NaN losses, and both final checkpoints are invalid. See
+[the preserved outcome](mdp_chaff42_gpu_acceptance.json). CPU checks and source
+loading passed, but did not establish stable real-data training. No result is
+promoted, no other cell or identical retry is started, and no numerical
+mitigation is selected without a causal replay.
+Only ten-update scalar logs and invalid final checkpoints were retained.
+There is no finite intermediate state, exact failed augmented batch/RNG or
+per-step gradient trace; finite checking occurred only after training.
+Consequently the originating operation is not identified, and an instrumented
+first-invalid capture requires a separate bounded execution decision.
 
 ## References and fixed interpretation
 
