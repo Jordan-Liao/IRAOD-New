@@ -1,0 +1,1184 @@
+{
+  "schema": "iraod-corrected-native-results-v1",
+  "status": "COMPLETE_12_OF_12",
+  "metric_cutoff_utc": "2026-09-15T22:34:16.852672+00:00",
+  "read_scope": "Selected actual native execution/metric/class-AP metadata, accepted complete terminals and post-binder receipts. Original pre-binder records remain preserved by the producer. No model, predictions or ROI payload was reopened for this report.",
+  "execution_accounting": {
+    "corrected_keys": 12,
+    "native_test_complete": 12,
+    "roi_complete": 12,
+    "predictions_per_key": 8538,
+    "actual_starts": 15,
+    "gpu_seconds": 5593
+  },
+  "models": [
+    {
+      "canonical_key": "RSAR/noise_suppression/43/SFYOLO/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_43/SFYOLO/work/iter_531.pth",
+      "evaluated_checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__43__SFYOLO__student/iter_531.pth",
+      "training_code_sha": "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+      "host": 221,
+      "obsolete_staged_checkpoint_not_used": null
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/43/SFYOLO/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_43/SFYOLO/work/iter_531_ema.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_43/SFYOLO/work/iter_531_ema.pth",
+      "training_code_sha": "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__43__SFYOLO__ema/iter_531_ema.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/IRG/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__IRG__student/iter_266.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/IRG/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266_ema.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266_ema.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__IRG__ema/iter_266_ema.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/LPLD/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__LPLD__student/iter_266.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/LPLD/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266_ema.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266_ema.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__LPLD__ema/iter_266_ema.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/SFUT/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__SFUT__student/iter_266.pth"
+    },
+    {
+      "canonical_key": "RSAR/noise_suppression/44/SFUT/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266_ema.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266_ema.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__44__SFUT__ema/iter_266_ema.pth"
+    },
+    {
+      "canonical_key": "RSAR/point_target/44/IRG/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/IRG/work/iter_266.pth",
+      "evaluated_checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__student/iter_266.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 183,
+      "obsolete_staged_checkpoint_not_used": null
+    },
+    {
+      "canonical_key": "RSAR/point_target/44/IRG/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/IRG/work/iter_266_ema.pth",
+      "evaluated_checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__ema/iter_266_ema.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 183,
+      "obsolete_staged_checkpoint_not_used": null
+    },
+    {
+      "canonical_key": "RSAR/point_target/44/LPLD/student",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/LPLD/work/iter_266.pth",
+      "evaluated_checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__LPLD__student/iter_266.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 183,
+      "obsolete_staged_checkpoint_not_used": null
+    },
+    {
+      "canonical_key": "RSAR/point_target/44/LPLD/ema",
+      "source_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/LPLD/work/iter_266_ema.pth",
+      "evaluated_checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/LPLD/work/iter_266_ema.pth",
+      "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+      "host": 67,
+      "obsolete_staged_checkpoint_not_used": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__LPLD__ema/iter_266_ema.pth"
+    }
+  ],
+  "records": [
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/student",
+        "host": 221,
+        "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native",
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native/eval_20260916_053749.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.02260923944413662
+          }
+        },
+        "class_ap_text": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T21:59:00.336807+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 43,
+          "method": "SFYOLO",
+          "role": "student",
+          "checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__43__SFYOLO__student/iter_531.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/home/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/home/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/HDD_14TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/home/zechuan/iraod_code/checkouts/accepted-d668a77-67-20260912/experiments/comparison/host_binding.py",
+            "native",
+            "/mnt/HDD_14TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/HDD_14TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "1",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__noise_suppression__43__SFYOLO__student/iter_531.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native",
+            "--training-code-sha",
+            "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+            "--cfg-options",
+            "data.test.ann_file=/home/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/home/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/student",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 1369.152621238958,
+        "allocated_gpu_seconds": 1370,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.02260923944413662,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/221/RSAR__noise_suppression__43__SFYOLO__student.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets   | recall | ap    |\n+----------+-------+--------+--------+-------+\n| ship     | 10700 | 231967 | 0.327  | 0.027 |\n| aircraft | 494   | 44395  | 0.245  | 0.108 |\n| car      | 1231  | 4206   | 0.000  | 0.000 |\n| tank     | 886   | 27437  | 0.000  | 0.000 |\n| bridge   | 3272  | 242816 | 0.091  | 0.000 |\n| harbor   | 399   | 30825  | 0.065  | 0.000 |\n+----------+-------+--------+--------+-------+\n| mAP      |       |        |        | 0.023 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/ema",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native/eval_20260916_060106.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.11786741763353348
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:07:41.592156+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 43,
+          "method": "SFYOLO",
+          "role": "ema",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_43/SFYOLO/work/iter_531_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "7",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_43/SFYOLO/work/iter_531_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native",
+            "--training-code-sha",
+            "82e08b0b5f15278e24f949ae1670f91f86713f8d",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 399.51113331504166,
+        "allocated_gpu_seconds": 400,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/43/SFYOLO/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.11786741763353348,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__43__SFYOLO__ema.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 19669 | 0.606  | 0.450 |\n| aircraft | 494   | 5324  | 0.202  | 0.095 |\n| car      | 1231  | 66    | 0.011  | 0.021 |\n| tank     | 886   | 1289  | 0.000  | 0.000 |\n| bridge   | 3272  | 14676 | 0.333  | 0.112 |\n| harbor   | 399   | 3457  | 0.371  | 0.029 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.118 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/IRG/student",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native/eval_20260916_060950.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.1441979557275772
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:16:40.999496+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "IRG",
+          "role": "student",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "6",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/IRG/student",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 415.0593293090351,
+        "allocated_gpu_seconds": 416,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/IRG/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.1441979557275772,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__student.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 43560 | 0.719  | 0.535 |\n| aircraft | 494   | 2603  | 0.324  | 0.091 |\n| car      | 1231  | 188   | 0.024  | 0.030 |\n| tank     | 886   | 372   | 0.043  | 0.068 |\n| bridge   | 3272  | 90847 | 0.330  | 0.115 |\n| harbor   | 399   | 13103 | 0.404  | 0.025 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.144 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/IRG/ema",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native/eval_20260916_060957.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.18692421913146973
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:16:23.948653+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "IRG",
+          "role": "ema",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "7",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/IRG/work/iter_266_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/IRG/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 391.12324632517993,
+        "allocated_gpu_seconds": 392,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/IRG/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.18692421913146973,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__IRG__ema.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 13783 | 0.630  | 0.529 |\n| aircraft | 494   | 5539  | 0.273  | 0.050 |\n| car      | 1231  | 156   | 0.000  | 0.000 |\n| tank     | 886   | 905   | 0.026  | 0.003 |\n| bridge   | 3272  | 17781 | 0.513  | 0.359 |\n| harbor   | 399   | 5411  | 0.576  | 0.181 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.187 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/student",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native/eval_20260916_061801.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.1245754137635231
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:24:54.730981+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "LPLD",
+          "role": "student",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "6",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/student",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 417.2269110926427,
+        "allocated_gpu_seconds": 418,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.1245754137635231,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__student.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 54741 | 0.720  | 0.567 |\n| aircraft | 494   | 7789  | 0.172  | 0.005 |\n| car      | 1231  | 252   | 0.003  | 0.003 |\n| tank     | 886   | 1858  | 0.060  | 0.020 |\n| bridge   | 3272  | 90477 | 0.318  | 0.127 |\n| harbor   | 399   | 18824 | 0.419  | 0.026 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.125 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/ema",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native/eval_20260916_061802.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.1822824627161026
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:24:28.725260+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "LPLD",
+          "role": "ema",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "7",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/LPLD/work/iter_266_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 390.62423113174736,
+        "allocated_gpu_seconds": 391,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/LPLD/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.1822824627161026,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__LPLD__ema.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 20086 | 0.671  | 0.529 |\n| aircraft | 494   | 7697  | 0.368  | 0.046 |\n| car      | 1231  | 364   | 0.001  | 0.000 |\n| tank     | 886   | 1607  | 0.028  | 0.002 |\n| bridge   | 3272  | 36605 | 0.528  | 0.357 |\n| harbor   | 399   | 8236  | 0.574  | 0.159 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.182 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/student",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native/eval_20260916_062626.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.11984723806381226
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:33:11.440949+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "SFUT",
+          "role": "student",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "6",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/student",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 409.0336615368724,
+        "allocated_gpu_seconds": 410,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.11984723806381226,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__student.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 41059 | 0.697  | 0.539 |\n| aircraft | 494   | 2689  | 0.107  | 0.025 |\n| car      | 1231  | 340   | 0.002  | 0.002 |\n| tank     | 886   | 1709  | 0.044  | 0.012 |\n| bridge   | 3272  | 67752 | 0.299  | 0.123 |\n| harbor   | 399   | 8476  | 0.386  | 0.019 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.120 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/ema",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native/eval_20260916_062629.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.16727489233016968
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:32:44.934474+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "noise_suppression",
+          "seed": 44,
+          "method": "SFUT",
+          "role": "ema",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "7",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/noise_suppression/seed_44/SFUT/work/iter_266_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/noise_suppression/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 379.5024364092387,
+        "allocated_gpu_seconds": 380,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/noise_suppression/44/SFUT/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.16727489233016968,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__noise_suppression__44__SFUT__ema.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 13277 | 0.591  | 0.472 |\n| aircraft | 494   | 7050  | 0.296  | 0.052 |\n| car      | 1231  | 235   | 0.000  | 0.000 |\n| tank     | 886   | 1876  | 0.027  | 0.001 |\n| bridge   | 3272  | 23182 | 0.520  | 0.358 |\n| harbor   | 399   | 7181  | 0.561  | 0.121 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.167 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/point_target/44/IRG/student",
+        "host": 183,
+        "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native",
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native/eval_20260916_051620.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.2135608196258545
+          }
+        },
+        "class_ap_text": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": null,
+        "roi_n_images": null,
+        "evaluated_at": "2026-09-15T21:21:50.019146+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "point_target",
+          "seed": 44,
+          "method": "IRG",
+          "role": "student",
+          "checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__student/iter_266.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/home/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/anaconda3/envs/iraod/bin/python",
+            "/mnt/SSD1_8TB/zechuan/IRAOD-New-host183-7ae4ac3/experiments/comparison/host_binding.py",
+            "native",
+            "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "9",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__student/iter_266.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/home/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "canonical_key": "RSAR/point_target/44/IRG/student",
+        "status": "COMPLETE_TEST_ROI",
+        "host": 183,
+        "output_root": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3",
+        "salvaged_cpu_binder": true,
+        "checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__student/iter_266.pth",
+        "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native/eval_20260916_051620.json",
+        "mAP": 0.2135608196258545,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/roi/index.json",
+        "roi_n_images": 8538
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/point_target/44/IRG/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.2135608196258545,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__student.joint920.attempt3/native/class_ap.txt",
+        "preservation": "Original pre-binder native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets   | recall | ap    |\n+----------+-------+--------+--------+-------+\n| ship     | 10700 | 247008 | 0.702  | 0.484 |\n| aircraft | 494   | 62734  | 0.617  | 0.241 |\n| car      | 1231  | 85529  | 0.560  | 0.274 |\n| tank     | 886   | 1669   | 0.060  | 0.091 |\n| bridge   | 3272  | 231107 | 0.304  | 0.096 |\n| harbor   | 399   | 24937  | 0.238  | 0.095 |\n+----------+-------+--------+--------+-------+\n| mAP      |       |        |        | 0.214 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/point_target/44/IRG/ema",
+        "host": 183,
+        "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native",
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native/eval_20260916_052517.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.5269529223442078
+          }
+        },
+        "class_ap_text": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": null,
+        "roi_n_images": null,
+        "evaluated_at": "2026-09-15T21:30:01.295715+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "point_target",
+          "seed": 44,
+          "method": "IRG",
+          "role": "ema",
+          "checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__ema/iter_266_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/home/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/anaconda3/envs/iraod/bin/python",
+            "/mnt/SSD1_8TB/zechuan/IRAOD-New-host183-7ae4ac3/experiments/comparison/host_binding.py",
+            "native",
+            "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "9",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__IRG__ema/iter_266_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/home/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-salvaged-v1",
+        "canonical_key": "RSAR/point_target/44/IRG/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "host": 183,
+        "output_root": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2",
+        "salvaged_cpu_binder": true,
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native/eval_20260916_052517.json",
+        "mAP": 0.5269529223442078,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/roi/index.json",
+        "roi_n_images": 8538,
+        "completed_utc": "2026-09-15T21:35:34.673881+00:00"
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/point_target/44/IRG/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.5269529223442078,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__IRG__ema.joint920.attempt2/native/class_ap.txt",
+        "preservation": "Original pre-binder native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 64448 | 0.842  | 0.737 |\n| aircraft | 494   | 2838  | 0.804  | 0.670 |\n| car      | 1231  | 3967  | 0.859  | 0.771 |\n| tank     | 886   | 3658  | 0.174  | 0.161 |\n| bridge   | 3272  | 30769 | 0.556  | 0.384 |\n| harbor   | 399   | 3442  | 0.624  | 0.439 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.527 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/point_target/44/LPLD/student",
+        "host": 183,
+        "eval_dir": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native",
+        "metric_json": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native/eval_20260916_053614.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.21806985139846802
+          }
+        },
+        "class_ap_text": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T21:42:07.281099+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "point_target",
+          "seed": 44,
+          "method": "LPLD",
+          "role": "student",
+          "checkpoint": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__LPLD__student/iter_266.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/home/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/anaconda3/envs/iraod/bin/python",
+            "/mnt/SSD1_8TB/zechuan/IRAOD-New-host183-7ae4ac3/experiments/comparison/host_binding.py",
+            "native",
+            "/mnt/SSD1_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "9",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_eval12_checkpoints_20260915/RSAR__point_target__44__LPLD__student/iter_266.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/SSD1_8TB/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/home/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/home/zechuan/iraod_data/RSAR/corruptions/point_target/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/point_target/44/LPLD/student",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 357.63651833706535,
+        "allocated_gpu_seconds": 358,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/point_target/44/LPLD/student",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.21806985139846802,
+        "pred_count": 8538,
+        "roi_index": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/183/RSAR__point_target__44__LPLD__student.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets   | recall | ap    |\n+----------+-------+--------+--------+-------+\n| ship     | 10700 | 205535 | 0.738  | 0.550 |\n| aircraft | 494   | 34570  | 0.613  | 0.273 |\n| car      | 1231  | 25032  | 0.578  | 0.280 |\n| tank     | 886   | 3372   | 0.053  | 0.091 |\n| bridge   | 3272  | 187372 | 0.263  | 0.008 |\n| harbor   | 399   | 31108  | 0.386  | 0.106 |\n+----------+-------+--------+--------+-------+\n| mAP      |       |        |        | 0.218 |\n\n"
+    },
+    {
+      "native": {
+        "canonical_key": "RSAR/point_target/44/LPLD/ema",
+        "host": 67,
+        "eval_dir": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native",
+        "metric_json": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native/eval_20260916_060106.json",
+        "metric": {
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "metric": {
+            "mAP": 0.521095335483551
+          }
+        },
+        "class_ap_text": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native/class_ap.txt",
+        "eval_status": "complete",
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "evaluated_at": "2026-09-15T22:07:58.853932+00:00",
+        "execution": {
+          "dataset": "RSAR",
+          "domain": "point_target",
+          "seed": 44,
+          "method": "LPLD",
+          "role": "ema",
+          "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/LPLD/work/iter_266_ema.pth",
+          "config": "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+          "ann_file": "/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+          "img_prefix": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/point_target/test/images",
+          "training_code_sha": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+          "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+          "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+          "joint_exporter": {
+            "code_commit": "92068ccb7ca19570e02880415671b6627ce769ca",
+            "entry": "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "mode": "single-forward-native-roi"
+          },
+          "command": [
+            "/home/zechuan/miniforge3/envs/iraod/bin/python",
+            "/mnt/SSD2_8TB/zechuan/iraod_code/checkouts/roi-single-forward-import-fix-92068cc/experiments/comparison/joint_native/test.py",
+            "--case-root",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920",
+            "--dataset",
+            "RSAR",
+            "--physical-gpu",
+            "6",
+            "--",
+            "/home/zechuan/IRAOD-New-rc331d213/test.py",
+            "/home/zechuan/IRAOD-New-rc331d213/configs/baseline/oriented_rcnn_orthonet_rsar.py",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/nonfinite_production_repair_20260915/runs/RSAR/point_target/seed_44/LPLD/work/iter_266_ema.pth",
+            "--eval",
+            "mAP",
+            "--out",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native/predictions.pkl",
+            "--work-dir",
+            "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native",
+            "--training-code-sha",
+            "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+            "--cfg-options",
+            "data.test.ann_file=/mnt/shared/zechuan/iraod_data/RSAR/test/annfiles",
+            "data.test.img_prefix=/mnt/shared/zechuan/iraod_data/RSAR/corruptions/point_target/test/images"
+          ]
+        }
+      },
+      "terminal": {
+        "schema": "iraod-post-repair-test-roi-terminal-v1",
+        "canonical_key": "RSAR/point_target/44/LPLD/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920",
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 416.6874167760834,
+        "allocated_gpu_seconds": 417,
+        "automatic_retry": false
+      },
+      "post_binder": {
+        "schema": "iraod-post-repair-native-result-post-binder-v1",
+        "canonical_key": "RSAR/point_target/44/LPLD/ema",
+        "status": "COMPLETE_TEST_ROI",
+        "native_eval_status": "complete",
+        "mAP": 0.521095335483551,
+        "pred_count": 8538,
+        "roi_index": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/roi/index.json",
+        "roi_n_images": 8538,
+        "class_ap_remote_path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/post_repair_test_roi12_20260915/67/RSAR__point_target__44__LPLD__ema.joint920/native/class_ap.txt",
+        "preservation": "Original native_result_packet.json is unchanged."
+      },
+      "class_ap_text": "| class    | gts   | dets  | recall | ap    |\n+----------+-------+-------+--------+-------+\n| ship     | 10700 | 80215 | 0.838  | 0.729 |\n| aircraft | 494   | 4494  | 0.860  | 0.748 |\n| car      | 1231  | 3786  | 0.838  | 0.751 |\n| tank     | 886   | 3879  | 0.151  | 0.124 |\n| bridge   | 3272  | 41530 | 0.549  | 0.358 |\n| harbor   | 399   | 4383  | 0.607  | 0.417 |\n+----------+-------+-------+--------+-------+\n| mAP      |       |       |        | 0.521 |\n\n"
+    }
+  ]
+}

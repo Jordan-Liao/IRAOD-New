@@ -1,0 +1,69 @@
+{
+  "schema": "iraod-recovered-final-validation-v1",
+  "status": "PASS",
+  "metric_cutoff_utc": "2026-09-15T22:34:16.852672+00:00",
+  "archive_completed_utc": "2026-09-16T03:07:07.666760+00:00",
+  "coverage": {
+    "basis": "Exact cartesian dataset/domain/seed/method/role sets, not count-only comparison.",
+    "datasets": {"DIOR": 4, "RSAR": 8},
+    "adaptation_seeds": [42, 43, 44],
+    "canonical_training_cells": 540,
+    "prerequisite_cells": 52,
+    "required_native_test_roles": 912,
+    "valid_native_test_roles": 912,
+    "required_roi_roles": 732,
+    "completed_roi_roles": 732,
+    "delivered_unique_roi_roles": 732,
+    "missing_keys": 0,
+    "extra_keys": 0,
+    "duplicate_keys": 0,
+    "class_rows": 9728,
+    "summary_rows": 52
+  },
+  "training_completion_basis": {
+    "canonical_budgets_and_prerequisites": "Accepted training_completion_audit_20260912T2330Z.json operator evidence: 540 detector cells, TSD36, TAM12, LoRA2 and source2 complete.",
+    "former_nonfinite_cells": "Accepted nonfinite_six_repair_closure_20260915.json: six corrected original-budget runs, twelve finite student/EMA final checkpoints and optimizer validation.",
+    "new_training_or_checkpoint_rescan_for_this_audit": false
+  },
+  "native_recovery": {
+    "new_valid_results": 12,
+    "predictions_and_roi_images_per_key": 8538,
+    "actual_starts": 15,
+    "allocated_gpu_seconds": 5593,
+    "frozen_valid_rows_preserved_field_for_field": 900,
+    "original_held_and_invalid_records_preserved": true,
+    "original_pre_binder_packets_not_rewritten": true,
+    "actual_evaluated_checkpoint_paths_used": true,
+    "no_test_score_tuning": true
+  },
+  "delivery": {
+    "sets": 3,
+    "provider_files": 699,
+    "bytes": 336958086405,
+    "pending": 0,
+    "active": 0,
+    "gate": "Provider size and whole-file MD5 match accepted source inventory evidence.",
+    "historical_proof_reused": true,
+    "new_payload_rehash_or_retransfer": false,
+    "training_repair_not_counted_as_roi": true
+  },
+  "validation_commands": [
+    "python3 -m unittest discover -s results/recovered_20260915 -p 'test_completed_report.py' -v",
+    "python3 results/recovered_20260915/build_completed_report.py --check"
+  ],
+  "regression_tests_passed": 7,
+  "regressions_include": [
+    "Actual full-precision native mAP and printed per-class AP",
+    "Frozen valid rows cannot be replaced",
+    "Wrong checkpoint, source, role, revision, counts and NaN evidence cannot be promoted",
+    "Partial recovery cannot generate a complete report",
+    "Provider mismatch and overlapping ROI delivery keys are rejected",
+    "Equal row counts cannot hide a missing experiment key"
+  ],
+  "explicit_non_runs": {
+    "DRU": "Excluded from the accepted matrix; the fixed source head lacks source-trained decoder-depth outputs.",
+    "Multi_level_Domain_Perturbation": "Conditional original-plan candidate, never admitted to the authorized matrix.",
+    "unplanned_student_or_roi_variants": "B_REG, F_text_only, F_veto_only and Oracle variants require EMA TEST only."
+  },
+  "scope_limit": "Reuses accepted native execution, training and provider evidence. This is a final metadata/coverage audit, not fresh GPU inference, a full weight reread or a new algorithm-fairness review."
+}
