@@ -1,0 +1,105 @@
+{
+  "schema": "iraod-recovered-final-validation-v1",
+  "status": "PASS",
+  "metric_cutoff_utc": "2026-09-15T22:34:16.852672+00:00",
+  "archive_completed_utc": "2026-09-16T03:07:07.666760+00:00",
+  "native_backup_completed_utc": "2026-09-16T04:31:55.517446+00:00",
+  "coverage": {
+    "basis": "Exact cartesian dataset/domain/seed/method/role sets, not count-only comparison.",
+    "datasets": {"DIOR": 4, "RSAR": 8},
+    "adaptation_seeds": [42, 43, 44],
+    "canonical_training_cells": 540,
+    "prerequisite_cells": 52,
+    "required_native_test_roles": 912,
+    "valid_native_test_roles": 912,
+    "required_roi_roles": 732,
+    "completed_roi_roles": 732,
+    "delivered_unique_roi_roles": 732,
+    "missing_keys": 0,
+    "extra_keys": 0,
+    "duplicate_keys": 0,
+    "class_rows": 9728,
+    "summary_rows": 52
+  },
+  "training_completion_basis": {
+    "canonical_budgets_and_prerequisites": "Accepted training_completion_audit_20260912T2330Z.json operator evidence: 540 detector cells, TSD36, TAM12, LoRA2 and source2 complete.",
+    "former_nonfinite_cells": "Accepted nonfinite_six_repair_closure_20260915.json: six corrected original-budget runs, twelve finite student/EMA final checkpoints and optimizer validation.",
+    "new_training_or_checkpoint_rescan_for_this_audit": false
+  },
+  "native_recovery": {
+    "new_valid_results": 12,
+    "predictions_and_roi_images_per_key": 8538,
+    "actual_starts": 15,
+    "allocated_gpu_seconds": 5593,
+    "frozen_valid_rows_preserved_field_for_field": 900,
+    "original_held_and_invalid_records_preserved": true,
+    "original_pre_binder_packets_not_rewritten": true,
+    "actual_evaluated_checkpoint_paths_used": true,
+    "no_test_score_tuning": true
+  },
+  "delivery": {
+    "scope": "Initial three delivery sets; retained without double-counting the later native supplement.",
+    "sets": 3,
+    "provider_files": 699,
+    "bytes": 336958086405,
+    "pending": 0,
+    "active": 0,
+    "gate": "Provider size and whole-file MD5 match accepted source inventory evidence.",
+    "historical_proof_reused": true,
+    "new_payload_rehash_or_retransfer": false,
+    "training_repair_not_counted_as_roi": true
+  },
+  "native_file_backup": {
+    "selected_keys": 912,
+    "frozen_selected_keys": 671,
+    "corrected_keys": 12,
+    "supplemental_post_pr21_keys": 229,
+    "frozen_test_only_keys_included": 75,
+    "post_pr21_required_regular_members": 1374,
+    "missing_members": 0,
+    "external_link_substitutes": 0,
+    "source_provider_size_matches": 229,
+    "source_provider_whole_md5_matches": 229,
+    "frozen_metadata_bytes_checked": 361785,
+    "native_relevant_containers": 252,
+    "native_relevant_container_bytes": 14270551245,
+    "legacy_per_case_execution_json_keys": 299,
+    "legacy_shared_report_status_sidecar_keys": 372,
+    "payload_bytes_read_for_member_proof": 0,
+    "missing": 0,
+    "unknown": 0,
+    "pending": 0,
+    "active": 0,
+    "proof": "native_test_file_delivery.json"
+  },
+  "combined_delivery": {
+    "provider_files": 928,
+    "bytes": 340723262725,
+    "accounting": "Original699 plus229 newly uploaded native archives; do not add overlapping native252 containers again.",
+    "pending": 0,
+    "active": 0
+  },
+  "validation_commands": [
+    "python3 -m unittest discover -s results/recovered_20260915 -p 'test_*.py' -v",
+    "python3 results/recovered_20260915/build_completed_report.py --check",
+    "python3 results/recovered_20260915/native_file_delivery.py --check"
+  ],
+  "regression_tests_passed": 13,
+  "regressions_include": [
+    "Actual full-precision native mAP and printed per-class AP",
+    "Frozen valid rows cannot be replaced",
+    "Wrong checkpoint, source, role, revision, counts and NaN evidence cannot be promoted",
+    "Partial recovery cannot generate a complete report",
+    "Provider mismatch and overlapping ROI delivery keys are rejected",
+    "Equal row counts cannot hide a missing experiment key",
+    "ROI coverage cannot substitute for selected native-file coverage",
+    "Missing prediction members, source-path changes, stored-size mismatches and external-link substitutes are rejected",
+    "Overlapping native containers cannot inflate overall delivery totals"
+  ],
+  "explicit_non_runs": {
+    "DRU": "Excluded from the accepted matrix; the fixed source head lacks source-trained decoder-depth outputs.",
+    "Multi_level_Domain_Perturbation": "Conditional original-plan candidate, never admitted to the authorized matrix.",
+    "unplanned_student_or_roi_variants": "B_REG, F_text_only, F_veto_only and Oracle variants require EMA TEST only."
+  },
+  "scope_limit": "Reuses accepted native execution, training and provider evidence. This is a final metadata/coverage audit, not fresh GPU inference, a full weight reread or a new algorithm-fairness review."
+}
