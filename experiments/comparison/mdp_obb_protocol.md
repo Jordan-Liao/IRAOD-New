@@ -17,6 +17,16 @@ per-step gradient trace; finite checking occurred only after training.
 Consequently the originating operation is not identified, and an instrumented
 first-invalid capture requires a separate bounded execution decision.
 
+One subsequent diagnostic has been authorized, capped at300 allocated GPU
+seconds and80 updates. `mdp_first_invalid.py` wraps the existing native entry
+without changing the model, batch, schedule, seed or data order. It keeps a
+rolling CPU pre-forward model/optimizer/RNG snapshot and the current batch
+references, checks loss/gradients/updated state, and enables targeted
+forward/anomaly observation from update55. A failure saves the actual batch,
+pre-state, available operands and gradients on the remote host. No full-budget
+model result is produced; reaching80 finite updates is not a repair claim.
+The finite helper is reused unchanged from the existing d668 implementation.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection
