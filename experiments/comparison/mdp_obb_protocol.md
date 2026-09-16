@@ -83,12 +83,11 @@ by at most9.5367e-7, and the maximum gradient difference over201 shared keys was
 an identified offending operation or an evidence-backed numerical model fix.
 See [the diagnostic and replay outcome](mdp_chaff42_diagnostic_v3_outcome.json).
 
-Total execution is1608 GPU seconds. The two replay starts are exhausted; the
-unused90 seconds do not authorize another start. The retained pre-forward
-update265 state permits that one step to be replayed, but native epoch-final EMA
-and checkpointing were not completed. No final model pair is promoted and no
-TEST/ROI has been run. The original invalid pair remains preserved, and its
-root cause remains insufficient evidence.
+At that diagnostic boundary, total execution was1608 GPU seconds and the two
+replay starts were exhausted. The unused90 seconds did not authorize another
+start. Native epoch-final EMA/checkpointing had not completed, so no final pair
+was promoted. The original invalid pair remains preserved, and its root cause
+remains insufficient evidence.
 
 ## Retained final-step recovery
 
@@ -109,6 +108,27 @@ replacement weights, change losses/LR/seed, or run TEST/ROI. GPU floating-point
 variation means this is a protocol-preserving continuation, not a claim of
 bitwise reproduction of the discarded post-update state. Artifact validation
 and model acceptance remain separate from the unresolved original NaN cause.
+
+The recovery entry owns creation of `--output` and rejects an existing directory.
+The supervisor must keep launch/terminal/log files in its parent control
+directory and pass a fresh child as `--output`, without precreating that child
+or its `work` directory. Expected checkpoints and the recovery summary must
+resolve under that same child. The first recovery invocation collided with a
+supervisor-created output root and stopped before any optimizer update,
+consuming10 seconds. The path-corrected recovery consumed21 seconds, completing
+the same authorized recovery in31 of its60 GPU seconds without repeating an
+epoch.
+
+**Recovery outcome:** the native pair is now saved and validated. Student and
+EMA have407/396 model state entries and201 optimizer states each; all608/597
+checked tensors are finite. Both files report epoch1/iter266. All396 EMA entries
+match the native0.9-source/0.1-Student formula exactly, with maximum difference0.
+The lineage is264 preserved updates plus one recovered update, with unchanged
+source, target images, seed42, batch32, world1 and LR0.02. See
+[the model paths and recovery evidence](mdp_chaff42_final_recovery_outcome.json).
+This is a valid full-budget **candidate pair**, not proof that the original NaN
+is fixed or an accepted benchmark result. No TEST/ROI has been run. Cumulative
+execution is1639 GPU seconds; unused59 seconds do not authorize another start.
 
 ```sh
 python STAGED_RECOVERY_SCRIPT --code-root CLEAN_SCIENTIFIC_CHECKOUT \
