@@ -90,6 +90,32 @@ and checkpointing were not completed. No final model pair is promoted and no
 TEST/ROI has been run. The original invalid pair remains preserved, and its
 root cause remains insufficient evidence.
 
+## Retained final-step recovery
+
+A subsequent explicit decision authorizes one recovery start, capped at60 of
+the unused90 GPU seconds, without increasing the overall1698-second ceiling.
+`mdp_recover_final_pair.py` handles the retained last step of the current
+one-epoch, one-device image-only protocol. It checks the captured update and
+model counter against the configured epoch budget, verifies the frozen teacher
+against the same source checkpoint, and restores Student state, optimizer,
+all RNG states, counters and the actual batch. It performs exactly one optimizer
+update, giving the observed264-update prefix plus one recovered update.
+
+After finite step validation, it calls the existing `EpochFinalTeacherHook`
+and `SemiEpochBasedRunner.save_checkpoint`. The expected native pair is
+`iter_266.pth` and `iter_266_ema.pth`, each with epoch1/iter266 metadata and the
+original optimizer state. The helper does not replay an epoch, synthesize
+replacement weights, change losses/LR/seed, or run TEST/ROI. GPU floating-point
+variation means this is a protocol-preserving continuation, not a claim of
+bitwise reproduction of the discarded post-update state. Artifact validation
+and model acceptance remain separate from the unresolved original NaN cause.
+
+```sh
+python STAGED_RECOVERY_SCRIPT --code-root CLEAN_SCIENTIFIC_CHECKOUT \
+  --capture RETAINED_FINAL_STEP_CAPTURE --output FRESH_OUTPUT \
+  -- CONFIG ORIGINAL_TRAIN_ARGUMENTS
+```
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection
