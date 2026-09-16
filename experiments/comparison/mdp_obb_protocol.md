@@ -27,6 +27,18 @@ pre-state, available operands and gradients on the remote host. No full-budget
 model result is produced; reaching80 finite updates is not a repair claim.
 The finite helper is reused unchanged from the existing d668 implementation.
 
+The corrected diagnostic reached80 finite updates and did not reproduce the
+original NaN. It did not save a replay payload at the finite limit, so it is
+neither a valid full-budget model nor evidence of a repair. The same recorded
+algorithm, GPU, training arguments/configuration and environment selectors were
+used, but matched native log windows already diverge within updates1-10, before
+anomaly observation starts at55. See
+[the diagnostic outcome](mdp_chaff42_diagnostic_outcome.json). Actual initial
+auxiliary state, augmented-input/RNG and GPU execution parity were not captured
+for both runs; the cause remains insufficient evidence. No further start is
+authorized, and no scientific parameter has been changed to make this result
+look successful.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection
