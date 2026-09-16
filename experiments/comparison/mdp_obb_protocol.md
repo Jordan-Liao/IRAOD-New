@@ -73,6 +73,23 @@ budget to be inspected instead of stopping at80; the default remains80.
 An invalid event still stops immediately. This authorization does not include
 other cells, altered scientific parameters, TEST/ROI, or an automatic retry.
 
+**Latest outcome:** that diagnostic completed265 finite updates in776 allocated
+GPU seconds. Both authorized one-step replays of the retained update265 state
+were also finite, consuming34 seconds together. Student state, optimizer,
+counters, all RNG states and the actual batch matched exactly before each
+replay. The eight detection loss values matched exactly; PFD/total loss varied
+by at most9.5367e-7, and the maximum gradient difference over201 shared keys was
+3.2187e-6. This demonstrates small finite GPU variation, not a reproduced NaN,
+an identified offending operation or an evidence-backed numerical model fix.
+See [the diagnostic and replay outcome](mdp_chaff42_diagnostic_v3_outcome.json).
+
+Total execution is1608 GPU seconds. The two replay starts are exhausted; the
+unused90 seconds do not authorize another start. The retained pre-forward
+update265 state permits that one step to be replayed, but native epoch-final EMA
+and checkpointing were not completed. No final model pair is promoted and no
+TEST/ROI has been run. The original invalid pair remains preserved, and its
+root cause remains insufficient evidence.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection
