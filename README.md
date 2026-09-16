@@ -3,6 +3,17 @@
 This document records the unified `iraod` environment used by this project and
 the recommended workflow for the SARCLIP-LoRA rescoring experiments.
 
+## Experiment result records
+
+The [recovered comparison report](results/recovered_20260915/README.md) contains
+the complete 912-key native TEST view after the six numerical repairs and the
+[verified delivery manifest](results/recovered_20260915/delivery_manifest.json)
+for 732 ROI keys plus the separately counted training-repair assets.
+The [comparison evidence index](experiments/comparison/README.md) explains the
+training, evaluation and ROI denominators. The September 12 and September 13
+snapshots remain historical records, not live queues. Metric and archive
+completion have separate, explicit cutoffs.
+
 ## 1. Enter the Project
 
 ```bash

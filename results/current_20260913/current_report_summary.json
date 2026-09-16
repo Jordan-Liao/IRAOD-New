@@ -1,0 +1,98 @@
+{
+  "schema": "iraod-current-performance-coverage-v1",
+  "cutoff_utc": "2026-09-13T16:59:00Z",
+  "overall_delivery": "PARTIAL_ROI_ARCHIVAL_NUMERICAL_OPEN",
+  "test_metrics": {
+    "canonical_keys": 912,
+    "eligible_completed": 900,
+    "eligible_metrics_integrated": 900,
+    "eligible_missing_metrics": 0,
+    "frozen_eligible_metrics": 671,
+    "new_native_metrics": 229,
+    "held_roles": 7,
+    "invalid_native_ema_roles": 5,
+    "native_values_including_invalid": 905,
+    "accounting": "900 eligible + 7 held + 5 invalid native EMA = 912 unique keys",
+    "canonical_status_checkpoint": "1217bf1d05fb91c754403e39a29f9bffe2736171",
+    "metric_table": "raw_metrics.csv",
+    "coverage_table": "coverage.csv",
+    "performance_table": "summary.csv"
+  },
+  "training": {
+    "prescribed_budget_complete": 540,
+    "prescribed_budget_target": 540,
+    "numerically_invalid_cells_unrepaired": 6,
+    "models_repaired": 0,
+    "family_cells": {
+      "B_F": 180,
+      "IRG_LPLD_SFUT": 108,
+      "B_REG_F_text_F_veto": 108,
+      "AASFOD": 36,
+      "SFYOLO": 36,
+      "Oracle": 72
+    },
+    "auxiliary_completed_target": {
+      "TSD": [36, 36],
+      "TAM": [12, 12],
+      "LoRA": [2, 2],
+      "source": [2, 2]
+    }
+  },
+  "roi": {
+    "observed_utc": "2026-09-13T16:51:00Z",
+    "completed_unique_keys": 377,
+    "eligible_target": 720,
+    "pending_unique_keys": 343,
+    "held_outside_eligible_target": 12,
+    "authorized_total_including_holds": 732,
+    "active_at_observation": 0,
+    "pending_families": {
+      "B_F_seeds43_44_both_roles": 240,
+      "IRG_ema": 34,
+      "LPLD_ema": 34,
+      "SFUT_ema": 35
+    },
+    "source_receipt": "experiment_remaining_snapshot_20260913T1651Z.json",
+    "accounting_basis": "accepted operator canonical-key ledger; no new scan in report"
+  },
+  "archival": {
+    "observed_utc": "2026-09-13T16:59:00Z",
+    "delivered_unique_roi_keys": 286,
+    "completed_roi_denominator": 377,
+    "completed_not_delivered": 91,
+    "verified_archives": 247,
+    "verified_bytes": 167044220165,
+    "included_delivery": "PR21 and batches 1-7",
+    "batch8_assigned_or_packaging": 12,
+    "batch8_counted_as_delivered": 0,
+    "source_receipt": "bypy_batch7_complete_20260913T1659Z.json",
+    "total_membership_source": "accepted parent/operator accounting at 16:59Z; batch7 receipt alone is not the cumulative key inventory",
+    "accounting_basis": "archive file count differs from canonical scientific key membership"
+  },
+  "numerical": {
+    "root_cause": "UNVERIFIED",
+    "diagnostic_starts_used": 2,
+    "diagnostic_starts_authorized": 2,
+    "diagnostic_gpu_seconds_used": 30,
+    "diagnostic_gpu_seconds_budget": 2400,
+    "reserved_starts": 0,
+    "starts_left": 0,
+    "separate_one_image_captures_used": 1,
+    "separate_one_image_captures_authorized": 1,
+    "separate_one_image_gpu_seconds": 22,
+    "capture_actual_native_detections": [32, 32],
+    "changed_finite_box_score_scalars": 191,
+    "total_finite_box_score_scalars": 192,
+    "changed_rows": 32,
+    "max_box_absolute_difference": 0.05194091796875,
+    "max_score_absolute_difference": 0.0002319812774658203,
+    "strict_native_equality": false,
+    "order_only": false,
+    "valid_roi_outputs": 0,
+    "roi_index_created": false,
+    "historical_runtime_flags": "UNKNOWN",
+    "source_receipt": "roi221_one_image_capture_analysis_result_20260913.json"
+  },
+  "blocker": "343 ROI keys need original-compatible execution: Host67 approved GPUs4-7 foreign occupied; tested Host221 EMA fails strict native equality. 91 complete ROI keys not yet cloud delivered. Six numerical cells remain unrepaired. Host68 deferred and Host134 paused.",
+  "next_action_owner": "existing sole runtime/archive operator; no additional execution authorized by this report"
+}
