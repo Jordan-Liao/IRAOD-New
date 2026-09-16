@@ -166,6 +166,18 @@ pass. The CPU-checked observer preserves native losses, state, gradients and
 RNG in those fixtures, still stops invalid losses/gradients/updates, and allows
 no optimizer update beyond the declared limit.
 
+**CPU-checked run outcome:** all265 updates remained finite and the native
+epoch-final pair was saved normally. Student608/608 and EMA597/597 checked
+tensors are finite; all396 EMA entries match the prescribed formula exactly.
+The run used709 GPU seconds, bringing cumulative execution to2348 seconds.
+See [the actual pair and outcome](mdp_cpu_checked_diag_outcome.json).
+The original NaN still was not reproduced. Removing diagnostic GPU finite/max
+arithmetic did not produce a causal failure capture, and copying/synchronization
+still prevents any claim of identical historical GPU execution. No model
+numerical fix is established. The remaining1391 seconds are conditional:
+there is neither a captured failing step for replay nor a verified model fix
+that unlocks post-fix training. No additional run or TEST/ROI is started.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection

@@ -1,0 +1,68 @@
+{
+  "schema": "iraod-mdp-cpu-checked-diagnostic-outcome-v1",
+  "status": "FINITE_DIAGNOSTIC_COMPLETE_CAUSAL_GATE_NOT_MET",
+  "cell": "RSAR/chaff/42/MDP",
+  "observer_revision": "c5e87705c4dcb08707640ec5d710d6d7b768f964",
+  "algorithm_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "completed_updates": 265,
+  "all_steps_cpu_checked_finite": true,
+  "diagnostic_gpu_finite_max_arithmetic": false,
+  "anomaly_detection_enabled": false,
+  "native_epoch_finalization_completed": true,
+  "lineage": {
+    "seed": 42,
+    "lr": 0.02,
+    "batch": 32,
+    "world": 1,
+    "epochs": 1,
+    "target": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/chaff/val/images",
+    "source_teacher_initial": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_cpu_checked_diag_20260916/RSAR/chaff/seed_42/MDP/capture/initial.pt"
+  },
+  "student": {
+    "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_cpu_checked_diag_20260916/RSAR/chaff/seed_42/MDP/work/iter_266.pth",
+    "bytes": 426231105,
+    "epoch": 1,
+    "iteration": 266,
+    "state_entries": 407,
+    "optimizer_state_entries": 201,
+    "checked_tensors": 608,
+    "finite": true
+  },
+  "ema": {
+    "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_cpu_checked_diag_20260916/RSAR/chaff/seed_42/MDP/work/iter_266_ema.pth",
+    "bytes": 388335255,
+    "epoch": 1,
+    "iteration": 266,
+    "state_entries": 396,
+    "optimizer_state_entries": 201,
+    "checked_tensors": 597,
+    "finite": true
+  },
+  "ema_formula": {
+    "momentum": 0.9,
+    "checked_keys": 396,
+    "differing_names": 0,
+    "differing_elements": 0,
+    "max_abs_difference": 0.0,
+    "exact": true
+  },
+  "budget": {
+    "diagnostic_gpu_seconds": 709,
+    "stage_used_gpu_seconds": 709,
+    "stage_ceiling_gpu_seconds": 2100,
+    "stage_remaining_gpu_seconds": 1391,
+    "cumulative_gpu_seconds": 2348,
+    "cumulative_ceiling_gpu_seconds": 3739
+  },
+  "scientific_parameters_changed": false,
+  "valid_finite_diagnostic_pair": true,
+  "numerical_model_defect_reproduced": false,
+  "original_nan_fixed": false,
+  "original_nan_root_cause": "INSUFFICIENT_EVIDENCE",
+  "post_fix_training_unlocked": false,
+  "failure_replays_started": 0,
+  "post_fix_training_started": false,
+  "test_or_roi_started": false,
+  "ready_authorized_gpu_work": false,
+  "remaining_causal_input": "No captured nonfinite event from finite pre-state and actual input is available. The historical failed run lacked that replay material, and this lower-interference run also remained finite. The conditional replay/training budget is not permission for another standalone diagnostic or an unverified model change."
+}
