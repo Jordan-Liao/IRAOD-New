@@ -86,6 +86,8 @@ def maximum(tensors):
 
 
 class FirstInvalidCapture:
+    maximum = staticmethod(maximum)
+
     def __init__(self, output, finite, max_updates=80, anomaly_from=55):
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=False)
@@ -164,7 +166,7 @@ class FirstInvalidCapture:
         except FloatingPointError as error:
             self.fail('before_optimizer', error)
             raise
-        self.logs['gradient_max_abs'] = maximum(
+        self.logs['gradient_max_abs'] = self.maximum(
             parameter.grad for parameter in self.model.parameters())
 
     def after_step(self, optimizer, args, kwargs):
@@ -178,7 +180,7 @@ class FirstInvalidCapture:
         self.completed += 1
         self.logs.update(
             update=self.step, completed_updates=self.completed,
-            parameter_max_abs=maximum(self.model.parameters()),
+            parameter_max_abs=self.maximum(self.model.parameters()),
             elapsed_seconds=time.monotonic() - self.started)
         with (self.output / 'steps.jsonl').open('a') as stream:
             stream.write(json.dumps(json_values(self.logs)) + '\n')

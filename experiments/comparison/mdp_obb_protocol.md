@@ -136,6 +136,36 @@ python STAGED_RECOVERY_SCRIPT --code-root CLEAN_SCIENTIFIC_CHECKOUT \
   -- CONFIG ORIGINAL_TRAIN_ARGUMENTS
 ```
 
+## CPU-checked causal diagnostic
+
+The next authorized repair stage has a separate2100 GPU-second ceiling after
+the1639 seconds already consumed. It permits one diagnostic of at most900
+seconds, up to three selected single-step failure replays of at most60 seconds
+each, and one full-budget training run of at most900 seconds **only after**
+an actual numerical model defect is reproduced, fixed and regression-confirmed.
+The scope remains `RSAR/chaff/42`; source/data/seed/batch/LR are unchanged and
+neither other cells nor TEST/ROI are authorized. Another finite diagnostic is
+not a model fix and does not unlock the conditional training run.
+
+`mdp_cpu_capture.py` reuses the retained-state observer, but checks copied
+tensors with NumPy on CPU and computes diagnostic maxima there. Loss,
+pre-optimizer gradient and post-optimizer model/optimizer finite checks remain
+active. It adds no diagnostic GPU finite/max arithmetic or anomaly detection.
+Copies, synchronization and Python hooks still affect timing; identical
+historical GPU execution is not claimed.
+
+Initial and terminal replay states are retained. The limit is enforced before
+any additional `train_step`; the last permitted optimizer update can return
+normally so the native epoch-final EMA/checkpoint hooks can complete when the
+limit matches the prescribed epoch. A normal native return still requires
+the supervisor's saved-pair validation and is not benchmark acceptance.
+The higher-interference observer remains available for localized failure
+replay. Both use the same numerical model implementation.
+Eleven local boundary/control checks and two native rotated MDP CPU checks
+pass. The CPU-checked observer preserves native losses, state, gradients and
+RNG in those fixtures, still stops invalid losses/gradients/updates, and allows
+no optimizer update beyond the declared limit.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection
