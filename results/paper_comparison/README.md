@@ -14,3 +14,6 @@ accepted method/role matrix and budget boundaries.
 The separate [delivery manifest](../recovered_20260915/delivery_manifest.json)
 establishes completed cloud delivery through provider-verification evidence,
 not by inferring it from the metric report.
+The later [native TEST file map](../recovered_20260915/native_test_file_delivery.json)
+closes the additional 229 selected-native directory backups. Original checkpoint
+and raw-dataset exclusions remain explicit in the current report.

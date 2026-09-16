@@ -23,6 +23,10 @@ their twelve new TEST/ROI results.
 [Archival delivery](../../results/recovered_20260915/delivery_manifest.json)
 is also complete: 732 unique ROI keys, with training-repair assets counted
 separately.
+The [native-file mapping](../../results/recovered_20260915/native_test_file_delivery.json)
+also proves all 912 selected TEST output sets. This separate audit includes
+the 180 EMA-only roles with no ROI task and does not infer file backup from a
+complete metric table or ROI count.
 
 ## Method and budget boundaries
 

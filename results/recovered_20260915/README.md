@@ -1,8 +1,9 @@
 # Recovered comparison results
 
 **Metric cutoff: 2026-09-15 22:34:16 UTC. Native TEST coverage is 912/912;
-full-test ROI computation and verified delivery are 732/732. Archive delivery
-closed at 2026-09-16 03:07:07 UTC, independently of the earlier metric cutoff.**
+full-test ROI computation and verified delivery are 732/732. The initial three
+archive sets closed at 2026-09-16 03:07:07 UTC. Complete selected native TEST
+file backup closed later, at 2026-09-16 04:31:55 UTC.**
 
 | Result unit | Complete | Interpretation |
 |---|---:|---|
@@ -109,8 +110,9 @@ recovery, duplicate/mismatched identities, wrong final roles/revisions, incomple
 coverage or invalid native metrics.
 
 ```sh
-python3 -m unittest discover -s results/recovered_20260915 -p 'test_completed_report.py'
+python3 -m unittest discover -s results/recovered_20260915 -p 'test_*.py'
 python3 results/recovered_20260915/build_completed_report.py --check
+python3 results/recovered_20260915/native_file_delivery.py --check
 ```
 
 To rebuild the six generated CSVs, run the second command without `--check`.
@@ -129,7 +131,7 @@ destinations, provider receipts and the inherited historical proof references.
 | Original canonical ROI scope | 720 ROI keys | 681 | 326938328325 |
 | Corrected TEST + ROI | 12 ROI keys | 12 | 4928696320 |
 | TRAIN_REPAIR | 6 training cells | 6 | 5091061760 |
-| Total | 732 unique ROI keys, training assets separate | 699 | 336958086405 |
+| Initial three-set subtotal | 732 unique ROI keys, training assets separate | 699 | 336958086405 |
 
 Provider file counts differ from ROI-key counts because historical archives
 also contain companion assets and grouped outputs. The six TRAIN_REPAIR
@@ -149,3 +151,55 @@ access is required; no credentials or public share links are published.
 
 [validation_evidence.json](validation_evidence.json) records the final
 cartesian-matrix audit, source-evidence boundaries and zero missing/extra keys.
+
+## Complete native TEST file backup
+
+A follow-up source-to-archive audit found an important distinction: the 912
+metric rows and 732 ROI groups did not prove that every selected native TEST
+directory had been backed up. The ROI-led inventories omitted 229 post-PR21
+native directories: 105 EMA-only B_REG/F-deletion/Oracle cases and 124
+AASFOD/SFYOLO cases whose selected native outputs were separate from ROI
+exports or later local-native ROI references.
+
+These are now backed up without rerunning inference or changing any metric.
+[native_test_file_delivery.json](native_test_file_delivery.json) gives the
+complete selected-key/source-file/archive-member/provider mapping.
+
+| Native evidence group | Selected TEST keys | Evidence |
+|---|---:|---|
+| Frozen valid native results | 671 | Declared prediction, ID sidecar, metric, class AP and status paths matched to published archive members |
+| Corrected checkpoint results | 12 | Previously delivered complete native+ROI case archives, with exact selected checkpoints and paths |
+| Post-PR21 native supplement | 229 | 1374/1374 required regular TAR members, exact source/stored bytes and provider size/whole-MD5 receipts |
+| Total | 912 | Missing=0, unknown=0, pending=0, active=0 |
+
+The 75 frozen EMA-only cases are included in the 671, not added again. Frozen
+entries have a per-case `execution.json` when it originally existed (299 keys);
+the other legacy entries retain their archived native status/ID sidecar and
+accepted shared report provenance. No nonexistent legacy file requirement is
+invented. The post-PR21 supplement includes all six required modern file kinds:
+the selected metric JSON, predictions, ID sidecar, class AP, execution JSON and
+evaluation status. Its TAR members were checked by headers without reading or
+rehashing payloads; no external symlink/hardlink substitutes were accepted.
+
+The supplement is **229 new files / 3765176320 bytes**. Total unique delivery
+objects are therefore **928 files / 340723262725 bytes**, not 699 plus all native
+containers. The 252 native-relevant containers (14270551245 bytes) overlap the
+original delivery: 11 frozen containers and 12 corrected case archives were
+already counted there.
+
+Native supplement destinations are under:
+
+- `/apps/bypy/IRAOD-New/results/native_test_post_pr21_105_20260916/`
+- `/apps/bypy/IRAOD-New/results/native_test_post_pr21_roi124_20260916/`
+
+This is complete backup of the selected TEST output files and the declared ROI
+sets, **not all possible project files**. Original model/adapter weights and
+standalone raw datasets were explicitly excluded from the original publication
+scope. The separately delivered six TRAIN_REPAIR archives are the stated
+exception for corrected weights.
+
+`audit_frozen_native_files.py INDEX_DIR --output FILE` reproduces the frozen
+member audit using only the four small published native metadata indexes.
+`native_file_delivery.py --mapping FILE --provider-receipts FILE` imports the
+accepted final mapping and retained source/provider operands; `--check` verifies
+the committed map independently of the ROI totals.

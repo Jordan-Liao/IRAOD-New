@@ -9,6 +9,9 @@ The [recovered comparison report](results/recovered_20260915/README.md) contains
 the complete 912-key native TEST view after the six numerical repairs and the
 [verified delivery manifest](results/recovered_20260915/delivery_manifest.json)
 for 732 ROI keys plus the separately counted training-repair assets.
+The [native TEST file map](results/recovered_20260915/native_test_file_delivery.json)
+additionally proves all 912 selected native output sets, including predictions
+and image-ID sidecars. ROI coverage alone is not used as that proof.
 The [comparison evidence index](experiments/comparison/README.md) explains the
 training, evaluation and ROI denominators. The September 12 and September 13
 snapshots remain historical records, not live queues. Metric and archive
