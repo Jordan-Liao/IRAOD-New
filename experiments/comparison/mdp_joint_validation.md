@@ -44,6 +44,11 @@ native commands through itself rather than falling back to the global4-7
 resolver. The base resolver is never edited.
 
 Use the generated resolver's existing `lock` command around each joint entry.
+Set `PYTHONPATH` to the selected d668 writer for this outer lock command;
+`finite_resumer` is a writer dependency. The joint entry then selects its
+writer/exporter/evaluator namespaces explicitly. The supervisor must use a
+child-wait API available in its actual Python (portable `Popen.wait` suffices);
+`os.pidfd_open` is not available in every Host134 interpreter.
 The operator assigns GPU1 to Student and GPU2 to EMA. The supervisor owns a
 separate control/log directory; `roi_joint_native.py --out` must remain absent
 until the entry creates it. Do not precreate that case output or run a separate
@@ -55,3 +60,10 @@ The current authorization is only these two roles on Host134, with per-case
 same-device runtimes. The native MDP candidate remains distinct from a claimed
 repair of the historical NaN. TEST scores are not used to choose between
 earlier candidate checkpoints.
+
+The actual Host134 validation is complete: both8538-image roles passed native
+and same-forward ROI artifact checks. Results and the negative source-baseline
+comparison are preserved in
+[`results/mdp_validation_20260917`](../../results/mdp_validation_20260917/README.md).
+Successful execution is not a claim of competitive MDP accuracy or a repaired
+historical NaN.

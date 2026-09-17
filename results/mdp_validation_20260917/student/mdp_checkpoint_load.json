@@ -1,0 +1,21 @@
+{
+  "method": "MDP",
+  "role": "student",
+  "strict_detector_load": true,
+  "detector_keys": 396,
+  "auxiliary_keys": [
+    "mdp.afsp.style.0.weight",
+    "mdp.afsp.style.2.weight",
+    "mdp.history.previous_student",
+    "mdp.history.previous_teacher",
+    "mdp.transform.0.bias",
+    "mdp.transform.0.weight",
+    "mdp.transform.1.bias",
+    "mdp.transform.1.num_batches_tracked",
+    "mdp.transform.1.running_mean",
+    "mdp.transform.1.running_var",
+    "mdp.transform.1.weight"
+  ],
+  "auxiliary_reason": "MDPOBB ordinary evaluation bypasses all mdp training auxiliaries",
+  "checkpoint": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/checkpoints/iter_266.pth"
+}
