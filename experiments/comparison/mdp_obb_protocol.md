@@ -200,6 +200,15 @@ Validation consumed633 GPU seconds, bringing total MDP execution to2981.
 No further training was started. The historical NaN cause remains unverified;
 this one-case result is not an all-domain/multi-seed conclusion.
 
+The user-authorized incremental ByPy delivery of these complete TEST/ROI
+outputs is also finished:3 objects,1,394,298,880 bytes, with provider size and
+whole-file MD5 matches. All17,076 ROI NPZ files and required native/provenance
+files are regular archive members. The destination is
+`/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/`; the full receipt
+is in PR #40 under `results/mdp_validation_20260917/bypy_delivery.json`.
+Checkpoint weights and raw datasets are outside this result-archive scope,
+and previous delivery sets were not modified.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection

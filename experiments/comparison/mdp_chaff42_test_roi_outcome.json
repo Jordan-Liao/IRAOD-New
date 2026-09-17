@@ -58,5 +58,18 @@
   "further_training_started": false,
   "test_score_tuning_or_checkpoint_reselection": false,
   "full_result_delivery_pr": 40,
+  "artifact_backup": {
+    "status": "DELIVERED",
+    "destination": "/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/",
+    "objects": 3,
+    "bytes": 1394298880,
+    "pending": 0,
+    "active": 0,
+    "provider_size_and_whole_md5_verified": true,
+    "roi_npz_members": 17076,
+    "external_link_substitutes": 0,
+    "checkpoint_weights_and_raw_datasets_included": false,
+    "receipt": "PR40/results/mdp_validation_20260917/bypy_delivery.json"
+  },
   "interpretation": "Both roles completed valid TEST/ROI, but adaptation regressed sharply on this one domain/seed. Valid finite execution is not competitive accuracy or proof of an original NaN fix. The low scores are retained and do not establish all-domain/multi-seed behavior."
 }
