@@ -64,8 +64,23 @@ def main():
                                       "checkpoint", "config", "ann_file", "img_prefix",
                                       "training_code_sha", "source_id")}
         original_input = record
+    elif spec["kind"] == "mdp":
+        module_spec = importlib.util.spec_from_file_location(
+            "declared_mdp_inputs", Path(__file__).with_name("mdp_joint_inputs.py"))
+        declarations = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(declarations)
+        plan = json.loads(Path(spec["source_plan"]).read_text())
+        original_run, declaration = declarations.declared_run(plan, spec["run_id"])
+        run = host.map_data(original_run)
+        if gpu not in run["allowed_gpus"]:
+            raise ValueError("MDP GPU assignment differs from the declared role")
+        cell = {k: run[k] for k in ("dataset", "domain", "seed", "method", "role",
+                                    "checkpoint", "config", "ann_file", "img_prefix",
+                                    "training_code_sha", "source_id")}
+        original_input = {"run": original_run, "source_plan": spec["source_plan"],
+                          "declaration": declaration}
     else:
-        raise ValueError("Only authorized PORT/B-F rollout records are supported")
+        raise ValueError("Only authorized PORT/B-F/declared-MDP rollout records are supported")
     key = "/".join(str(cell[k]) for k in ("dataset", "domain", "seed", "method", "role"))
     if key != spec["canonical_key"]:
         raise ValueError("Input identity differs from the operator-assigned key")
@@ -73,6 +88,8 @@ def main():
     cell["eval_dir"] = str(root / "native")
     code = profile["evaluation_code"]
     evaluation_sha = subprocess.check_output(["git", "-C", code, "rev-parse", "HEAD"], text=True).strip()
+    if spec["kind"] == "mdp" and evaluation_sha != original_run["evaluation_code_sha"]:
+        raise ValueError("MDP evaluator revision differs from its declaration")
     runtime = {"python": profile["python"], "evaluation_code": code,
                "evaluation_code_sha": evaluation_sha}
     evaluate_binding(cell, runtime, gpu)

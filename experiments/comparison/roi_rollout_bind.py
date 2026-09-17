@@ -34,6 +34,24 @@ def bind_plan(root, export_code_sha="860d4a0afb32a8e75e612aec65398a73e4747877"):
     if passed["kind"] == "port":
         original = old["run"]
         plan_path = host.map_path(old["source_plan"])
+    elif passed["kind"] == "mdp":
+        from experiments.comparison.mdp_joint_inputs import declared_run
+
+        plan_path = old["source_plan"]
+        original, declaration = declared_run(
+            json.loads(Path(plan_path).read_text()), old["run"]["run_id"])
+        if original != old["run"] or declaration != old["declaration"]:
+            raise ValueError("New MDP declaration differs from its executed input")
+        if any(original[key] != cell[key] for key in
+               ("dataset", "domain", "seed", "method", "role", "checkpoint", "config")):
+            raise ValueError("New MDP native execution differs from the selected role")
+        admission = json.loads((root / "mdp_checkpoint_load.json").read_text())
+        if (admission["method"] != "MDP" or admission["role"] != cell["role"]
+                or admission["checkpoint"] != cell["checkpoint"]
+                or admission["strict_detector_load"] is not True
+                or admission["detector_keys"] != 396
+                or len(admission["auxiliary_keys"]) != (11 if cell["role"] == "student" else 0)):
+            raise ValueError("MDP native checkpoint admission proof differs from its role")
     elif passed["kind"] == "bf":
         plan_path = host.map_path(old["original_plan"]["path"])
         source_plan = json.loads(Path(plan_path).read_text())
@@ -61,6 +79,9 @@ def bind_plan(root, export_code_sha="860d4a0afb32a8e75e612aec65398a73e4747877"):
             "recorded_checkpoint_proof": old["recorded_checkpoint_proof"],
             "recorded_source_proof": old["recorded_source_proof"],
         }
+    elif passed["kind"] == "mdp":
+        reference["declared_training_provenance"] = old["declaration"]
+        reference["checkpoint_admission"] = admission
     proof_file = root / "input_proofs.json"
     previous = original.get("native_prediction", {}).get("path_binding")
     if proof_file.is_file() or previous is not None:
@@ -88,6 +109,7 @@ def bind_plan(root, export_code_sha="860d4a0afb32a8e75e612aec65398a73e4747877"):
         "scope_id": "iraod-roi-local-native-rollout-342-20260913",
         "canonical_key": passed["canonical_key"], "host": profile["host"],
         "original_native_preserved": (old["original_report"] if passed["kind"] == "bf"
+                                      else None if passed["kind"] == "mdp"
                                       else original["native_prediction"]),
         "canonical_metrics_and_denominator_unchanged": True,
     }
