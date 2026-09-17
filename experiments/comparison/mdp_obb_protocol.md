@@ -178,6 +178,28 @@ numerical fix is established. The remaining1391 seconds are conditional:
 there is neither a captured failing step for replay nor a verified model fix
 that unlocks post-fix training. No additional run or TEST/ROI is started.
 
+## Authorized native TEST and ROI outcome
+
+The user subsequently authorized validating the latest native finite pair on
+Host134 GPU1/2 without requiring a historical NaN explanation first. Two
+single-forward joint runs completed all8538 TEST images and ROI records per
+role. All17,076 feature exports are finite FP32 and aligned with their native
+detections; strict detector loading and genuine new-method provenance passed.
+The earlier recovered pair was not selected or tested for a better score.
+
+The results are valid but poor on this domain/seed: Student mAP50 is2.022516%
+and EMA8.438440%, versus47.193089% for the matching published source reference.
+The decreases are45.170573 and38.754649 percentage points respectively.
+Student emits791231 detections, versus64853 for EMA. These observations do not
+identify a training defect or explain the original NaN, and do not justify
+TEST-based parameter tuning or checkpoint reselection.
+
+See [the measured outcome](mdp_chaff42_test_roi_outcome.json) and the original
+small artifacts/comparison in PR #40, `results/mdp_validation_20260917/`.
+Validation consumed633 GPU seconds, bringing total MDP execution to2981.
+No further training was started. The historical NaN cause remains unverified;
+this one-case result is not an all-domain/multi-seed conclusion.
+
 ## References and fixed interpretation
 
 - Liu et al., arXiv:2401.17916v1, *Source-free Domain Adaptive Object Detection

@@ -1,0 +1,62 @@
+{
+  "schema": "iraod-mdp-test-roi-outcome-v1",
+  "status": "COMPLETE_TEST_ROI",
+  "cell": "RSAR/chaff/42/MDP",
+  "host": 134,
+  "selected_pair": "native final pair from mdp_cpu_checked_diag_20260916; selected before TEST",
+  "algorithm_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "evaluation_revision": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "joint_revision": "c205a0540b29d5887ba49b01fdfd9dbe40b170dd",
+  "source_baseline": {
+    "key": "RSAR/chaff/42/A/source",
+    "native_mAP50": 0.4719308912754059,
+    "source_id": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+    "images": 8538,
+    "report_revision": "b38f419cfa132b8ffd774aebb33f4b8778a283b6",
+    "report_file": "results/recovered_20260915/raw_metrics.csv",
+    "rerun": false
+  },
+  "student": {
+    "gpu": 1,
+    "native_mAP50": 0.02022515796124935,
+    "delta_vs_source_pp": -45.17057333141565,
+    "relative_vs_source_percent": -95.71438142000191,
+    "images": 8538,
+    "roi_records": 8538,
+    "detections": 791231,
+    "native_dir": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/student/native",
+    "roi_index": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/student/roi/index.json",
+    "allocated_gpu_seconds": 366
+  },
+  "ema": {
+    "gpu": 2,
+    "native_mAP50": 0.08438440412282944,
+    "delta_vs_source_pp": -38.754648715257645,
+    "relative_vs_source_percent": -82.11933024880437,
+    "images": 8538,
+    "roi_records": 8538,
+    "detections": 64853,
+    "native_dir": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/ema/native",
+    "roi_index": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/ema/roi/index.json",
+    "allocated_gpu_seconds": 267
+  },
+  "validated": {
+    "native_test_outputs": 2,
+    "roi_outputs": 2,
+    "roi_npz_files": 17076,
+    "all_features_boxes_scores_finite_fp32": true,
+    "same_forward_detection_and_id_alignment": true,
+    "strict_student_core_and_exact_auxiliaries": true,
+    "strict_ema_detector_only_load": true,
+    "genuine_mdp_provenance_and_frozen32": true
+  },
+  "validation_gpu_seconds": 633,
+  "validation_budget_seconds": 1000,
+  "cumulative_mdp_gpu_seconds": 2981,
+  "original_nan_fix_established": false,
+  "performance_regression_vs_source": true,
+  "further_training_started": false,
+  "test_score_tuning_or_checkpoint_reselection": false,
+  "full_result_delivery_pr": 40,
+  "interpretation": "Both roles completed valid TEST/ROI, but adaptation regressed sharply on this one domain/seed. Valid finite execution is not competitive accuracy or proof of an original NaN fix. The low scores are retained and do not establish all-domain/multi-seed behavior."
+}
