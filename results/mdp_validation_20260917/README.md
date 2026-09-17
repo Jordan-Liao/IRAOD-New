@@ -72,3 +72,28 @@ omitted the writer `PYTHONPATH` and used unavailable `os.pidfd_open`.
 The corrected task supplied the selected writer namespace and used portable
 owned-child waiting. Both failures and correction records remain preserved;
 no scientific parameter, checkpoint or frozen runtime was changed.
+
+## Verified incremental ByPy delivery
+
+The complete TEST/ROI case directories and a shared metadata bundle were
+delivered to:
+
+`/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/`
+
+| Archive | Bytes | Provider verification |
+|---|---:|---|
+| `mdp-chaff42-student.tar` | 1241026560 | Size and whole-file MD5 match |
+| `mdp-chaff42-ema.tar` | 152524800 | Size and whole-file MD5 match |
+| `mdp-chaff42-metadata.tar` | 747520 | Size and whole-file MD5 match |
+| Total | 1394298880 | 3 delivered,0 pending,0 active |
+
+The unmodified `bypy_delivery.json` receipt binds each selected role and source
+directory to its archive prefix and provider object. Header-only membership
+proof covers8552 regular members per role, including all8538 ROI NPZ files,
+the six required native files, indices/plans and strict-load/provenance records.
+The metadata bundle has17 regular members. No external-link substitutes or
+payload reads were used for that membership proof.
+
+This is a new increment, not a rewrite of earlier deliveries. Model checkpoint
+weights, raw datasets, repositories, environments and credentials are not part
+of this TEST/ROI archive scope.

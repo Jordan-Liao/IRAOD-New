@@ -1,0 +1,108 @@
+{
+  "schema": "iraod-mdp-bypy-delivery-v1",
+  "scope_id": "iraod-mdp-test-roi-bypy-20260917",
+  "status": "DELIVERED",
+  "completed_utc": "2026-09-17T03:23:15.147891+00:00",
+  "keys": [
+    "RSAR/chaff/42/MDP/student",
+    "RSAR/chaff/42/MDP/ema"
+  ],
+  "objects": 3,
+  "bytes": 1394298880,
+  "pending": 0,
+  "active": 0,
+  "destination": "/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/",
+  "records": [
+    {
+      "role": "student",
+      "source": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/student",
+      "archive": "mdp-chaff42-student.tar",
+      "member_prefix": "RSAR/chaff/42/MDP/student",
+      "source_bytes": 1241026560,
+      "source_md5": "166f7d4c06963b64466f0a2a9f01d461",
+      "source_sha256": "6dd0248a40054af0fc8aa0f9170a938549f94a1b09b5f51360d54117bd64a591",
+      "provider_size": 1241026560,
+      "provider_md5": "166f7d4c06963b64466f0a2a9f01d461",
+      "provider_path": "/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/mdp-chaff42-student.tar",
+      "verified_at_utc": "2026-09-17T03:23:11.924945+00:00"
+    },
+    {
+      "role": "ema",
+      "source": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/cases/ema",
+      "archive": "mdp-chaff42-ema.tar",
+      "member_prefix": "RSAR/chaff/42/MDP/ema",
+      "source_bytes": 152524800,
+      "source_md5": "d7f60223562f1832661de2018d546bf3",
+      "source_sha256": "07f0e56aeaf246081f48a844027358e149748f044f397c8fe663bcfd4c5e0696",
+      "provider_size": 152524800,
+      "provider_md5": "d7f60223562f1832661de2018d546bf3",
+      "provider_path": "/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/mdp-chaff42-ema.tar",
+      "verified_at_utc": "2026-09-17T02:46:52.205046+00:00"
+    },
+    {
+      "role": "metadata",
+      "source": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/archive_stage_20260917/metadata",
+      "archive": "mdp-chaff42-metadata.tar",
+      "member_prefix": "RSAR/chaff/42/MDP/metadata",
+      "source_bytes": 747520,
+      "source_md5": "8cae4d023626f2beb63607c9e9ee7964",
+      "source_sha256": "18f6f56537c108e94f332857344de9a5c694536266de104831cbbd2637551867",
+      "provider_size": 747520,
+      "provider_md5": "8cae4d023626f2beb63607c9e9ee7964",
+      "provider_path": "/apps/bypy/IRAOD-New/results/mdp_chaff42_test_roi_20260917/mdp-chaff42-metadata.tar",
+      "verified_at_utc": "2026-09-17T02:46:56.241312+00:00"
+    }
+  ],
+  "tar_member_proof": {
+    "schema": "iraod-mdp-chaff42-tar-member-proof-v1",
+    "status": "PASS",
+    "header_only": true,
+    "payload_bytes_read_for_proof": 0,
+    "external_link_members": 0,
+    "proofs": {
+      "student": {
+        "required_native_files": [
+          "RSAR/chaff/42/MDP/student/native/eval_20260917_091951.json",
+          "RSAR/chaff/42/MDP/student/native/predictions.pkl",
+          "RSAR/chaff/42/MDP/student/native/predictions.pkl.image_ids.json",
+          "RSAR/chaff/42/MDP/student/native/class_ap.txt",
+          "RSAR/chaff/42/MDP/student/native/execution.json",
+          "RSAR/chaff/42/MDP/student/native/eval_status"
+        ],
+        "roi_npz_members": 8538,
+        "roi_index": "RSAR/chaff/42/MDP/student/roi/index.json",
+        "roi_plan": "RSAR/chaff/42/MDP/student/roi_plan.json",
+        "native_pass": "RSAR/chaff/42/MDP/student/native_pass.json",
+        "case_spec": "RSAR/chaff/42/MDP/student/case_spec.json",
+        "checkpoint_load": "RSAR/chaff/42/MDP/student/mdp_checkpoint_load.json",
+        "all_source_files_stored_regular": true,
+        "member_count": 8552
+      },
+      "ema": {
+        "required_native_files": [
+          "RSAR/chaff/42/MDP/ema/native/eval_20260917_091951.json",
+          "RSAR/chaff/42/MDP/ema/native/predictions.pkl",
+          "RSAR/chaff/42/MDP/ema/native/predictions.pkl.image_ids.json",
+          "RSAR/chaff/42/MDP/ema/native/class_ap.txt",
+          "RSAR/chaff/42/MDP/ema/native/execution.json",
+          "RSAR/chaff/42/MDP/ema/native/eval_status"
+        ],
+        "roi_npz_members": 8538,
+        "roi_index": "RSAR/chaff/42/MDP/ema/roi/index.json",
+        "roi_plan": "RSAR/chaff/42/MDP/ema/roi_plan.json",
+        "native_pass": "RSAR/chaff/42/MDP/ema/native_pass.json",
+        "case_spec": "RSAR/chaff/42/MDP/ema/case_spec.json",
+        "checkpoint_load": "RSAR/chaff/42/MDP/ema/mdp_checkpoint_load.json",
+        "all_source_files_stored_regular": true,
+        "member_count": 8552
+      },
+      "metadata": {
+        "all_source_files_stored_regular": true,
+        "member_count": 17
+      }
+    }
+  },
+  "automatic_retry": false,
+  "gpu_used": false,
+  "prior_delivery_sets_modified": false
+}
