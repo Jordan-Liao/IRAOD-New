@@ -15,6 +15,8 @@ import numpy as np
 from experiments.comparison.aligned_roi import AlignedRoICapture, validate_native_predictions
 # Resolve exporter-only helpers before selecting the frozen model checkout.
 from experiments.comparison.dior_recovery.extract_roi_pre_fc_cls import runtime_provenance
+from experiments.comparison.mdp_checkpoint_admission import load_mdp_checkpoint
+from experiments.comparison.mdp_joint_inputs import declared_run
 from experiments.comparison.result_completion import (
     EXPECTED_TEST_IMAGES, FEATURE_POINT, FEATURE_VERSION, SCHEMA,
     iter_export_records, load_run, native_binding_evidence, read_json, validate_run,
@@ -111,7 +113,19 @@ def capture_native():
     checkpoint_meta = {}
 
     def load_checkpoint(*positional, **keywords):
-        checkpoint = original_load(*positional, **keywords)
+        case_spec_path = root / "case_spec.json"
+        case_spec = read_json(case_spec_path) if case_spec_path.is_file() else None
+        if case_spec is not None and case_spec["kind"] == "mdp":
+            run, _ = declared_run(read_json(case_spec["source_plan"]), case_spec["run_id"])
+            filename = positional[1] if len(positional) > 1 else keywords["filename"]
+            if Path(filename) != Path(run["checkpoint"]):
+                raise ValueError("MDP native load differs from its declared checkpoint")
+            checkpoint, admission = load_mdp_checkpoint(
+                original_load, run["role"], *positional, **keywords)
+            with (root / "mdp_checkpoint_load.json").open("x") as stream:
+                json.dump({**admission, "checkpoint": str(filename)}, stream, indent=2)
+        else:
+            checkpoint = original_load(*positional, **keywords)
         checkpoint_meta.update({key: checkpoint.get("meta", {}).get(key) for key in ("epoch", "iter")})
         return checkpoint
 

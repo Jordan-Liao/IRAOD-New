@@ -1,0 +1,9 @@
+{
+  "method": "MDP",
+  "role": "ema",
+  "strict_detector_load": true,
+  "detector_keys": 396,
+  "auxiliary_keys": [],
+  "auxiliary_reason": "MDPOBB ordinary evaluation bypasses all mdp training auxiliaries",
+  "checkpoint": "/home/zechuan/iraod_scratch/mdp134_validation_20260916/checkpoints/iter_266_ema.pth"
+}
