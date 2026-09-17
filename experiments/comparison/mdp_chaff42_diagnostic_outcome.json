@@ -1,0 +1,62 @@
+{
+  "schema": "iraod-mdp-diagnostic-outcome-v1",
+  "status": "NOT_REPRODUCED_CAUSE_UNVERIFIED",
+  "cell": "RSAR/chaff/42/MDP",
+  "algorithm_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "observer_revision": "e0d9a3c",
+  "original_acceptance": {
+    "completed_updates": 265,
+    "allocated_gpu_seconds": 553,
+    "last_finite_logged_update": 60,
+    "first_nonfinite_logged_update": 70,
+    "final_pair_valid": false
+  },
+  "pre_model_diagnostic_failure": {
+    "allocated_gpu_seconds": 6,
+    "completed_updates": 0,
+    "cause": "Caller passed train.py twice; no model was constructed."
+  },
+  "corrected_diagnostic": {
+    "completed_updates": 80,
+    "allocated_gpu_seconds": 239,
+    "exit_code": 3,
+    "all_recorded_values_finite": true,
+    "max_gradient_abs": 38.631439208984375,
+    "max_gradient_update": 11,
+    "max_parameter_abs": 7.110245704650879,
+    "last_update_loss": 3.0846381187438965,
+    "last_update_gradient_abs": 0.7899697422981262,
+    "last_update_parameter_abs": 7.10460901260376,
+    "anomaly_observation_from_update": 55,
+    "capture_written": false,
+    "finite_replay_state_retained": false,
+    "valid_full_budget_model": false
+  },
+  "existing_record_comparison": {
+    "same_algorithm_revision": true,
+    "same_gpu_uuid": true,
+    "same_recorded_environment_selectors": true,
+    "same_forwarded_training_arguments_except_work_dir": true,
+    "same_resolved_config_except_work_dir": true,
+    "basis": "Native logger ten-update aggregates on both sides, not single-step diagnostic values.",
+    "windows": [
+      {"updates": "1-10", "original_loss": 26.47853, "diagnostic_loss": 25.7905},
+      {"updates": "11-20", "original_loss": 11.54555, "diagnostic_loss": 12.56998},
+      {"updates": "21-30", "original_loss": 11.29914, "diagnostic_loss": 7.60906},
+      {"updates": "31-40", "original_loss": 10.29081, "diagnostic_loss": 5.15982},
+      {"updates": "41-50", "original_loss": 10.75139, "diagnostic_loss": 6.78082},
+      {"updates": "51-60", "original_loss": 101.47937, "diagnostic_loss": 6.23631},
+      {"updates": "61-70", "original_loss": "nan", "diagnostic_loss": 4.17355}
+    ],
+    "logged_pseudo_count_averages_agree": true,
+    "trajectory_divergence_before_anomaly_start": true,
+    "actual_initial_state_batch_rng_or_gpu_kernel_parity_proven": false,
+    "interpretation": "Matching configuration and rounded pseudo counts do not establish the same numerical trajectory. The first ten-update window already differs; no cause is assigned to algorithm components, initialization, GPU execution or observation."
+  },
+  "cumulative_allocated_gpu_seconds": 798,
+  "further_start_authorized": false,
+  "test_roi_or_resume_started": false,
+  "scientific_parameters_changed": false,
+  "root_cause": "INSUFFICIENT_EVIDENCE",
+  "remaining_input": "A controlled same-initial-state/same-augmented-input trajectory comparison and a retained finite replay state are needed before a causal fix. No additional execution was performed."
+}

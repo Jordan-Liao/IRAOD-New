@@ -1,0 +1,85 @@
+{
+  "schema": "iraod-mdp-obb-cpu-validation-v1",
+  "status": "PASS_CPU_CANDIDATE",
+  "base_revision": "e6599be4fab9b2da07ea1abd87cc8473be2e0d60",
+  "reference": {
+    "preprint": "arXiv:2401.17916v1",
+    "official_code": "weix-liu/AFSP@02ec5dae2d1904130a06202e6fcd53667aa847f7",
+    "publisher_version_equivalence": "UNVERIFIED",
+    "ema_clarification": "Preprint Sec. IV.B explicitly specifies retention0.9 once after each epoch, matching the official script."
+  },
+  "native_cpu_tests": {
+    "host": "7T83-8xA100-67",
+    "python": "/home/zechuan/miniforge3/envs/iraod/bin/python",
+    "mdp_tensor_checks": 7,
+    "mdp_native_integration_checks": 6,
+    "existing_proposal_port_regressions": 8,
+    "passed": 21,
+    "failed": 0,
+    "elapsed_seconds": 1.934,
+    "cpu_only": true,
+    "packages_installed_or_upgraded": false,
+    "command": "CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONPATH=REPO:REPO/tools/tests NATIVE_PYTHON -m unittest test_mdp_losses test_mdp_integration test_proposal_teacher -v"
+  },
+  "actual_source_loading": {
+    "model_forward_run": false,
+    "checkpoint_files_rehashed": false,
+    "checkpoints_modified": false,
+    "results": [
+      {
+        "dataset": "RSAR",
+        "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+        "original_state_entries": 396,
+        "tensor_elements": 43939094,
+        "auxiliary_state_entries": 11,
+        "original_student_teacher_exact": true,
+        "teacher_frozen": true,
+        "c2_channels": 256,
+        "c4_channels": 1024,
+        "classes": 6,
+        "cuda_initialized": false,
+        "seconds": 1.1923645460046828
+      },
+      {
+        "dataset": "DIOR",
+        "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+        "original_state_entries": 396,
+        "tensor_elements": 43953444,
+        "auxiliary_state_entries": 11,
+        "original_student_teacher_exact": true,
+        "teacher_frozen": true,
+        "c2_channels": 256,
+        "c4_channels": 1024,
+        "classes": 20,
+        "cuda_initialized": false,
+        "seconds": 1.331886775791645
+      }
+    ]
+  },
+  "verified_boundaries": [
+    "MSP exactly0.5/0.5, both N/2 groups represented, OBB angles/labels preserved",
+    "Mixed valid padding is pair-specific, not unrelated batch padding",
+    "AFSP forward normalization and dual-GRL gradient signs",
+    "Finite zero/constant and single-spatial-value feature handling",
+    "Previous local prototype snapshots, paper L2 norm-sum and connected empty support",
+    "Two-process CPU global prototype reduction and gradient semantics",
+    "Native rotated ROI pooling, RPN/ROI detection losses and nonzero controlled-fixture gradients",
+    "Teacher frozen during forward/backward, epoch EMA before checkpoint",
+    "No target-annotation dependency and nonempty external GT rejected",
+    "Original detector source keys/shapes cannot be silently omitted",
+    "Ordinary evaluation bypasses all MDP auxiliary modules"
+  ],
+  "fixture_correction": {
+    "observation": "The reduced C2=16 fixture has one AFSP hidden unit; its sampled preactivation was -0.006485506892204285, so ReLU was dead and both style parameter gradients were zero.",
+    "change": "Only the synthetic fixture initializes that hidden projection positively to exercise the gradient path; production initialization and the nonzero-gradient assertion remain unchanged."
+  },
+  "gpu_training_started": false,
+  "benchmark_results_added": false,
+  "old_experiment_matrix_or_metrics_changed": false,
+  "remaining_validation": [
+    "Real-target GPU memory, throughput and numerical training trajectory",
+    "Authorized pilot and full-budget method evaluation before adding benchmark results",
+    "Formal publisher-version differences from the inspected preprint",
+    "Exact optimizer/RNG/paired-EMA resume beyond this CPU candidate"
+  ]
+}

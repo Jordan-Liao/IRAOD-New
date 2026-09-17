@@ -1,0 +1,82 @@
+{
+  "schema": "iraod-mdp-diagnostic-v3-outcome-v1",
+  "status": "FINITE_DIAGNOSTIC_AND_REPLAYS_COMPLETE_CAUSE_UNVERIFIED",
+  "cell": "RSAR/chaff/42/MDP",
+  "algorithm_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "observer_revision": "5994c8e72fdb76da64c24314fcb1bd2c299762ca",
+  "scientific_parameters_changed": false,
+  "diagnostic": {
+    "completed_updates": 265,
+    "allocated_gpu_seconds": 776,
+    "exit_code": 3,
+    "all_step_numeric_values_finite": true,
+    "final_loss": 3.8235676288604736,
+    "final_gradient_max_abs": 0.5628362894058228,
+    "peak_gradient_max_abs": 30.579288482666016,
+    "peak_gradient_update": 10,
+    "initial_payload_bytes": 881241523,
+    "terminal_payload_bytes": 1306096160,
+    "terminal_pre_forward_update": 265,
+    "teacher_entries": 396,
+    "gradient_entries": 201,
+    "native_epoch_end_ema_and_checkpoint_completed": false
+  },
+  "v2_v3_trajectory_comparison": {
+    "compared_updates": 80,
+    "initial_actual_auxiliary_state_and_batch_match_cpu_reference": true,
+    "first_step_all_loss_values_equal": true,
+    "first_step_gradient_max_abs_difference": -0.00002193450927734375,
+    "first_loss_difference_update": 3,
+    "first_total_loss_difference": -0.00081634521484375,
+    "maximum_total_loss_absolute_difference_first80": 15.361068725585938,
+    "pseudo_count_values_equal_first80": true,
+    "historical_failed_run_initial_state_or_actual_batch_identity_proven": false
+  },
+  "same_step_replays": {
+    "source_update": 265,
+    "count": 2,
+    "allocated_gpu_seconds": 34,
+    "all_numeric_values_finite": true,
+    "pre_forward_model_optimizer_counters_rng_batch_exact_equal": true,
+    "eight_detection_component_losses_exact_equal": true,
+    "maximum_total_and_pfd_loss_absolute_difference": 0.00000095367431640625,
+    "gradient_comparisons": {
+      "a_vs_b": {
+        "common_keys": 201,
+        "differing_names": 186,
+        "differing_elements": 15531046,
+        "max_abs_difference": 0.0000031404197216033936
+      },
+      "a_vs_original": {
+        "common_keys": 201,
+        "differing_names": 186,
+        "differing_elements": 15517784,
+        "max_abs_difference": 0.0000032186508178710938
+      },
+      "b_vs_original": {
+        "common_keys": 201,
+        "differing_names": 187,
+        "differing_elements": 14770399,
+        "max_abs_difference": 0.0000016987323760986328
+      }
+    },
+    "interpretation": "Identical retained pre-state/input/RNG gives finite, close but non-bitwise-identical GPU results. PFD and total loss vary slightly while the eight detection loss values agree. Neither the originating operation nor a causal link to the original NaN has been established."
+  },
+  "budget": {
+    "prior_gpu_seconds": 798,
+    "this_authorization_gpu_seconds": 810,
+    "cumulative_gpu_seconds": 1608,
+    "cumulative_ceiling_seconds": 1698,
+    "unused_seconds": 90,
+    "further_start_authorized": false
+  },
+  "original_nonfinite_pair_preserved": true,
+  "original_nan_reproduced": false,
+  "original_nan_root_cause": "INSUFFICIENT_EVIDENCE",
+  "numerical_model_fix_applied": false,
+  "diagnostic_replay_retention_fix_applied": true,
+  "valid_full_budget_model_pair_delivered": false,
+  "test_or_roi_started": false,
+  "recovery_boundary": "The complete pre-forward state and actual batch for update265 survive, permitting a one-step replay from the state after264 updates. This is not a native final checkpoint pair or an exact general epoch/data-loader resume. Finalization and model acceptance have not been executed.",
+  "remaining_causal_input": "A captured nonfinite event reached from finite state and actual inputs is still needed to identify and regress the original numerical defect. Small finite GPU differences alone do not justify changing the loss, learning rate, geometry policy or seed."
+}

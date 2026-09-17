@@ -1,0 +1,68 @@
+{
+  "schema": "iraod-mdp-final-recovery-outcome-v1",
+  "status": "FINITE_RECOVERED_CANDIDATE_PAIR",
+  "cell": "RSAR/chaff/42/MDP",
+  "algorithm_revision": "d8e2cc8e07043d966b1e8a8ca77921eb46531545",
+  "observer_revision": "5994c8e72fdb76da64c24314fcb1bd2c299762ca",
+  "recovery_revision": "4061eb1189395dc22873aa8998c04cf8d1144f00",
+  "source_capture": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_first_invalid_diag_v3_20260916/RSAR/chaff/seed_42/MDP/capture/capture.pt",
+  "lineage": {
+    "prior_optimizer_updates": 264,
+    "recovered_optimizer_updates": 1,
+    "completed_optimizer_updates": 265,
+    "seed": 42,
+    "batch": 32,
+    "world": 1,
+    "epochs": 1,
+    "lr": 0.02,
+    "target": "/mnt/shared/zechuan/iraod_data/RSAR/corruptions/chaff/val/images",
+    "source_teacher_exact_equal": true,
+    "step_loss": 3.8235678672790527
+  },
+  "student": {
+    "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_final_pair_recovery_pathfix_20260916/RSAR/chaff/seed_42/MDP/recovery/work/iter_266.pth",
+    "bytes": 426229441,
+    "epoch": 1,
+    "iteration": 266,
+    "state_entries": 407,
+    "optimizer_state_entries": 201,
+    "checked_tensors": 608,
+    "finite": true
+  },
+  "ema": {
+    "path": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/mdp_final_pair_recovery_pathfix_20260916/RSAR/chaff/seed_42/MDP/recovery/work/iter_266_ema.pth",
+    "bytes": 388333591,
+    "epoch": 1,
+    "iteration": 266,
+    "state_entries": 396,
+    "optimizer_state_entries": 201,
+    "checked_tensors": 597,
+    "finite": true
+  },
+  "ema_formula": {
+    "momentum": 0.9,
+    "checked_keys": 396,
+    "differing_names": 0,
+    "differing_elements": 0,
+    "max_abs_difference": 0.0,
+    "exact": true
+  },
+  "recovery_budget": {
+    "authorized_gpu_seconds": 60,
+    "pre_update_directory_collision_gpu_seconds": 10,
+    "successful_recovery_gpu_seconds": 21,
+    "total_recovery_gpu_seconds": 31,
+    "cumulative_mdp_gpu_seconds": 1639,
+    "cumulative_ceiling_seconds": 1698,
+    "unused_ceiling_seconds": 59,
+    "further_start_authorized": false
+  },
+  "scientific_parameters_changed": false,
+  "original_invalid_pair_overwritten": false,
+  "original_nan_root_cause": "INSUFFICIENT_EVIDENCE",
+  "original_nan_fix_established": false,
+  "valid_full_budget_candidate_pair": true,
+  "benchmark_result_accepted": false,
+  "test_or_roi_started": false,
+  "interpretation": "A finite 264-update prefix plus its captured last batch was continued for one native optimizer update, followed by the prescribed epoch EMA and native paired saving. This recovers candidate weights from the finite diagnostic trajectory; it neither repairs the historical NaN weights in place nor establishes the cause of that failure."
+}
