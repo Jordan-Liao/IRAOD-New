@@ -5,6 +5,7 @@ import copy
 import random
 import collections
 
+import numpy as np
 from torch.utils.data import Dataset
 from mmcv.utils import build_from_cfg
 from mmrotate.datasets.builder import ROTATED_DATASETS, ROTATED_PIPELINES
@@ -75,6 +76,21 @@ def _resolve_real_filename(filename, stem_to_filename):
     return stem_to_filename.get(stem)
 
 
+def _discover_image_filenames(img_dir):
+    if not img_dir or not osp.isdir(img_dir):
+        raise FileNotFoundError(f'image directory does not exist: {img_dir}')
+
+    filenames = []
+    for root, _, files in os.walk(img_dir):
+        for filename in files:
+            if osp.splitext(filename)[1].lower() not in IMG_EXTS:
+                continue
+            filenames.append(osp.relpath(osp.join(root, filename), img_dir))
+    if not filenames:
+        raise ValueError(f'image directory contains no supported images: {img_dir}')
+    return sorted(filenames, key=_image_sort_key)
+
+
 @ROTATED_DATASETS.register_module(name='DOTADataset', force=True)
 class DOTADataset(_MMRotateDOTADataset):
     """Project-local DOTADataset with automatic image suffix matching."""
@@ -94,6 +110,74 @@ class DOTADataset(_MMRotateDOTADataset):
             for info in data_infos
         ]
         return data_infos
+
+
+@ROTATED_DATASETS.register_module()
+class StrictSourceFreeDOTADataset(Dataset):
+    """Target-image-only weak/strong dataset for strict source-free training."""
+
+    def __init__(self,
+                 img_prefix,
+                 pipeline_share,
+                 pipeline_weak,
+                 pipeline_strong,
+                 classes=None,
+                 unlabeled_epoch_size=None,
+                 unlabeled_subset_seed=0):
+        super().__init__()
+        if unlabeled_epoch_size is not None:
+            if (not isinstance(unlabeled_epoch_size, int)
+                    or isinstance(unlabeled_epoch_size, bool)):
+                raise TypeError('unlabeled_epoch_size must be an integer')
+            if unlabeled_epoch_size <= 0:
+                raise ValueError('unlabeled_epoch_size must be positive')
+
+        self.img_prefix = img_prefix
+        self.filenames = _discover_image_filenames(img_prefix)
+        self.pipeline_share = Compose(pipeline_share or [])
+        self.pipeline_weak = Compose(pipeline_weak or [])
+        self.pipeline_strong = Compose(pipeline_strong or [])
+        self.CLASSES = classes
+
+        indices = list(range(len(self.filenames)))
+        if unlabeled_epoch_size is not None:
+            if unlabeled_epoch_size > len(indices):
+                raise ValueError(
+                    'unlabeled_epoch_size cannot exceed the target image '
+                    'dataset length')
+            indices = random.Random(unlabeled_subset_seed).sample(
+                indices, unlabeled_epoch_size)
+        self.indices = indices
+        self.flag = np.zeros(len(self.indices), dtype=np.uint8)
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        filename = self.filenames[self.indices[idx]]
+        shared = self.pipeline_share(dict(
+            img_info=dict(filename=filename),
+            img_prefix=self.img_prefix,
+            bbox_fields=['gt_bboxes'],
+            mask_fields=[],
+            seg_fields=[],
+            gt_bboxes=np.zeros((0, 5), dtype=np.float32),
+            gt_labels=np.zeros((0,), dtype=np.int64),
+        ))
+        if shared is None:
+            raise RuntimeError(
+                f'shared target pipeline rejected image: {filename}')
+
+        strong = self.pipeline_strong(copy.deepcopy(shared))
+        weak = self.pipeline_weak(shared)
+        if weak is None or strong is None:
+            raise RuntimeError(
+                f'weak/strong target pipeline rejected image: {filename}')
+        weak.update({
+            f'{key}_unlabeled_1': value
+            for key, value in strong.items()
+        })
+        return weak
 
 
 @ROTATED_DATASETS.register_module()

@@ -6,14 +6,12 @@ source.
 """
 from __future__ import annotations
 
-from collections import deque
-
 import torch
 from mmdet.models.builder import DETECTORS
 
 from .dru_dynamics import (
     adaptive_ema_momentum,
-    historical_student_consistency,
+    historical_student_mse,
     should_retrain_student,
     unlabeled_loss_scalar,
 )
@@ -31,7 +29,7 @@ class DRUUnbiasedTeacher(UnbiasedTeacher):
         self._dru_base_momentum = float(self.momentum)
         self._dru_ref_loss = None
         self._dru_last_student_loss = None
-        self._dru_hist_scores = deque(maxlen=int(cfg.get("dru_hist_len", 4)))
+        self._dru_hist_pred = None
         self.dru_last_retrain_iter = -1
         self._dru_pending_retrain = False
 
@@ -49,6 +47,40 @@ class DRUUnbiasedTeacher(UnbiasedTeacher):
         self.dru_last_retrain_iter = int(self.cur_iter)
         self._dru_pending_retrain = False
 
+    def _capture_student_cls(self, fn):
+        """Run fn while recording the last bbox-head cls scores (unlabeled pass)."""
+        captured = {}
+        head = getattr(getattr(self, "roi_head", None), "bbox_head", None)
+        orig = getattr(head, "forward", None) if head is not None else None
+        if orig is None:
+            return fn(), None
+
+        def wrapped(*args, **kwargs):
+            out = orig(*args, **kwargs)
+            cls = out[0] if isinstance(out, (tuple, list)) else out
+            captured["cls"] = cls
+            return out
+
+        head.forward = wrapped
+        try:
+            result = fn()
+        finally:
+            head.forward = orig
+        return result, captured.get("cls")
+
+    def _historical_prediction_loss(self, cls_scores):
+        if cls_scores is None or not torch.is_tensor(cls_scores):
+            return None
+        if cls_scores.dim() < 2 or cls_scores.numel() == 0:
+            return None
+        current = cls_scores.softmax(dim=-1).mean(dim=0)
+        hist = self._dru_hist_pred
+        loss = None
+        if hist is not None and tuple(hist.shape) == tuple(current.shape):
+            loss = self.dru_hist_weight * historical_student_mse(current, hist)
+        self._dru_hist_pred = current.detach()
+        return loss
+
     def forward_train_semi(self, *args, **kwargs):
         # Retrain must run before the new graph is built. Copying teacher
         # weights after super() but before backward in-places student params
@@ -62,7 +94,9 @@ class DRUUnbiasedTeacher(UnbiasedTeacher):
                 self._dru_ref_loss,
                 step=self.dru_momentum_step,
             )
-        losses = super().forward_train_semi(*args, **kwargs)
+        losses, cls_scores = self._capture_student_cls(
+            lambda: super(DRUUnbiasedTeacher, self).forward_train_semi(*args, **kwargs)
+        )
         student_loss = unlabeled_loss_scalar(losses)
         if self._dru_ref_loss is None:
             self._dru_ref_loss = student_loss
@@ -76,14 +110,9 @@ class DRUUnbiasedTeacher(UnbiasedTeacher):
             )
         self._dru_last_student_loss = student_loss
 
-        if self._dru_hist_scores:
-            hist_loss = historical_student_consistency(
-                [student_loss], [self._dru_hist_scores[-1]]
-            )
-            # Logged only; name has no "loss" so it is not part of backward.
-            losses["dru_historical"] = torch.tensor(
-                self.dru_hist_weight * hist_loss
-            )
-        self._dru_hist_scores.append(float(student_loss))
+        hist_loss = self._historical_prediction_loss(cls_scores)
+        if hist_loss is not None:
+            # Key must contain "loss" so MMCV includes it in backward.
+            losses["loss_dru_historical"] = hist_loss
         return losses
 

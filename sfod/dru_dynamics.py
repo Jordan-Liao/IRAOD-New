@@ -57,13 +57,31 @@ def _as_float_list(values: Any) -> list[float]:
     return [float(values)]
 
 
-def historical_student_consistency(current: Any, historical: Any) -> float:
-    """MSE between current student scores and stored historical student scores."""
+def historical_student_mse(current: Any, historical: Any):
+    """MSE between live student predictions and stored historical predictions.
+
+    Torch tensors keep the graph on ``current``. Lists/tuples return a float
+    for tests that cannot import torch.
+    """
+    if (
+        hasattr(current, "mean")
+        and hasattr(current, "shape")
+        and not isinstance(current, (list, tuple, str, bytes))
+    ):
+        hist = historical.detach() if hasattr(historical, "detach") else historical
+        if getattr(current, "shape", None) != getattr(hist, "shape", None):
+            return current.mean() * 0.0
+        return ((current - hist) ** 2).mean()
     cur = _as_float_list(current)
     hist = _as_float_list(historical)
     if not cur or not hist or len(cur) != len(hist):
         return 0.0
     return sum((a - b) ** 2 for a, b in zip(cur, hist)) / len(cur)
+
+
+def historical_student_consistency(current: Any, historical: Any):
+    """Back-compat alias used by older call sites and tests."""
+    return historical_student_mse(current, historical)
 
 
 def unlabeled_loss_scalar(losses: dict) -> float:
