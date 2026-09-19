@@ -229,6 +229,13 @@ class ComparisonExecutionMatrixTests(unittest.TestCase):
 
         init_text = (repo / "sfod" / "__init__.py").read_text(encoding="utf-8")
         self.assertIn("StrictSourceFreeDOTADataset", init_text)
+        gen = (
+            repo / "tools/dataset/generate_dior_corruptions.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def patch_numpy2_aliases", gen)
+        self.assertIn("patch_numpy2_aliases()", gen)
+        self.assertIn('"float_": "float64"', gen)
+
         for cfg_name in (
             "unbiased_teacher_oriented_rcnn_selftraining_st_baseline_rsar_orthonet_strict.py",
             "unbiased_teacher_oriented_rcnn_selftraining_st_baseline_dior_orthonet_strict.py",

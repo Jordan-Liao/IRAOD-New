@@ -234,6 +234,21 @@ def stable_seed(base_seed: int, corruption: str, image_name: str) -> int:
     return int.from_bytes(digest, byteorder="little", signed=False)
 
 
+def patch_numpy2_aliases() -> None:
+    """imagecorruptions still uses np.float_ / np.int_, removed in NumPy 2."""
+    import numpy as np
+
+    aliases = {
+        "float_": "float64",
+        "int_": "int64",
+        "complex_": "complex128",
+        "cfloat": "complex128",
+    }
+    for old, new in aliases.items():
+        if not hasattr(np, old) and hasattr(np, new):
+            setattr(np, old, getattr(np, new))
+
+
 def patch_skimage_for_imagecorruptions() -> None:
     """Make old imagecorruptions releases work with newer scikit-image.
 
@@ -300,6 +315,7 @@ def corrupt_one(task: Task) -> str:
     import numpy as np
     from PIL import Image
 
+    patch_numpy2_aliases()
     patch_skimage_for_imagecorruptions()
     from imagecorruptions import corrupt
 
@@ -317,6 +333,7 @@ def corrupt_one(task: Task) -> str:
 
 def ensure_backend_available() -> None:
     try:
+        patch_numpy2_aliases()
         patch_skimage_for_imagecorruptions()
         import imagecorruptions  # noqa: F401
     except ImportError as exc:
