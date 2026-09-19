@@ -53,6 +53,15 @@ ALIASES = {
     "brigtness": "brightness",
 }
 
+# Official DIOR-C cells already in the comparison snapshot (plus extra domain
+# `cloudy`, which is not in DIOR_C_CORRUPTIONS and is not a substitute).
+ALREADY_COMPARED_DIOR_C = frozenset({"brightness", "contrast"})
+
+
+def remaining_dior_c_corruptions() -> tuple[str, ...]:
+    """Official DIOR-C names not yet in the comparison matrix (17 of 19)."""
+    return tuple(name for name in DIOR_C_CORRUPTIONS if name not in ALREADY_COMPARED_DIOR_C)
+
 
 @dataclass(frozen=True)
 class ImageItem:
@@ -161,6 +170,8 @@ def normalize_corruptions(values: Iterable[str]) -> list[str]:
             name = ALIASES.get(name, name)
             if name in {"all", "dior-c", "dior_c"}:
                 names.extend(DIOR_C_CORRUPTIONS)
+            elif name in {"remaining-17", "remaining_17", "dior-c-remaining"}:
+                names.extend(remaining_dior_c_corruptions())
             else:
                 names.append(name)
 
@@ -234,7 +245,8 @@ def patch_skimage_for_imagecorruptions() -> None:
     import skimage.filters
 
     gaussian = skimage.filters.gaussian
-    if "multichannel" in inspect.signature(gaussian).parameters:
+    params = inspect.signature(gaussian).parameters
+    if "multichannel" in params and "output" in params:
         return
 
     def gaussian_compat(
@@ -248,19 +260,26 @@ def patch_skimage_for_imagecorruptions() -> None:
         *,
         multichannel=None,
         channel_axis=None,
+        **kwargs,
     ):
-        if multichannel is not None and channel_axis is None:
+        if channel_axis is None and multichannel is not None:
             channel_axis = -1 if multichannel else None
-        return gaussian(
-            image,
-            sigma=sigma,
-            output=output,
-            mode=mode,
-            cval=cval,
-            preserve_range=preserve_range,
-            truncate=truncate,
-            channel_axis=channel_axis,
-        )
+        call = {}
+        if "sigma" in params:
+            call["sigma"] = sigma
+        if "mode" in params:
+            call["mode"] = mode
+        if "cval" in params:
+            call["cval"] = cval
+        if "preserve_range" in params:
+            call["preserve_range"] = preserve_range
+        if "truncate" in params:
+            call["truncate"] = truncate
+        if "channel_axis" in params:
+            call["channel_axis"] = channel_axis
+        if output is not None and "output" in params:
+            call["output"] = output
+        return gaussian(image, **call)
 
     skimage.filters.gaussian = gaussian_compat
 
