@@ -22,8 +22,8 @@ Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, 
 | IRG | IRG-OBB | yes | required; rerun NaN cells once |
 | LPLD | LPLD-OBB | yes | required; rerun NaN cells once |
 | SFUT | SFUT-OBB | yes | required; not B |
-| DRU | DRU-OBB | yes | required; Dynamic Retraining-Updating + Historical Student Loss |
-| AASFOD | AASFOD-OBB | yes | required; fill missing TEST |
+| DRU | DRU-OBB | yes | required; Dynamic Retraining-Updating + Historical Student Loss; RSAR 1×32, 1 epoch (iter_266) for every seed |
+| AASFOD | AASFOD-OBB | yes | required; standard recipe: per-seed TSD + alignment/FNS two stages (`train_aasfod`), valid only with tsd.json + stages.json |
 | SFYOLO | SFYOLO-OBB | yes | required; fill TAM/TEST then DIOR-17 |
 
 ## Out of queue (defensive)
