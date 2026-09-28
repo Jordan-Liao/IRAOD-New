@@ -1,0 +1,13 @@
+id,name,source_free,box,vlm,target_labels,cga,vlst,train_target_images,notes
+A,Source Only,yes,OBB,none,eval_only,off,off,no,frozen source
+B,ST Mean Teacher,yes,OBB,none,eval_only,off,off,yes,use_bbox_reg=False; detector UnbiasedTeacher
+C,CLIP-CGA,yes,OBB,CLIP-RN50x64,eval_only,legacy,off,yes,no SARCLIP/LoRA
+D,SARCLIP-CGA,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,off,yes,frozen base no LoRA
+E,VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,off,on,yes,DDP2 topology-only
+F,CGA+VLST,yes,OBB,SARCLIP-ViT-B-32,eval_only,veto_soft,on,yes,D CGA + E VLST
+IRG,IRG-OBB,yes,OBB,none,eval_only,off,off,yes,required; reuse valid cells; rerun NaN once
+LPLD,LPLD-OBB,yes,OBB,none,eval_only,off,off,yes,required; reuse valid cells; rerun NaN once
+SFUT,SFUT-OBB,yes,OBB,none,eval_only,off,off,yes,required; independent of B
+DRU,DRU-OBB,yes,OBB,none,eval_only,off,off,yes,required; DRUUnbiasedTeacher not B; chaff/seed42 gate
+AASFOD,AASFOD-OBB,yes,OBB,none,eval_only,off,off,yes,required; complete missing TEST
+SFYOLO,SFYOLO-OBB,yes,OBB,none,eval_only,off,off,yes,required; TAM+TEST gaps then DIOR-17
