@@ -1,0 +1,23 @@
+{
+  "schema": "iraod-current-test-completion-v1",
+  "observed_utc": "2026-09-13T02:44:00Z",
+  "canonical_expected": 912,
+  "eligible_complete": 900,
+  "eligible_target": 900,
+  "held": 7,
+  "invalid_native_ema": 5,
+  "counts": {
+    "valid_native_test": 900,
+    "invalid_native_ema_nonfinite": 5,
+    "held_nonfinite_student": 5,
+    "held_nonfinite_checkpoint": 2
+  },
+  "source_table": "PR21 snapshot raw_metrics.csv (canonical key universe only; frozen historical rows unchanged)",
+  "current_status_table": "test_completion_status.csv",
+  "terminal_receipt": "oracle_rsar48_complete_20260913T0220Z.json",
+  "hold_receipt": "current_hold_sets_20260912T2252Z.json",
+  "training_audit": "training_completion_audit_20260912T2330Z.json",
+  "roi_status": "INCOMPLETE",
+  "bypy_status": "INCOMPLETE",
+  "note": "This checkpoint closes the TEST scientific phase only. Current metrics/report integration, ROI, ByPy verification and final PR remain open."
+}
