@@ -3,9 +3,10 @@
 
 The tool is deliberately independent from MMDetection/MMRotate.  It hashes
 files as opaque bytes and never parses annotation semantics or evaluates a
-model.  ``build`` records both dataset trees and writes canonical JSON plus a
-detached ``.sha256`` sidecar.  ``verify`` validates the sidecar and schema,
-then rescans and rehashes both roots.  Every inconsistency is fatal.
+model.  ``build`` records paired annotation/image trees; ``build-image-only``
+records strict adaptation images without opening an annotation tree.  Both
+write canonical JSON plus a detached ``.sha256`` sidecar.  ``verify`` validates
+the sidecar and schema, then rescans and rehashes every declared root.
 
 Stem identity is the final path component without its last suffix.  Stems
 must be unique within each root and the annotation/image stem sets must match
@@ -31,6 +32,8 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 MANIFEST_TYPE = "iraod_dataset_file_manifest"
+IMAGE_ONLY_SCHEMA_VERSION = 1
+IMAGE_ONLY_MANIFEST_TYPE = "iraod_image_only_file_manifest"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 NO_EXTENSION = "<none>"
 
@@ -459,6 +462,37 @@ def build_payload(
     )
 
 
+def _build_image_only_payload_from_resolved_root(
+    resolved_images: Path,
+    split: str,
+    corruption: str,
+    class_order: Sequence[str],
+) -> dict[str, Any]:
+    return {
+        "class_order": _validate_class_order(class_order),
+        "corruption": _require_string(corruption, "corruption"),
+        "images": _scan_snapshot(resolved_images, "images"),
+        "manifest_type": IMAGE_ONLY_MANIFEST_TYPE,
+        "schema_version": IMAGE_ONLY_SCHEMA_VERSION,
+        "split": _require_string(split, "split"),
+    }
+
+
+def build_image_only_payload(
+    image_root: Path,
+    split: str,
+    corruption: str,
+    class_order: Sequence[str],
+) -> dict[str, Any]:
+    resolved_images = _resolve_root(image_root, "image-root")
+    return _build_image_only_payload_from_resolved_root(
+        resolved_images,
+        split,
+        corruption,
+        class_order,
+    )
+
+
 def _validate_file_entries(value: Any, location: str) -> list[dict[str, Any]]:
     if type(value) is not list or not value:
         raise DataManifestError(f"{location} must be a non-empty array")
@@ -593,6 +627,39 @@ def validate_payload(payload: Any) -> tuple[Path, Path]:
     if alignment != expected_alignment:
         raise DataManifestError("alignment does not match declared file entries")
     return ann_root, image_root
+
+
+def validate_image_only_payload(payload: Any) -> Path:
+    manifest = _require_exact_object(
+        payload,
+        "manifest",
+        {
+            "class_order",
+            "corruption",
+            "images",
+            "manifest_type",
+            "schema_version",
+            "split",
+        },
+    )
+    if (
+        type(manifest["schema_version"]) is not int
+        or manifest["schema_version"] != IMAGE_ONLY_SCHEMA_VERSION
+    ):
+        raise DataManifestError(
+            f"unsupported schema_version: {manifest['schema_version']!r}"
+        )
+    if manifest["manifest_type"] != IMAGE_ONLY_MANIFEST_TYPE:
+        raise DataManifestError(
+            f"unsupported manifest_type: {manifest['manifest_type']!r}"
+        )
+    _require_string(manifest["split"], "manifest.split")
+    _require_string(manifest["corruption"], "manifest.corruption")
+    if type(manifest["class_order"]) is not list:
+        raise DataManifestError("manifest.class_order must be an array")
+    _validate_class_order(manifest["class_order"])
+    image_root, _ = _validate_snapshot(manifest["images"], "images")
+    return image_root
 
 
 def _atomic_write(path: Path, content: bytes, *, overwrite: bool) -> None:
@@ -842,6 +909,45 @@ def build_manifest(
     )
 
 
+def build_image_only_manifest(
+    image_root: Path,
+    split: str,
+    corruption: str,
+    class_order: Sequence[str],
+    output: Path,
+    *,
+    overwrite: bool = False,
+) -> str:
+    image_resolved = _resolve_root(image_root, "image-root")
+    output_path = _absolute_lexical(output)
+    detached_path = sidecar_path(output_path)
+    _validate_output_location(output_path, (image_resolved,))
+    _validate_output_location(detached_path, (image_resolved,))
+    _prepare_output(output_path, overwrite, "output")
+    _prepare_output(detached_path, overwrite, "detached sidecar")
+
+    payload = _build_image_only_payload_from_resolved_root(
+        image_resolved,
+        split,
+        corruption,
+        class_order,
+    )
+    content = canonical_json_bytes(payload)
+    digest = _sha256_bytes(content)
+    sidecar = f"{digest}  {output_path.name}\n".encode("ascii")
+    if overwrite:
+        _atomic_write(detached_path, sidecar, overwrite=True)
+        _atomic_write(output_path, content, overwrite=True)
+        return digest
+    return _atomic_create_bundle(
+        output_path,
+        content,
+        detached_path,
+        sidecar,
+        digest,
+    )
+
+
 def _require_regular_non_symlink(path: Path, location: str) -> None:
     try:
         info = path.lstat()
@@ -868,7 +974,7 @@ def _verify_detached_hash(manifest_path: Path, content: bytes) -> str:
     return digest
 
 
-def verify_manifest(manifest: Path) -> str:
+def verify_manifest_payload(manifest: Path) -> tuple[str, dict[str, Any]]:
     manifest_path = _absolute_lexical(manifest)
     _require_regular_non_symlink(manifest_path, "manifest")
     _require_regular_non_symlink(sidecar_path(manifest_path), "detached sidecar")
@@ -876,21 +982,43 @@ def verify_manifest(manifest: Path) -> str:
     digest = _verify_detached_hash(manifest_path, content)
     if canonical_json_bytes(payload) != content:
         raise DataManifestError(f"manifest is not canonical JSON: {manifest_path}")
+    if type(payload) is not dict:
+        raise DataManifestError("manifest root must be an object")
 
-    ann_root, image_root = validate_payload(payload)
-    _validate_output_location(manifest_path, (ann_root, image_root))
-    _validate_output_location(sidecar_path(manifest_path), (ann_root, image_root))
-    recomputed = _build_payload_from_resolved_roots(
-        resolved_ann=ann_root,
-        resolved_images=image_root,
-        split=payload["split"],
-        corruption=payload["corruption"],
-        class_order=payload["class_order"],
-    )
+    manifest_type = payload.get("manifest_type")
+    if manifest_type == MANIFEST_TYPE:
+        ann_root, image_root = validate_payload(payload)
+        roots = (ann_root, image_root)
+        recomputed = _build_payload_from_resolved_roots(
+            resolved_ann=ann_root,
+            resolved_images=image_root,
+            split=payload["split"],
+            corruption=payload["corruption"],
+            class_order=payload["class_order"],
+        )
+    elif manifest_type == IMAGE_ONLY_MANIFEST_TYPE:
+        image_root = validate_image_only_payload(payload)
+        roots = (image_root,)
+        recomputed = _build_image_only_payload_from_resolved_root(
+            resolved_images=image_root,
+            split=payload["split"],
+            corruption=payload["corruption"],
+            class_order=payload["class_order"],
+        )
+    else:
+        raise DataManifestError(
+            f"unsupported manifest_type: {manifest_type!r}")
+    _validate_output_location(manifest_path, roots)
+    _validate_output_location(sidecar_path(manifest_path), roots)
     if canonical_json_bytes(recomputed) != content:
         raise DataManifestError(
             "manifest no longer matches the current dataset directory contents"
         )
+    return digest, payload
+
+
+def verify_manifest(manifest: Path) -> str:
+    digest, _ = verify_manifest_payload(manifest)
     return digest
 
 
@@ -921,6 +1049,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace an existing regular manifest and sidecar",
     )
 
+    image_only = subparsers.add_parser(
+        "build-image-only",
+        help="scan an image root without opening annotations",
+    )
+    image_only.add_argument("--image-root", type=Path, required=True)
+    image_only.add_argument("--split", required=True)
+    image_only.add_argument("--corruption", required=True)
+    image_only.add_argument(
+        "--class-order",
+        nargs="+",
+        required=True,
+        help="ordered class names, as space-separated or comma-separated values",
+    )
+    image_only.add_argument("--output", type=Path, required=True)
+    image_only.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing regular manifest and sidecar",
+    )
+
     verify = subparsers.add_parser(
         "verify", help="verify sidecar, canonical schema, and current directory bytes"
     )
@@ -936,6 +1084,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             output = _absolute_lexical(args.output)
             digest = build_manifest(
                 ann_root=args.ann_root,
+                image_root=args.image_root,
+                split=args.split,
+                corruption=args.corruption,
+                class_order=args.class_order,
+                output=output,
+                overwrite=args.overwrite,
+            )
+            result = {
+                "manifest": str(output),
+                "sha256": digest,
+                "sidecar": str(sidecar_path(output)),
+                "status": "built",
+            }
+        elif args.command == "build-image-only":
+            output = _absolute_lexical(args.output)
+            digest = build_image_only_manifest(
                 image_root=args.image_root,
                 split=args.split,
                 corruption=args.corruption,

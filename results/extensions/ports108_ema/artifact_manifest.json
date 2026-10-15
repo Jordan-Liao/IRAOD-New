@@ -1,0 +1,98 @@
+{
+  "scope": "IRG/LPLD/SFUT final EMA native TEST;12 reused fixed source references",
+  "status": "quantitative_artifacts_complete_parent_extensions_incomplete",
+  "consumer_commit": "752a139c969911608b8807db2839332ddf6e2aae",
+  "training_code_sha_observed_in_all108_native_executions": "a39c83221c73e71d273b96ef95c65f6d8d1e84f9",
+  "evaluation_code_sha": "331d2131b84651f0a2930a3d53faeefad8701531",
+  "preserved_core_commit": "32e325442bba54ea11f2179f6c69c6f76fbe995d",
+  "remote_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908",
+  "runtime": "formal_ports_manifests_a39c832/runtime.json",
+  "collection_manifest": "ports108_collection_752a139/report-manifest.json",
+  "numeric_report": "ports108_report_752a139/report.json",
+  "accepted_owner_terminal": {
+    "evidence_source": "Parent-relayed sole GPU owner terminal event; owner reconciliation not repeated",
+    "at": "2026-09-08T15:55:49Z",
+    "state": "finite_runs/ports-108-20260908T094229Z/state.json",
+    "status": "complete",
+    "train_complete": 108,
+    "EMA_eval_complete": 108,
+    "failed": 0,
+    "active": 0,
+    "result_receipts": 213,
+    "adopted_train_cells": 3,
+    "retired_pids": [174328, 174326, 175180]
+  },
+  "consumer_results": {
+    "IRG": 36,
+    "LPLD": 36,
+    "SFUT": 36,
+    "new_EMA_cells": 108,
+    "fixed_source_cells_reused": 12,
+    "quantitative_complete_cells": 120,
+    "quantitative_expected_cells": 120,
+    "new_EMA_TEST_image_records": 1037304,
+    "new_EMA_post_nms_detections": 18229448,
+    "zero_detection_cells": 5,
+    "zero_detection_evidence": "zero_detection_cells.csv"
+  },
+  "large_artifacts_retained_remote": [
+    {
+      "path": "ports108_report_752a139/prediction_image_coverage.csv",
+      "bytes": 526110713,
+      "sha256": "c5f2de1aadb8b6d95361a876e452cca5516e60ba7135da6bc9423c8665353616",
+      "scope": "120 source and EMA cells; ordered native TEST image IDs and detection counts",
+      "in_git": false
+    }
+  ],
+  "statistical_scope": "Three declared methods in this EMA phase; three adaptation seeds conditional on fixed A. Not the final all-extension multiplicity family.",
+  "zero_detection_cause": "Confirmed numerical failure: all five affected final Student/EMA checkpoints and optimizer states contain NaNs; exact first arithmetic operator remains unknown",
+  "numerical_diagnosis": {
+    "scope": "Only five zero-output runs and one matched completed nonzero control; no broad matrix audit",
+    "affected_seed": 44,
+    "affected_EMA_nonfinite_tensors": "195 of343 floating tensors in each of the five runs",
+    "affected_Student_nonfinite_tensors": {
+      "IRG/point_target": "213 of361",
+      "LPLD/point_target": "195 of343",
+      "IRG/noise_suppression": "213 of361",
+      "LPLD/noise_suppression": "195 of343",
+      "SFUT/noise_suppression": "195 of343"
+    },
+    "optimizer_states": "Nonfinite in all five affected runs",
+    "last_finite_logged_block": 240,
+    "first_nonfinite_logged_block": 250,
+    "later_nonfinite_logged_block": 260,
+    "exact_first_operator": "Not recorded; ten-step logging does not establish it",
+    "healthy_intermediate_checkpoint_available": false,
+    "load_identity": "Native checkpoint/config/code/classes/8538 image records match; EMA key shapes match control; no native eval loading mismatch",
+    "IRG_source_warning": "18 newly initialized auxiliary parameters also missing from source in the healthy control; not a missing detector-weight explanation",
+    "control": {
+      "method": "IRG",
+      "domain": "point_target",
+      "seed": 43,
+      "EMA_nonfinite_tensors": 0,
+      "Student_nonfinite_tensors": 0,
+      "optimizer_nonfinite_tensors": 0,
+      "native_detections": 103767,
+      "mAP50": 0.5261342525482178
+    },
+    "other_runs": "No blanket health claim for the other103; only the named control was checked finite",
+    "original_zero_values_and_aggregates_preserved": true,
+    "replay_retraining_or_tuning_performed": false
+  },
+  "pending_joint_embedding_groups_with_zero_native_points": [
+    "RSAR/point_target/seed_44/ema",
+    "RSAR/noise_suppression/seed_44/ema"
+  ],
+  "outside_this_result_scope": [
+    "AASFOD",
+    "SFYOLO",
+    "B_REG/F deletions",
+    "oracle",
+    "new-port Student evaluations",
+    "ROI/visualization/joint-tSNE results"
+  ],
+  "new_GPU_or_inference_launches": 0,
+  "accepted_Student180_or_core_reports_modified": false,
+  "local_csv_format": "LF line endings; numeric values unchanged from remote consumer output",
+  "local_DOCX": "Existing renderer applied to the collected numeric report with explicit result-specific findings; no artifact recollection"
+}

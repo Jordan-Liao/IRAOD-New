@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import threading
@@ -9,6 +10,8 @@ from pathlib import Path
 from unittest import mock
 
 from tools.cga_research import gpu_scheduler as scheduler
+from tools.cga_research import run_experiment as runner_module
+from tools.cga_research.build_data_manifest import build_image_only_manifest
 from tools.cga_research.gpu_scheduler import (
     GPUInfo,
     GPULock,
@@ -120,7 +123,7 @@ class SchedulerTests(unittest.TestCase):
 
     def test_gpu_lock_excludes_second_holder(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             first = GPULock(root, "GPU-a")
             second = GPULock(root, "GPU-a")
             self.assertTrue(first.acquire())
@@ -197,6 +200,34 @@ class SchedulerTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertFalse(scheduler.valid_completed_result(work_dir, 41, "a"))
+
+    def test_strict_completion_requires_finished_training_and_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work_dir = Path(directory)
+            payload = self.completion_payload(
+                41, "strict", "a" * 64, "GPU-a")
+            payload.update({
+                "strict_source_free": True,
+                "final_map": None,
+                "final_val_epoch": None,
+                "final_val_iteration": None,
+                "progress": {"epoch": 1, "iteration": 10, "total": 10},
+            })
+            (work_dir / "run_result.json").write_text(
+                json.dumps(payload), encoding="utf-8")
+            self.assertFalse(
+                scheduler.valid_completed_result(work_dir, 41, "strict"))
+
+            (work_dir / "iter_10.pth").write_bytes(b"checkpoint")
+            payload["checkpoint_artifact"] = {
+                "relative_path": "iter_10.pth",
+                "sha256": hashlib.sha256(b"checkpoint").hexdigest(),
+                "size_bytes": len(b"checkpoint"),
+            }
+            (work_dir / "run_result.json").write_text(
+                json.dumps(payload), encoding="utf-8")
+            self.assertTrue(
+                scheduler.valid_completed_result(work_dir, 41, "strict"))
 
     def test_active_reservation_enforces_full_run_budget(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -576,6 +607,115 @@ class SchedulerTests(unittest.TestCase):
                         ]
                     )
             run.assert_not_called()
+
+    def test_scheduler_requires_protocol_supplied_loss_weights(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_args = [
+                "--project-root",
+                str(root),
+                "--research-root",
+                str(root / "research"),
+                "--python",
+                "/python",
+                "--seed",
+                "41",
+                "--method",
+                "no_cga",
+                "--dry-run",
+            ]
+            with self.assertRaises(SystemExit):
+                scheduler.main(base_args)
+
+            status = scheduler.main(base_args + [
+                "--cfg-option",
+                "model.cfg.weight_l=0",
+                "--cfg-option",
+                "model.cfg.weight_u=1",
+            ])
+            self.assertEqual(status, 0)
+            plan = json.loads(
+                (root / "research" / "scheduler_dry_run.json")
+                .read_text(encoding="utf-8"))
+            command = plan["jobs"][0]["command"]
+            self.assertIn("model.cfg.weight_l=0", command)
+            self.assertIn("model.cfg.weight_u=1", command)
+            self.assertNotIn("model.cfg.weight_l=1.0", command)
+            self.assertNotIn("model.cfg.weight_u=0.3", command)
+
+    def test_strict_scheduler_defaults_to_no_cga_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            methods = [MethodSpec("no_cga", {"CGA_SCORER": "none"})]
+            with mock.patch.object(
+                    scheduler, "load_method_specs", return_value=methods
+                    ) as load_methods, mock.patch.object(
+                        scheduler,
+                        "build_dry_run_plan",
+                        return_value={"status": "dry_run", "jobs": []}):
+                status = scheduler.main([
+                    "--project-root", str(root),
+                    "--research-root", str(root / "research"),
+                    "--python", "/python",
+                    "--seed", "41",
+                    "--strict-source-free",
+                    "--data-manifest", str(root / "manifest.json"),
+                    "--cfg-option", "model.cfg.weight_l=0",
+                    "--cfg-option", "model.cfg.weight_u=1",
+                    "--dry-run",
+                ])
+            self.assertEqual(status, 0)
+            self.assertEqual(load_methods.call_args.args[1], ["no_cga"])
+
+    def test_strict_scheduler_propagates_image_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            images = (
+                root / "RSAR" / "corruptions" / "chaff" / "val" / "images")
+            images.mkdir(parents=True)
+            (images / "target.png").write_bytes(b"target")
+            manifest = root / "manifest.json"
+            build_image_only_manifest(
+                image_root=images,
+                split="val",
+                corruption="chaff",
+                class_order=runner_module.RSAR_CLASS_ORDER,
+                output=manifest,
+            )
+            config = make_config(root)
+            strict_config = root / runner_module.STRICT_SOURCE_FREE_CONFIG
+            strict_config.parent.mkdir(parents=True)
+            strict_config.write_text("strict = True\n", encoding="utf-8")
+            checkpoint = root / "source_epoch_100.pth"
+            checkpoint.write_bytes(b"source checkpoint")
+            config.config = strict_config
+            config.seeds = [41, 42]
+            config.strict_source_free = True
+            config.data_manifest = manifest
+            config.common_cfg_options.extend([
+                "model.cfg.strict_source_free=True",
+                "model.cfg.weight_l=0",
+                "model.cfg.weight_u=1",
+                "data.train.type=StrictSourceFreeDOTADataset",
+                f"data.train.img_prefix={images}",
+                f"load_from={checkpoint}",
+                f"model.ema_ckpt={checkpoint}",
+            ])
+            with mock.patch.object(
+                    runner_module.data_manifest_tool,
+                    "verify_manifest_payload",
+                    wraps=runner_module.data_manifest_tool.verify_manifest_payload
+                    ) as verify:
+                plan = scheduler.build_dry_run_plan(
+                    config,
+                    [MethodSpec("no_cga", {"CGA_SCORER": "none"})],
+                    4,
+                    "GPU-strict",
+                )
+            job = plan["jobs"][0]
+            self.assertIn("--no-validate", job["command"])
+            self.assertEqual(job["gpu_index"], 4)
+            self.assertEqual(verify.call_count, 1)
 
     def test_method_specs_support_seed_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:

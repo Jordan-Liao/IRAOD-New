@@ -1,0 +1,77 @@
+{
+  "schema": "iraod-comparison-report-v1",
+  "roles": [
+    "ema"
+  ],
+  "source_ids": {
+    "RSAR": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+    "DIOR": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a"
+  },
+  "source_provenance": {
+    "RSAR": {
+      "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "weights_sha256": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+      "producer_record": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt",
+      "producer_record_snapshot": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/source_records/RSAR_producer_git_commit.txt",
+      "actual_source_producer_sha": "b474aaa5f7718746215ce13beceb071617bb823e",
+      "record_status": "present"
+    },
+    "DIOR": {
+      "checkpoint": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+      "weights_sha256": "74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a",
+      "producer_record": "/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/git_commit.txt",
+      "producer_record_snapshot": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/source_records/DIOR_producer_git_commit.txt",
+      "actual_source_producer_sha": "0f98a48b539f9260055fc305784ffbc924f50451",
+      "record_status": "present"
+    }
+  },
+  "inspect_quant_seeds": [
+    42,
+    43,
+    44
+  ],
+  "cells": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/cells.json",
+  "checkpoints": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/checkpoints.json",
+  "qualitative_plan": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/qualitative-plan.json",
+  "embeddings": [],
+  "collection": {
+    "created_at": "2026-09-08T03:00:10.210074+00:00",
+    "quant_seeds_inspected": [
+      42,
+      43,
+      44
+    ],
+    "inventory": "/mnt/shared/zechuan/iraod_artifacts/comparison/final_delivery_20260908_4a6bc50/input/collection_inventory.json",
+    "metric_files_found": 192,
+    "native_sidecars_present": 192,
+    "missing_counts": {},
+    "read_scope": "metadata only; no predictions pickle or ROI NPZ loaded by collection",
+    "legacy_subset_reference_only": {
+      "checkout": "/mnt/SSD2_8TB/zechuan/IRAOD-New-rc91548e4a",
+      "sha": "91548e4a3ee7771585fa6d7a847eaf145fb258a7",
+      "output_root": "/mnt/shared/zechuan/iraod_artifacts/comparison/result_completion_v2_91548e4a",
+      "plan": "/mnt/shared/zechuan/iraod_artifacts/comparison/result_completion_v2_91548e4a/completion-plan.json",
+      "bindings": "/mnt/shared/zechuan/iraod_artifacts/comparison/result_completion_v2_91548e4a/completion-bindings.json",
+      "coverage_csv": "/mnt/shared/zechuan/iraod_artifacts/comparison/result_completion_v2_91548e4a/iraod-aligned-roi-v2/coverage.csv",
+      "n_runs": 132,
+      "n_image_role_rows": 3520,
+      "roi_vis_complete": 3520,
+      "tsne_ok": 23,
+      "tsne_protocol_fail": [
+        "RSAR/am_noise_horizontal/student"
+      ],
+      "roi_index_example": "/mnt/shared/zechuan/iraod_artifacts/comparison/result_completion_v2_91548e4a/iraod-aligned-roi-v2/RSAR/clean/A/source/index.json",
+      "npz_arrays": [
+        "features",
+        "labels",
+        "scores",
+        "boxes",
+        "proposal_indices",
+        "flat_indices",
+        "detection_indices",
+        "image_ids"
+      ]
+    }
+  },
+  "qualitative_evidence": "/mnt/shared/zechuan/iraod_artifacts/comparison/qualitative_complete_20260907_stream/evidence"
+}

@@ -1,0 +1,23 @@
+{
+  "source": {
+    "path": "/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth",
+    "sha256": "e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c",
+    "bytes": 350503331
+  },
+  "sarclip_base": "/mnt/shared/zechuan/iraod_weights/sarclip/ViT-B-32/vit_b_32_model.safetensors",
+  "clip_rn50x64": "/mnt/shared/zechuan/iraod_weights/clip/RN50x64.pt",
+  "chaff_ema": {
+    "B": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/B/work/iter_266_ema.pth",
+    "C": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/C/work/iter_266_ema.pth",
+    "D": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/D/work/iter_266_ema.pth",
+    "E": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/E/ddp2/work/iter_266_ema.pth",
+    "F": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/F/preflight_ddp2/work/iter_266_ema.pth"
+  },
+  "chaff_student": {
+    "B": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/B/work/iter_266.pth",
+    "C": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/C/work/iter_266.pth",
+    "D": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/D/work/iter_266.pth",
+    "E": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/E/ddp2/work/iter_266.pth",
+    "F": "/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/F/preflight_ddp2/work/iter_266.pth"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "dataset": "RSAR",
+  "split": "train",
+  "status": "complete_reconciled",
+  "evidence_source": "Parent-accepted compute-owner terminal reconciliation; not repeated by this code delivery",
+  "terminal_marker": "ORACLE_RECONCILE_OK",
+  "terminal_at": "2026-09-08T10:38:52Z",
+  "builder_pid": 157722,
+  "builder_exited": true,
+  "root": "/mnt/shared/zechuan/iraod_artifacts/oracle_rsar_patches_2ecdc37",
+  "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_rsar_patches_2ecdc37/metadata.csv",
+  "metadata_bytes": 324418544,
+  "valid_crop_count": 1047844,
+  "metadata_rows_match_summary_and_count_audit": true,
+  "count_audit": "experiments/comparison/extensions/oracle_rsar_crop_count.json",
+  "per_class": {
+    "ship": 650650,
+    "aircraft": 48160,
+    "car": 66969,
+    "tank": 66353,
+    "bridge": 192584,
+    "harbor": 23128
+  },
+  "per_corruption": {
+    "chaff": 149692,
+    "gaussian_white_noise": 149692,
+    "point_target": 149692,
+    "noise_suppression": 149692,
+    "am_noise_horizontal": 149692,
+    "smart_suppression": 149692,
+    "am_noise_vertical": 149692
+  },
+  "clean_included": false,
+  "rejected": 0,
+  "canonical_budget": {
+    "epochs": 10,
+    "batch_size": 64,
+    "updates": 163730,
+    "draws_per_epoch": 1047844,
+    "replacement": true,
+    "drop_last": false
+  },
+  "expected_patch_draws": 10478440,
+  "gpu_training_launched": false
+}

@@ -1,0 +1,5 @@
+test,result,note
+n_seeds,1,seed=42 only; mean±std over seeds is N/A
+paired_ttest_vs_A,N/A,n=1 seed; do not invent p-values
+descriptive_delta_ada_over_7_corruptions,see method_mpc.csv,not a significance test
+mean_recovery_caveat,unstable,near-clean corruptions have tiny (A_clean-A_c) denominator; prefer mean Delta-ada

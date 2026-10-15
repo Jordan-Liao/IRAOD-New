@@ -11,8 +11,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from iraod_runtime import ensure_iraod_runtime
 
-os.environ.setdefault("IRAOD_CONDA_PREFIX", "/home/liaojr/anaconda3/envs/cliptorch")
-ensure_iraod_runtime()
+if __name__ == "__main__":
+    os.environ.setdefault("IRAOD_CONDA_PREFIX", "/home/liaojr/anaconda3/envs/cliptorch")
+    ensure_iraod_runtime()
 
 import numpy as np
 from PIL import Image

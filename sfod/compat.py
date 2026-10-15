@@ -14,7 +14,8 @@ def _multiclass_nms_rotated_device_safe(multi_bboxes,
                                         return_inds=False):
     num_classes = multi_scores.size(1) - 1
     if multi_bboxes.shape[1] > 5:
-        bboxes = multi_bboxes.view(multi_scores.size(0), -1, 5)
+        bboxes = multi_bboxes.view(
+            multi_scores.size(0), multi_bboxes.shape[1] // 5, 5)
     else:
         bboxes = multi_bboxes[:, None].expand(
             multi_scores.size(0), num_classes, 5)
@@ -61,7 +62,8 @@ def _multiclass_nms_rotated_device_safe(multi_bboxes,
     labels = labels[keep]
 
     if return_inds:
-        return torch.cat([bboxes, scores[:, None]], 1), labels, keep
+        # Map NMS's threshold-filtered indices back to flattened (RoI, class).
+        return torch.cat([bboxes, scores[:, None]], 1), labels, inds[keep]
     return torch.cat([bboxes, scores[:, None]], 1), labels
 
 

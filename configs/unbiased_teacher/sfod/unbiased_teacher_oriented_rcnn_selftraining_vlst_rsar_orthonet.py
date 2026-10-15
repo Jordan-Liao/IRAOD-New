@@ -7,7 +7,21 @@ import os
 
 # Arm C disables the label-level CGA branch. The prototype teacher builds its
 # own SARCLIP text encoder (VLST_BACKEND), so it is unaffected by this.
+sarclip_pretrained = os.environ.get('SARCLIP_PRETRAINED', '').strip()
+if not sarclip_pretrained:
+    raise RuntimeError(
+        'Strict VLST requires SARCLIP_PRETRAINED to point to the verified '
+        'base checkpoint')
+sarclip_pretrained = os.path.expanduser(sarclip_pretrained)
+if not os.path.isfile(sarclip_pretrained):
+    raise FileNotFoundError(
+        f'Strict VLST base checkpoint does not exist: {sarclip_pretrained}')
+if os.environ.get('SARCLIP_LORA', '').strip():
+    raise RuntimeError(
+        'Strict VLST forbids SARCLIP_LORA; use the verified base checkpoint')
+
 os.environ['CGA_SCORER'] = 'none'
+os.environ['CGA_STRICT'] = '1'
 os.environ['VLST_BACKEND'] = 'sarclip'
 
 _base_ = './unbiased_teacher_oriented_rcnn_selftraining_cga_rsar_orthonet.py'
@@ -40,9 +54,11 @@ model = dict(
         vlst_text_visual_alpha=0.5,
         vlst_score_thr=None,  # Inherit from score_thr
         vlst_projection_hidden=256,
-        vlst_lora_path=(
-            '/myfile/mycode/IRAOD-New/work_dirs/'
-            'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth'),
+        vlst_strict=True,
+        vlst_pretrained=sarclip_pretrained,
+        vlst_cache_dir=os.environ.get(
+            'SARCLIP_CACHE_DIR', os.path.dirname(sarclip_pretrained)),
+        vlst_lora_path=None,
         vlst_detector_dim=1024,  # RotatedShared2FCBBoxHead fc_out_channels
         vlst_vlm_dim=512,  # ViT-B-32 SARCLIP embedding dimension
     ),

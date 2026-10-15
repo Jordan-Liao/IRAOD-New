@@ -30,6 +30,22 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         self.vlst_text_visual_alpha = float(cfg.get('vlst_text_visual_alpha', 0.5))
         self.vlst_score_thr = cfg.get('vlst_score_thr', None)
         self.vlst_lora_path = cfg.get('vlst_lora_path', None)
+        self.vlst_strict = bool(cfg.get('vlst_strict', False))
+        self.vlst_pretrained = cfg.get('vlst_pretrained', None)
+        self.vlst_cache_dir = cfg.get('vlst_cache_dir', None)
+        if self.vlst_strict:
+            if self.vlst_lora_path:
+                raise ValueError(
+                    'vlst_strict forbids vlst_lora_path; use a frozen base '
+                    'SARCLIP checkpoint')
+            if not self.vlst_pretrained:
+                raise ValueError(
+                    'vlst_strict requires an explicit vlst_pretrained base '
+                    'checkpoint')
+            if os.environ.get('SARCLIP_LORA', '').strip():
+                raise RuntimeError(
+                    'vlst_strict forbids SARCLIP_LORA; strict VLST must use '
+                    'the configured base checkpoint')
         if self.vlst_score_thr is None:
             self.vlst_score_thr = self.score_thr
 
@@ -70,7 +86,9 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         # Try to get from CGA first (if available)
         ema_host = getattr(self.ema_model, 'module', self.ema_model)
 
-        if hasattr(ema_host, 'cga') and ema_host.cga is not None:
+        if (not self.vlst_strict
+                and hasattr(ema_host, 'cga')
+                and ema_host.cga is not None):
             try:
                 text_proto = ema_host.cga.text_prototype_matrix()  # (C, D)
                 self.vlst_teacher.set_text_prototypes(text_proto)
@@ -94,7 +112,12 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
                 elif self.num_classes == len(DIOR_CLASSES):
                     class_names = list(DIOR_CLASSES)
                 else:
-                    print(f"[VLST] Warning: Cannot infer class names for {self.num_classes} classes")
+                    message = (
+                        f'Cannot infer VLST class names for '
+                        f'{self.num_classes} classes')
+                    if self.vlst_strict:
+                        raise RuntimeError(message)
+                    print(f"[VLST] Warning: {message}")
                     return
             class_names = list(class_names)
 
@@ -111,24 +134,44 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             # Arm C has label-level CGA disabled, so relying on the ambient
             # SARCLIP_LORA environment makes the semantic-teacher arm
             # irreproducible.
-            inherited_lora = os.environ.get('SARCLIP_LORA')
-            try:
-                if self.vlst_lora_path:
-                    os.environ['SARCLIP_LORA'] = self.vlst_lora_path
-                elif inherited_lora:
-                    os.environ.pop('SARCLIP_LORA')
+            pretrained = (
+                self.vlst_pretrained
+                or '/myfile/pretrain/SARCLIP/ViT-B-32/'
+                   'vit_b_32_model.safetensors')
+            cache_dir = (
+                self.vlst_cache_dir
+                or (os.path.dirname(os.path.expanduser(pretrained))
+                    if self.vlst_strict
+                    else '/myfile/pretrain/SARCLIP/ViT-B-32'))
+
+            if self.vlst_strict:
                 vlm = CGA(
                     class_names=class_names,
                     backend=vlm_type,
                     model="ViT-B-32",
-                    pretrained="/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-                    cache_dir="/myfile/pretrain/SARCLIP/ViT-B-32",
+                    pretrained=pretrained,
+                    cache_dir=cache_dir,
+                    strict=True,
                 )
-            finally:
-                if inherited_lora is None:
-                    os.environ.pop('SARCLIP_LORA', None)
-                else:
-                    os.environ['SARCLIP_LORA'] = inherited_lora
+            else:
+                inherited_lora = os.environ.get('SARCLIP_LORA')
+                try:
+                    if self.vlst_lora_path:
+                        os.environ['SARCLIP_LORA'] = self.vlst_lora_path
+                    elif inherited_lora:
+                        os.environ.pop('SARCLIP_LORA')
+                    vlm = CGA(
+                        class_names=class_names,
+                        backend=vlm_type,
+                        model="ViT-B-32",
+                        pretrained=pretrained,
+                        cache_dir=cache_dir,
+                    )
+                finally:
+                    if inherited_lora is None:
+                        os.environ.pop('SARCLIP_LORA', None)
+                    else:
+                        os.environ['SARCLIP_LORA'] = inherited_lora
 
             # Keep it for instance-feature extraction (visual prototypes).
             self._vlst_vlm = vlm
@@ -142,6 +185,8 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
                   f"shape={text_proto_tensor.shape}, classes={class_names}")
 
         except Exception as e:
+            if self.vlst_strict:
+                raise
             print(f"[VLST] Warning: Failed to build text prototypes directly: {e}")
             import traceback
             traceback.print_exc()
@@ -224,24 +269,32 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             'pseudo_num': torch.Tensor([self.pseudo_num.sum() / self.image_num]).to(device),
             'pseudo_num(acc)': torch.Tensor([self.pseudo_num_tp.sum() / self.pseudo_num.sum()]).to(device)
         }
-        if self.vlst_loss_count > 0:
-            # NOTE: key must NOT contain "loss" — mmdet parse_losses sums every
-            # key that matches, so a diagnostic average would be double-counted.
-            extra_info['vlst_avg'] = torch.Tensor(
-                [self.vlst_loss_sum / self.vlst_loss_count]).to(device)
-            extra_info['vlst_samples'] = torch.Tensor(
-                [self.vlst_sample_sum / self.vlst_loss_count]).to(device)
-            diag = self.vlst_teacher.get_diagnostics()
-            # Separability of the student ROI embedding w.r.t. the prototypes.
-            # margin > 0 and rising is the signal that feature-level guidance
-            # is actually taking hold.
-            extra_info['vlst_margin'] = torch.Tensor([diag['margin']]).to(device)
-            extra_info['vlst_pos_cos'] = torch.Tensor([diag['pos_cos']]).to(device)
-            extra_info['vlst_proto_cls'] = torch.Tensor(
-                [float((diag['visual_counts'] > 0).sum())]).to(device)
-
+        extra_info.update(self._vlst_diagnostic_log_vars(device))
         losses.update(extra_info)
         return losses
+
+    def _vlst_diagnostic_log_vars(self, device):
+        """VLST log vars consumed by mmdet `_parse_losses` DDP allreduce.
+
+        Keys must not contain ``loss``: parse_losses sums every matching name
+        into the training objective. Empty pseudo-label ranks still emit the
+        same names so the consumer key-length assert does not fire.
+        """
+        if self.vlst_loss_count > 0:
+            vlst_avg = self.vlst_loss_sum / self.vlst_loss_count
+            vlst_samples = self.vlst_sample_sum / self.vlst_loss_count
+        else:
+            vlst_avg = 0.0
+            vlst_samples = 0.0
+        diag = self.vlst_teacher.get_diagnostics()
+        return {
+            'vlst_avg': torch.Tensor([vlst_avg]).to(device),
+            'vlst_samples': torch.Tensor([vlst_samples]).to(device),
+            'vlst_margin': torch.Tensor([diag['margin']]).to(device),
+            'vlst_pos_cos': torch.Tensor([diag['pos_cos']]).to(device),
+            'vlst_proto_cls': torch.Tensor(
+                [float((diag['visual_counts'] > 0).sum())]).to(device),
+        }
 
     def _vlst_update_prototypes(self, img_metas, bbox_results):
         """Extract VLM features and update visual prototypes."""

@@ -12,6 +12,7 @@ from mmcv.runner import get_dist_info
 
 from mmdet.apis.test import collect_results_cpu, collect_results_gpu
 from mmdet.core import encode_mask_results
+from tools.prediction_export import capture_image_records
 
 
 class PrintBar(object):
@@ -60,7 +61,8 @@ def single_gpu_test(model,
                     data_loader,
                     show=False,
                     out_dir=None,
-                    show_score_thr=0.3):
+                    show_score_thr=0.3,
+                    return_image_ids=False):
     
     model.eval()
 
@@ -83,6 +85,7 @@ def single_gpu_test(model,
     #------------------------------------------------------------------------------------------------------------------------     
                         
     results = []
+    image_records = []
     dataset = data_loader.dataset
 #     prog_bar = PrintBar(len(dataset))
     prog_bar = mmcv.ProgressBar(len(dataset))
@@ -127,11 +130,14 @@ def single_gpu_test(model,
             result = [(bbox_results, encode_mask_results(mask_results))
                       for bbox_results, mask_results in result]
         results.extend(result)
+        if return_image_ids:
+            image_records.extend(capture_image_records(data, batch_size))
         prog_bar.update(batch_size)
-    return results
+    return (results, image_records) if return_image_ids else results
 
 
-def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
+def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False,
+                   return_image_ids=False):
     """Test model with multiple gpus.
 
     This method tests model with multiple gpus and collects the results
@@ -164,7 +170,13 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
             if isinstance(result[0], tuple):
                 result = [(bbox_results, encode_mask_results(mask_results))
                           for bbox_results, mask_results in result]
-        results.extend(result)
+        if return_image_ids:
+            # Gather prediction/identity pairs together so rank interleaving and
+            # distributed sampler padding removal apply identically to both.
+            records = capture_image_records(data, len(result))
+            results.extend(zip(result, records))
+        else:
+            results.extend(result)
 
         if rank == 0:
             batch_size = len(result)
@@ -174,4 +186,8 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
         results = collect_results_gpu(results, len(dataset))
     else:
         results = collect_results_cpu(results, len(dataset), tmpdir)
+    if return_image_ids:
+        if results is None:
+            return None, None
+        return [item[0] for item in results], [item[1] for item in results]
     return results

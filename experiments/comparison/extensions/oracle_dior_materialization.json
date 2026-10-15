@@ -1,0 +1,34 @@
+{
+  "dataset": "DIOR",
+  "split": "train",
+  "status": "complete_reconciled",
+  "code_commit": "36c2053",
+  "root": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053",
+  "metadata": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/metadata.csv",
+  "metadata_bytes": 31317220,
+  "metadata_sha256": "5133594c8cb369ad57ff020ecd73f5c3efa112b20c0570f36d3fbe18881a55b7",
+  "reconciliation": "/mnt/shared/zechuan/iraod_artifacts/oracle_dior_patches_36c2053/reconciliation.json",
+  "valid_crop_count": 97902,
+  "physical_patch_files": 97902,
+  "unique_metadata_paths": 97902,
+  "train_ids": 5862,
+  "per_corruption": {
+    "brightness": 32634,
+    "cloudy": 32634,
+    "contrast": 32634
+  },
+  "classes": 20,
+  "count_audit": "experiments/comparison/extensions/oracle_dior_crop_count.json",
+  "all_class_and_domain_counts_match_audit": true,
+  "rejected": 0,
+  "canonical_budget": {
+    "epochs": 10,
+    "batch_size": 64,
+    "updates": 15300,
+    "draws_per_epoch": 97902,
+    "replacement": true,
+    "drop_last": false
+  },
+  "expected_patch_draws": 979020,
+  "gpu_training_launched": false
+}

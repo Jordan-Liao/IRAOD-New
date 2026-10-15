@@ -1,0 +1,49 @@
+dataset,method,role,metric,status,n,mean,sample_std,bootstrap_ci95_low,bootstrap_ci95_high,seeds,comparison_group
+RSAR,A,source,mPC,fixed_source,1,0.31714158611638205,,,,42 (one fixed source measurement),fixed_source
+RSAR,A,source,delta_A,fixed_source,1,0.0,,,,42 (one fixed source measurement),fixed_source
+RSAR,A,source,rPC_percent,fixed_source,1,59.68041278708742,,,,42 (one fixed source measurement),fixed_source
+RSAR,A,source,method_clean_normalized_percent,incomplete,0,,,,,42 (one fixed source measurement),fixed_source
+RSAR,A,source,clean_mAP50,fixed_source,1,0.5313997864723206,,,,42 (one fixed source measurement),fixed_source
+RSAR,A,source,clean_delta_A,fixed_source,1,0.0,,,,42 (one fixed source measurement),fixed_source
+RSAR,IRG,ema,mPC,complete_low_power,3,0.30624877980777193,0.05971512169703858,0.23729641735553741,0.3409979875598635,"42,43,44",common_one_epoch
+RSAR,IRG,ema,delta_A,complete_low_power,3,-0.0108928063086101,0.05971512169703859,-0.07984516876084465,0.023856401443481445,"42,43,44",common_one_epoch
+RSAR,IRG,ema,rPC_percent,complete_low_power,3,57.63058014019805,11.237325120782488,44.65497040012409,64.16976375236563,"42,43,44",common_one_epoch
+RSAR,IRG,ema,method_clean_normalized_percent,complete_low_power,3,55.850084806360094,10.680036228796217,43.51801852862155,62.073387828218436,"42,43,44",common_one_epoch
+RSAR,IRG,ema,clean_mAP50,complete_low_power,3,0.548036793867747,0.0023856795201441998,0.5452831387519836,0.5494807362556458,"42,43,44",common_one_epoch
+RSAR,IRG,ema,clean_delta_A,complete_low_power,3,0.016637007395426433,0.0023856795201441998,0.013883352279663086,0.018080949783325195,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,mPC,complete_low_power,3,0.2886202232468696,0.06249100615988134,0.21650568076542445,0.32685589364596773,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,delta_A,complete_low_power,3,-0.028521362869512467,0.06249100615988133,-0.10063590535095761,0.009714307529585702,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,rPC_percent,complete_low_power,3,54.31319895005324,11.75969726573015,40.742523101616214,61.50847289867945,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,method_clean_normalized_percent,complete_low_power,3,54.014031819117434,11.455614475136617,40.80156939420066,61.171833974956115,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,clean_mAP50,complete_low_power,3,0.5339462558428446,0.0031436149889033835,0.5306307673454285,0.5368838310241699,"42,43,44",common_one_epoch
+RSAR,LPLD,ema,clean_delta_A,complete_low_power,3,0.0025464693705240884,0.0031436149889033835,-0.0007690191268920898,0.005484044551849365,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,mPC,complete_low_power,3,0.32251505695638205,0.013187586365868099,0.3072930702141353,0.33048767702920095,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,delta_A,complete_low_power,3,0.005373470839999971,0.013187586365868106,-0.009848515902246748,0.013346090912818909,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,rPC_percent,complete_low_power,3,60.69160454455341,2.4816694890702604,57.827097043845264,62.19191001621061,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,method_clean_normalized_percent,complete_low_power,3,59.02561320234477,2.464873180101955,56.184835753494355,60.59794733987318,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,clean_mAP50,complete_low_power,3,0.546414335568746,0.0020215702144675248,0.544184148311615,0.5481264591217041,"42,43,44",common_one_epoch
+RSAR,SFUT,ema,clean_delta_A,complete_low_power,3,0.015014549096425375,0.0020215702144675248,0.012784361839294434,0.016726672649383545,"42,43,44",common_one_epoch
+DIOR,A,source,mPC,fixed_source,1,0.2711851994196574,,,,42 (one fixed source measurement),fixed_source
+DIOR,A,source,delta_A,fixed_source,1,0.0,,,,42 (one fixed source measurement),fixed_source
+DIOR,A,source,rPC_percent,fixed_source,1,91.9584050053105,,,,42 (one fixed source measurement),fixed_source
+DIOR,A,source,method_clean_normalized_percent,incomplete,0,,,,,42 (one fixed source measurement),fixed_source
+DIOR,A,source,clean_mAP50,fixed_source,1,0.2948998510837555,,,,42 (one fixed source measurement),fixed_source
+DIOR,A,source,clean_delta_A,fixed_source,1,0.0,,,,42 (one fixed source measurement),fixed_source
+DIOR,IRG,ema,mPC,complete_low_power,3,0.273922935128212,0.0011086464024692988,0.27281420429547626,0.2750314970811208,"42,43,44",common_one_epoch
+DIOR,IRG,ema,delta_A,complete_low_power,3,0.002737735708554586,0.0011086464024692986,0.0016290048758188884,0.0038462976614634195,"42,43,44",common_one_epoch
+DIOR,IRG,ema,rPC_percent,complete_low_power,3,92.88676617554961,0.375939966871814,92.51079757852892,93.26267750572997,"42,43,44",common_one_epoch
+DIOR,IRG,ema,method_clean_normalized_percent,complete_low_power,3,91.99327784947583,0.26895176263682846,91.71851186269252,92.25601151101768,"42,43,44",common_one_epoch
+DIOR,IRG,ema,clean_mAP50,complete_low_power,3,0.2977634270985921,0.00033683710878811327,0.2974472641944885,0.2981176972389221,"42,43,44",common_one_epoch
+DIOR,IRG,ema,clean_delta_A,complete_low_power,3,0.0028635760148366294,0.00033683710878811327,0.0025474131107330322,0.003217846155166626,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,mPC,complete_low_power,3,0.2754678924878438,0.001334569690914991,0.2742053270339966,0.27686436971028644,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,delta_A,complete_low_power,3,0.004282693068186442,0.001334569690915002,0.003020127614339193,0.005679170290629069,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,rPC_percent,complete_low_power,3,93.41065838978916,0.452550140669948,92.98252475418126,93.88420126114382,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,method_clean_normalized_percent,complete_low_power,3,92.24499541091888,0.46157013492555365,91.74755727654339,92.6594355277864,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,clean_mAP50,complete_low_power,3,0.2986292640368144,0.0015613720857499246,0.29699045419692993,0.30009952187538147,"42,43,44",common_one_epoch
+DIOR,LPLD,ema,clean_delta_A,complete_low_power,3,0.0037294129530588784,0.0015613720857499246,0.0020906031131744385,0.0051996707916259766,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,mPC,complete_low_power,3,0.27289044691456693,5.879170229587019e-05,0.2728234877189,0.27293361226717633,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,delta_A,complete_low_power,3,0.0017052474949094986,5.879170229584907e-05,0.0016382882992426555,0.001748412847518921,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,rPC_percent,complete_low_power,3,92.536651311181,0.019936158692453916,92.51394557042842,92.55128860328232,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,method_clean_normalized_percent,complete_low_power,3,92.1958401706268,0.05802296983725751,92.12896681267983,92.23283079478954,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,clean_mAP50,complete_low_power,3,0.29599002997080487,0.00012501128038338257,0.29589706659317017,0.2961321473121643,"42,43,44",common_one_epoch
+DIOR,SFUT,ema,clean_delta_A,complete_low_power,3,0.0010901788870493572,0.00012501128038338254,0.0009972155094146729,0.0012322962284088135,"42,43,44",common_one_epoch

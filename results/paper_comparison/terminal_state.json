@@ -1,0 +1,2536 @@
+{
+  "scope": "finite_input_only",
+  "status": "complete",
+  "reason": "",
+  "producer_pid": 3301246,
+  "cells": [
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": [
+        {
+          "phase": "eval",
+          "pid": 3312035,
+          "gpus": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": [
+        {
+          "phase": "eval",
+          "pid": 3316313,
+          "gpus": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 43,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 43,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 43,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 43,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 43,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 44,
+        "method": "B"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 44,
+        "method": "C"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 44,
+        "method": "D"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": [
+        {
+          "phase": "train",
+          "pid": 3299330,
+          "gpus": [
+            5
+          ]
+        },
+        {
+          "phase": "eval",
+          "pid": 3322522,
+          "gpus": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 44,
+        "method": "E"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 44,
+        "method": "F"
+      },
+      "train_requested": true,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "chaff",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "point_target",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "noise_suppression",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "smart_suppression",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "gaussian_white_noise",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_horizontal",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "RSAR",
+        "domain": "am_noise_vertical",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "clean",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "brightness",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "cloudy",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "A"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "B"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "C"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "D"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "E"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    },
+    {
+      "cell": {
+        "dataset": "DIOR",
+        "domain": "contrast",
+        "seed": 42,
+        "method": "F"
+      },
+      "train_requested": false,
+      "train": "complete",
+      "eval": "complete",
+      "reasons": [],
+      "adopted": []
+    }
+  ],
+  "active": []
+}

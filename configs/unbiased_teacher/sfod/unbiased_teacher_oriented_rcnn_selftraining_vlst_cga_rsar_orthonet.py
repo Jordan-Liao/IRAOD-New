@@ -7,12 +7,24 @@ D differ ONLY in CGA on/off.
 import os
 
 # Label-level CGA branch ON (project canonical stack, see run_slrp_ablation.sh)
+sarclip_pretrained = os.environ.get('SARCLIP_PRETRAINED', '').strip()
+if not sarclip_pretrained:
+    raise RuntimeError(
+        'Strict CGA+VLST requires SARCLIP_PRETRAINED to point to the verified '
+        'base checkpoint')
+sarclip_pretrained = os.path.expanduser(sarclip_pretrained)
+if not os.path.isfile(sarclip_pretrained):
+    raise FileNotFoundError(
+        'Strict CGA+VLST base checkpoint does not exist: '
+        f'{sarclip_pretrained}')
+if os.environ.get('SARCLIP_LORA', '').strip():
+    raise RuntimeError(
+        'Strict CGA+VLST forbids SARCLIP_LORA; use the verified base '
+        'checkpoint')
+
 os.environ['CGA_SCORER'] = 'sarclip'
 os.environ['CGA_BACKEND'] = 'sarclip'
 os.environ['CGA_STRICT'] = '1'
-os.environ['SARCLIP_PRETRAINED'] = (
-    '/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors')
-os.environ['SARCLIP_CACHE_DIR'] = '/myfile/pretrain/SARCLIP/ViT-B-32'
 os.environ['CGA_FILTER_MODE'] = 'veto_soft'
 os.environ['CGA_DROP_SCORE'] = '0.0'
 os.environ['CGA_FILTER_LOG_EVERY'] = '500'
@@ -20,12 +32,8 @@ os.environ['CGA_VETO_PRED_THR'] = '0.7'
 os.environ['CGA_VETO_LABEL_THR'] = '0.1'
 os.environ['CGA_PROTECT_DET_SCORE'] = '0.9'
 os.environ['CGA_BLEND_DET_WEIGHT'] = '0.7'
-os.environ['SARCLIP_LORA'] = (
-    '/myfile/mycode/IRAOD-New/work_dirs/'
-    'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth')
 
-# The prototype teacher gets its own LoRA-SARCLIP instance. It is separate
-# from CGA but intentionally uses the same adapter proved useful on RSAR.
+# The prototype teacher gets its own base-SARCLIP instance, separate from CGA.
 os.environ['VLST_BACKEND'] = 'sarclip'
 
 _base_ = './unbiased_teacher_oriented_rcnn_selftraining_cga_rsar_orthonet.py'
@@ -58,9 +66,11 @@ model = dict(
         vlst_text_visual_alpha=0.5,
         vlst_score_thr=None,  # Inherit from score_thr
         vlst_projection_hidden=256,
-        vlst_lora_path=(
-            '/myfile/mycode/IRAOD-New/work_dirs/'
-            'sarclip_lora_rsar_train_corrupt_aabb_v1/lora_rsar.pth'),
+        vlst_strict=True,
+        vlst_pretrained=sarclip_pretrained,
+        vlst_cache_dir=os.environ.get(
+            'SARCLIP_CACHE_DIR', os.path.dirname(sarclip_pretrained)),
+        vlst_lora_path=None,
         vlst_detector_dim=1024,  # RotatedShared2FCBBoxHead fc_out_channels
         vlst_vlm_dim=512,  # ViT-B-32 SARCLIP embedding dimension
     ),

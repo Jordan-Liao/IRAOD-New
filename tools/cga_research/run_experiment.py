@@ -12,14 +12,21 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import math
 import os
 import re
 import signal
+import stat
 import subprocess
 import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
+
+try:
+    from . import build_data_manifest as data_manifest_tool
+except ImportError:  # Support direct execution as a script.
+    import build_data_manifest as data_manifest_tool  # type: ignore
 
 
 SEED_RE = re.compile(
@@ -76,7 +83,43 @@ RELEVANT_ENV_EXACT = {
     "IRAOD_PYTHON",
     "IRAOD_CONDA_PREFIX",
 }
-RELEVANT_ENV_PREFIXES = ("CGA_", "SARCLIP_")
+RELEVANT_ENV_PREFIXES = ("CGA_", "SARCLIP_", "VLST_")
+STRICT_SOURCE_FREE_CONFIG = Path(
+    "configs/unbiased_teacher/sfod/"
+    "unbiased_teacher_oriented_rcnn_selftraining_"
+    "st_baseline_rsar_orthonet_strict.py"
+)
+STRICT_SOURCE_FREE_CONFIGS = (
+    STRICT_SOURCE_FREE_CONFIG,
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "clip_cga_rsar_orthonet_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "cga_rsar_orthonet_arm_b_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "vlst_rsar_orthonet_strict.py"
+    ),
+    Path(
+        "configs/unbiased_teacher/sfod/"
+        "unbiased_teacher_oriented_rcnn_selftraining_"
+        "vlst_cga_rsar_orthonet_strict.py"
+    ),
+)
+RSAR_CLASS_ORDER = (
+    "ship",
+    "aircraft",
+    "car",
+    "tank",
+    "bridge",
+    "harbor",
+)
 
 ALLOWED_METHOD_ENV_KEYS = {
     "CGA_ADAPT_W_MAX",
@@ -122,6 +165,7 @@ ALLOWED_METHOD_ENV_KEYS = {
     "SARCLIP_MODEL",
     "SARCLIP_PRECISION",
     "SARCLIP_PRETRAINED",
+    "VLST_BACKEND",
 }
 
 FINGERPRINT_CODE_FILES = (
@@ -170,6 +214,10 @@ class ExperimentSpec:
     gpu_uuid: str
     method_env: dict[str, str] = dataclasses.field(default_factory=dict)
     cfg_options: list[str] = dataclasses.field(default_factory=list)
+    strict_source_free: bool = False
+    data_manifest: Optional[Path] = None
+    strict_manifest_binding: Optional[dict[str, Any]] = dataclasses.field(
+        default=None, repr=False)
     monitor_interval_seconds: float = 60.0
     stall_timeout_seconds: float = 900.0
     gpu_verify_timeout_seconds: float = 300.0
@@ -187,6 +235,8 @@ class RunOutcome:
     work_dir: str
     command: list[str]
     environment: dict[str, str]
+    strict_source_free: bool = False
+    checkpoint_artifact: Optional[dict[str, Any]] = None
     experiment_fingerprint: Optional[str] = None
     fingerprint_components: dict[str, Any] = dataclasses.field(default_factory=dict)
     pid: Optional[int] = None
@@ -237,6 +287,168 @@ def _validate_cfg_option(option: str) -> None:
         raise ValueError(f"invalid --cfg-options value: {option!r}")
 
 
+def _cfg_option_map(options: Sequence[str]) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for option in options:
+        _validate_cfg_option(option)
+        key, value = option.split("=", 1)
+        if key in parsed:
+            raise ValueError(f"duplicate --cfg-options key: {key}")
+        parsed[key] = value
+    return parsed
+
+
+def _resolve_protocol_path(value: str, project_root: Path) -> Path:
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = project_root / path
+    return path.resolve()
+
+
+def validate_strict_source_free_spec(spec: ExperimentSpec) -> dict[str, Any]:
+    if not spec.strict_source_free:
+        if spec.data_manifest is not None:
+            raise ValueError(
+                'data_manifest is only supported with strict_source_free')
+        return {}
+    if spec.data_manifest is None:
+        raise ValueError(
+            'strict_source_free requires an image-only data manifest')
+    if str(spec.method_env.get('SARCLIP_LORA', '')).strip():
+        raise ValueError('strict_source_free forbids SARCLIP_LORA')
+
+    project_root = Path(spec.project_root).resolve()
+    allowed_configs = {
+        (project_root / relative).resolve()
+        for relative in STRICT_SOURCE_FREE_CONFIGS
+    }
+    if Path(spec.config).resolve() not in allowed_configs:
+        raise ValueError(
+            'strict_source_free requires config in the strict allowlist: '
+            + ', '.join(path.as_posix() for path in STRICT_SOURCE_FREE_CONFIGS)
+        )
+
+    options = _cfg_option_map(spec.cfg_options)
+    for key in (
+            'model.cfg.strict_source_free',
+            'model.cfg.weight_l',
+            'model.cfg.weight_u',
+            'data.train.type',
+            'data.train.img_prefix',
+            'corrupt',
+            'load_from',
+            'model.ema_ckpt'):
+        if key not in options:
+            raise ValueError(
+                f'strict_source_free requires explicit cfg option {key}')
+    forbidden = sorted(
+        key for key in options
+        if key == 'ann_file' or key.endswith('.ann_file')
+        or key.endswith('.ann_file_u')
+        or key in {'resume_from', 'auto_resume'})
+    if forbidden:
+        raise ValueError(
+            'strict_source_free forbids annotation/resume cfg options: '
+            + ', '.join(forbidden))
+    try:
+        weight_l = float(options['model.cfg.weight_l'])
+        weight_u = float(options['model.cfg.weight_u'])
+    except ValueError as error:
+        raise ValueError(
+            'strict_source_free loss weights must be numeric') from error
+    if not math.isfinite(weight_l) or weight_l != 0.0:
+        raise ValueError('strict_source_free requires model.cfg.weight_l=0')
+    if not math.isfinite(weight_u) or weight_u <= 0.0:
+        raise ValueError('strict_source_free requires model.cfg.weight_u>0')
+    if options['model.cfg.strict_source_free'].strip().lower() not in {
+            '1', 'true'}:
+        raise ValueError(
+            'strict_source_free requires model.cfg.strict_source_free=True')
+    if options['data.train.type'] != 'StrictSourceFreeDOTADataset':
+        raise ValueError(
+            'strict_source_free requires '
+            'data.train.type=StrictSourceFreeDOTADataset')
+
+    source_checkpoint = _resolve_protocol_path(
+        options['load_from'], project_root)
+    ema_checkpoint = _resolve_protocol_path(
+        options['model.ema_ckpt'], project_root)
+    if source_checkpoint != ema_checkpoint:
+        raise ValueError(
+            'strict_source_free load_from and model.ema_ckpt must match')
+    if not source_checkpoint.is_file():
+        raise ValueError(
+            f'strict_source_free source checkpoint not found: '
+            f'{source_checkpoint}')
+
+    configured_root = _resolve_protocol_path(
+        options['data.train.img_prefix'], project_root)
+    corruption = options['corrupt'].strip()
+    if not re.fullmatch(r'[A-Za-z0-9_-]+', corruption):
+        raise ValueError(
+            f'strict_source_free has invalid corruption: {corruption!r}')
+    expected_suffix = ('corruptions', corruption, 'val', 'images')
+    if tuple(configured_root.parts[-4:]) != expected_suffix:
+        raise ValueError(
+            'strict_source_free target image root must end with '
+            f'{Path(*expected_suffix)}')
+    manifest_path = Path(spec.data_manifest).expanduser().resolve()
+    cached = spec.strict_manifest_binding
+    if cached is not None:
+        if cached.get('path') != str(manifest_path):
+            raise ValueError(
+                'strict_source_free cached manifest path does not match '
+                f'{manifest_path}')
+        if cached.get('image_root') != str(configured_root):
+            raise ValueError(
+                'strict_source_free target image root does not match cached '
+                f"manifest: {configured_root} != {cached.get('image_root')}")
+        if cached.get('source_checkpoint_path') != str(source_checkpoint):
+            raise ValueError(
+                'strict_source_free source checkpoint does not match cached '
+                f"binding: {source_checkpoint} != "
+                f"{cached.get('source_checkpoint_path')}")
+        if cached.get('corruption') != corruption:
+            raise ValueError(
+                'strict_source_free corruption does not match cached '
+                f"manifest: {corruption} != {cached.get('corruption')}")
+        return dict(cached)
+
+    digest, payload = data_manifest_tool.verify_manifest_payload(manifest_path)
+    if payload.get('manifest_type') != \
+            data_manifest_tool.IMAGE_ONLY_MANIFEST_TYPE:
+        raise ValueError(
+            'strict_source_free requires an image-only data manifest')
+    if payload.get('split') != 'val':
+        raise ValueError(
+            'strict_source_free image manifest must use split=val')
+    if payload.get('corruption') != corruption:
+        raise ValueError(
+            'strict_source_free corruption does not match image manifest: '
+            f"{corruption} != {payload.get('corruption')}")
+    if tuple(payload.get('class_order', ())) != RSAR_CLASS_ORDER:
+        raise ValueError(
+            'strict_source_free image manifest has unexpected RSAR class order')
+    image_root = Path(payload['images']['root']).resolve()
+    if configured_root != image_root:
+        raise ValueError(
+            'strict_source_free target image root does not match manifest: '
+            f'{configured_root} != {image_root}')
+    binding = {
+        'path': str(manifest_path),
+        'sha256': digest,
+        'image_root': str(image_root),
+        'manifest_type': payload['manifest_type'],
+        'split': payload['split'],
+        'corruption': payload['corruption'],
+        'class_order': list(payload['class_order']),
+        'source_checkpoint_path': str(source_checkpoint),
+        'source_checkpoint_sha256': _sha256_file(source_checkpoint),
+    }
+    spec.strict_manifest_binding = dict(binding)
+    return binding
+
+
 def _sha256_file(path: Path) -> str:
     try:
         digest = hashlib.sha256()
@@ -277,8 +489,8 @@ def compute_experiment_fingerprint(spec: ExperimentSpec) -> dict[str, Any]:
 
     project_root = Path(spec.project_root).resolve()
     config_path = Path(spec.config).resolve()
-    for option in spec.cfg_options:
-        _validate_cfg_option(option)
+    strict_data = validate_strict_source_free_spec(spec)
+    _cfg_option_map(spec.cfg_options)
     code_paths = {project_root / relative for relative in FINGERPRINT_CODE_FILES}
     for pattern in FINGERPRINT_CODE_GLOBS:
         code_paths.update(path for path in project_root.glob(pattern) if path.is_file())
@@ -310,6 +522,9 @@ def compute_experiment_fingerprint(spec: ExperimentSpec) -> dict[str, Any]:
         "git_head": _read_git_head(project_root),
         "code_files": code_hashes,
     }
+    if spec.strict_source_free:
+        components["strict_source_free"] = True
+        components["adaptation_data_manifest"] = strict_data
     canonical = json.dumps(
         components,
         ensure_ascii=False,
@@ -332,6 +547,7 @@ def validate_method_environment(method_environment: Mapping[str, str]) -> None:
 def build_train_command(spec: ExperimentSpec) -> list[str]:
     """Build a shell-free training argv list."""
 
+    validate_strict_source_free_spec(spec)
     command = [
         str(spec.python),
         str(spec.project_root / "train.py"),
@@ -342,9 +558,10 @@ def build_train_command(spec: ExperimentSpec) -> list[str]:
         str(spec.seed),
         "--deterministic",
     ]
+    if spec.strict_source_free:
+        command.append("--no-validate")
     if spec.cfg_options:
-        for option in spec.cfg_options:
-            _validate_cfg_option(option)
+        _cfg_option_map(spec.cfg_options)
         command.append("--cfg-options")
         command.extend(str(option) for option in spec.cfg_options)
     return command
@@ -365,7 +582,7 @@ def build_environment(
     gpu_index: int,
     python: str,
 ) -> dict[str, str]:
-    """Build a clean per-method environment without CGA/SARCLIP leakage."""
+    """Build a clean method environment without CGA/SARCLIP/VLST leakage."""
 
     environment = {
         str(key): str(value)
@@ -633,8 +850,65 @@ def _terminate_process(
         return process.wait()
 
 
+def _checkpoint_snapshot(
+    work_dir: Path,
+) -> dict[str, tuple[int, int, int, int, int]]:
+    snapshot: dict[str, tuple[int, int, int, int, int]] = {}
+    for path in work_dir.glob("*.pth"):
+        try:
+            info = path.lstat()
+        except OSError:
+            continue
+        if stat.S_ISREG(info.st_mode):
+            snapshot[path.name] = (
+                info.st_dev,
+                info.st_ino,
+                info.st_size,
+                info.st_mtime_ns,
+                info.st_ctime_ns,
+            )
+    return snapshot
+
+
+def _new_checkpoint_artifact(
+    work_dir: Path,
+    baseline: Mapping[str, tuple[int, int, int, int, int]],
+) -> Optional[dict[str, Any]]:
+    candidates: list[tuple[int, str, Path, os.stat_result]] = []
+    for path in work_dir.glob("*.pth"):
+        try:
+            info = path.lstat()
+        except OSError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        identity = (
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+        if baseline.get(path.name) == identity:
+            continue
+        preferred = int(path.name.endswith("_ema.pth")
+                        or path.name == "latest.pth")
+        candidates.append((preferred, path.name, path, info))
+    if not candidates:
+        return None
+    for _, _, path, info in sorted(candidates):
+        digest = _sha256_file(path)
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is not None:
+            return {
+                "relative_path": path.name,
+                "sha256": digest,
+                "size_bytes": info.st_size,
+            }
+    return None
+
+
 def _checkpoint_exists(work_dir: Path) -> bool:
-    return any(work_dir.glob("*.pth"))
+    return bool(_checkpoint_snapshot(work_dir))
 
 
 def _write_outcome(spec: ExperimentSpec, outcome: RunOutcome) -> None:
@@ -664,6 +938,8 @@ def run_experiment(
     spec.project_root = Path(spec.project_root).resolve()
     spec.config = Path(spec.config).resolve()
     spec.work_dir = Path(spec.work_dir).resolve()
+    if spec.data_manifest is not None:
+        spec.data_manifest = Path(spec.data_manifest).resolve()
     spec.work_dir.mkdir(parents=True, exist_ok=True)
 
     command = build_train_command(spec)
@@ -693,6 +969,7 @@ def run_experiment(
             work_dir=str(spec.work_dir),
             command=command,
             environment=recorded_environment,
+            strict_source_free=spec.strict_source_free,
             experiment_fingerprint=experiment_fingerprint,
             fingerprint_components=fingerprint_components,
         )
@@ -703,6 +980,7 @@ def run_experiment(
     started_at_mono = clock()
     launch_time_ns = time.time_ns()
     timestamp_log_baseline = snapshot_timestamp_logs(spec.work_dir)
+    checkpoint_baseline = _checkpoint_snapshot(spec.work_dir)
     process: Optional[subprocess.Popen[Any]] = None
     failure_kind: Optional[str] = None
     failure_detail: Optional[str] = None
@@ -729,6 +1007,7 @@ def run_experiment(
             work_dir=str(spec.work_dir),
             command=command,
             environment=recorded_environment,
+            strict_source_free=spec.strict_source_free,
             experiment_fingerprint=experiment_fingerprint,
             fingerprint_components=fingerprint_components,
             failure_kind="artifact_open_failed",
@@ -742,6 +1021,39 @@ def run_experiment(
         return outcome
 
     with run_log:
+        if spec.strict_source_free:
+            try:
+                fingerprint_binding = fingerprint_components[
+                    'adaptation_data_manifest']
+                spec.strict_manifest_binding = None
+                launch_binding = validate_strict_source_free_spec(spec)
+                if launch_binding != fingerprint_binding:
+                    raise ValueError(
+                        'strict source-free inputs changed after fingerprinting')
+            except ValueError as error:
+                ended_at = wall_clock()
+                outcome = RunOutcome(
+                    status="failed",
+                    success=False,
+                    method=spec.method,
+                    seed=spec.seed,
+                    gpu_index=spec.gpu_index,
+                    gpu_uuid=spec.gpu_uuid,
+                    work_dir=str(spec.work_dir),
+                    command=command,
+                    environment=recorded_environment,
+                    strict_source_free=spec.strict_source_free,
+                    experiment_fingerprint=experiment_fingerprint,
+                    fingerprint_components=fingerprint_components,
+                    failure_kind="strict_input_verification_failed",
+                    failure_detail=str(error),
+                    started_at=started_at_wall,
+                    ended_at=ended_at,
+                    gpu_seconds=max(0.0, ended_at - started_at_wall),
+                    launch_time_ns=launch_time_ns,
+                )
+                _write_outcome(spec, outcome)
+                return outcome
         try:
             process = popen_factory(
                 command,
@@ -763,6 +1075,7 @@ def run_experiment(
                 work_dir=str(spec.work_dir),
                 command=command,
                 environment=recorded_environment,
+                strict_source_free=spec.strict_source_free,
                 experiment_fingerprint=experiment_fingerprint,
                 fingerprint_components=fingerprint_components,
                 failure_kind="spawn_failed",
@@ -948,6 +1261,8 @@ def run_experiment(
         failure_kind = failure_kind or "runner_exception"
         failure_detail = failure_detail or f"{type(error).__name__}: {error}"
     final_map = final_record.mean_ap if final_record is not None else None
+    checkpoint_artifact = _new_checkpoint_artifact(
+        spec.work_dir, checkpoint_baseline)
 
     if failure_kind is None and exit_code != 0:
         failure_kind = "nonzero_exit"
@@ -964,10 +1279,19 @@ def run_experiment(
     if failure_kind is None and not gpu_seen:
         failure_kind = "gpu_verification_failed"
         failure_detail = f"PID {process.pid} was never observed on {spec.gpu_uuid}"
-    if failure_kind is None and final_map is None:
+    if (
+        failure_kind is None
+        and not spec.strict_source_free
+        and final_map is None
+    ):
         failure_kind = "missing_final_ema_eval"
         failure_detail = "no final Epoch(val) mAP in a timestamp log"
-    if failure_kind is None and final_record is not None and final_record.epoch != 1:
+    if (
+        failure_kind is None
+        and not spec.strict_source_free
+        and final_record is not None
+        and final_record.epoch != 1
+    ):
         failure_kind = "unexpected_val_epoch"
         failure_detail = f"expected val epoch 1, got {final_record.epoch}"
     if failure_kind is None and latest_progress is None:
@@ -991,9 +1315,34 @@ def run_experiment(
             f"final runner iteration {final_record.iteration} != "
             f"training total {latest_progress.total}"
         )
+    if (
+        failure_kind is None
+        and spec.strict_source_free
+        and latest_progress is not None
+        and latest_progress.iteration != latest_progress.total
+    ):
+        failure_kind = "incomplete_training"
+        failure_detail = (
+            f"final training iteration {latest_progress.iteration} != "
+            f"training total {latest_progress.total}"
+        )
+    if (
+        failure_kind is None
+        and spec.strict_source_free
+        and checkpoint_artifact is None
+    ):
+        failure_kind = "missing_checkpoint"
+        failure_detail = "strict source-free run produced no checkpoint"
 
     success = failure_kind is None
-    full_run = final_map is not None or _checkpoint_exists(spec.work_dir)
+    full_run = (
+        final_map is not None
+        or (
+            checkpoint_artifact is not None
+            if spec.strict_source_free
+            else _checkpoint_exists(spec.work_dir)
+        )
+    )
     outcome = RunOutcome(
         status="completed" if success else "failed",
         success=success,
@@ -1004,6 +1353,8 @@ def run_experiment(
         work_dir=str(spec.work_dir),
         command=command,
         environment=recorded_environment,
+        strict_source_free=spec.strict_source_free,
+        checkpoint_artifact=checkpoint_artifact,
         experiment_fingerprint=experiment_fingerprint,
         fingerprint_components=fingerprint_components,
         pid=process.pid,
@@ -1065,6 +1416,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--gpu-uuid", required=True)
     parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
     parser.add_argument("--cfg-option", action="append", default=[])
+    parser.add_argument("--strict-source-free", action="store_true")
+    parser.add_argument("--data-manifest", type=Path)
     parser.add_argument("--monitor-interval", type=float, default=60.0)
     parser.add_argument("--stall-timeout", type=float, default=900.0)
     parser.add_argument("--gpu-verify-timeout", type=float, default=300.0)
@@ -1093,6 +1446,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         gpu_uuid=args.gpu_uuid,
         method_env=method_env,
         cfg_options=list(args.cfg_option),
+        strict_source_free=args.strict_source_free,
+        data_manifest=args.data_manifest,
         monitor_interval_seconds=args.monitor_interval,
         stall_timeout_seconds=args.stall_timeout,
         gpu_verify_timeout_seconds=args.gpu_verify_timeout,
