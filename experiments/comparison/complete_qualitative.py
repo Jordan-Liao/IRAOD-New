@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from experiments.comparison import report_qualitative
+from experiments.comparison import host_binding as host, report_qualitative
 from experiments.comparison.final_report import write_csv
 from experiments.comparison.result_completion import DOMAINS, read_json, write_json
 
@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def collect_completion(plan_path, embedding_root, out_dir, expected_detections=None):
-    out = Path(out_dir)
+    out = host.read_path(out_dir)
     out.mkdir(parents=True, exist_ok=False)
     source_dir = out / "collector_sources"
     source_dir.mkdir()
@@ -25,10 +25,10 @@ def collect_completion(plan_path, embedding_root, out_dir, expected_detections=N
     plan = read_json(plan_path)
     report_qualitative.validate_plan(plan)
     fragment = {
-        "qualitative_plan": str(Path(plan_path).resolve()),
+        "qualitative_plan": str(host.read_path(plan_path).resolve()),
         "embeddings": [
             {"dataset": ds, "domain": domain, "comparison": role,
-             "directory": str(Path(embedding_root) / ds / domain / role)}
+             "directory": str(host.read_path(embedding_root) / ds / domain / role)}
             for ds, domains in DOMAINS.items() for domain in domains
             for role in ("ema", "student")],
     }

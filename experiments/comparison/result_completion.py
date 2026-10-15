@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import shlex
 
+from experiments.comparison import host_binding as host
+
 
 SCHEMA = "iraod-aligned-roi-v3-full-test"
 EXPECTED_TEST_IMAGES = {"RSAR": 8538, "DIOR": 11738}
@@ -49,8 +51,8 @@ def comparison_runs(plan, dataset, domain, role):
 def native_binding_evidence(run):
     """Inspect real native completion; absent inputs are pending, never backfilled."""
     binding = run["native_prediction"]
-    root = Path(binding["eval_dir"])
-    required = [Path(run["checkpoint"]), root / "eval_status", root / "execution.json",
+    root = host.read_path(binding["eval_dir"])
+    required = [host.read_path(run["checkpoint"]), root / "eval_status", root / "execution.json",
                 root / "predictions.pkl", root / "predictions.pkl.image_ids.json"]
     missing = [str(p) for p in required if not p.is_file() or not p.stat().st_size]
     if missing:
@@ -61,14 +63,14 @@ def native_binding_evidence(run):
                   if "=" in token) if records else {}
     wanted = {"eval_exit": "0", "name": run["method"], "domain": run["domain"],
               "seed": str(run["seed"]), "role": run["role"], "checkpoint": run["checkpoint"]}
-    if any(fields.get(key) != value for key, value in wanted.items()):
+    if any(not host.same_data(fields.get(key), value) for key, value in wanted.items()):
         return {"status": "pending", "missing": ["successful_native_evaluation"]}
     execution = read_json(root / "execution.json")
     identity = {key: run[key] for key in ("dataset", "domain", "seed", "method", "role",
                                          "checkpoint", "config")}
     identity.update(source_id=binding["source_id"],
                     evaluation_code_sha=binding["evaluation_code_sha"])
-    if (any(execution.get(key) != value for key, value in identity.items())
+    if (any(not host.same_data(execution.get(key), value) for key, value in identity.items())
             or not execution.get("training_code_sha")):
         raise ValueError("Native evaluation execution identity differs from ROI binding")
     sidecar = read_json(root / "predictions.pkl.image_ids.json")
@@ -77,8 +79,8 @@ def native_binding_evidence(run):
             or sidecar["origin"] != "inference_batch_img_metas"
             or sidecar["status"] != "complete"
             or sidecar["predictions_file"] != "predictions.pkl"
-            or sidecar["checkpoint"] != run["checkpoint"]
-            or sidecar["config"] != run["config"]
+            or not host.same_data(sidecar["checkpoint"], run["checkpoint"])
+            or not host.same_data(sidecar["config"], run["config"])
             or sidecar["training_code_sha"] != execution["training_code_sha"]
             or sidecar["evaluation_code_sha"] != binding["evaluation_code_sha"]
             or sidecar["n_images"] != len(run["image_ids"])
@@ -90,12 +92,12 @@ def native_binding_evidence(run):
                    for i, r in enumerate(sidecar["records"]))):
         raise ValueError("Native prediction checkpoint/config/code/TEST ID binding mismatch")
     options = sidecar["cfg_options"]
-    if (options["data.test.ann_file"] != run["ann_file"]
-            or options["data.test.img_prefix"] != run["img_prefix"]):
+    if (not host.same_data(options["data.test.ann_file"], run["ann_file"])
+            or not host.same_data(options["data.test.img_prefix"], run["img_prefix"])):
         raise ValueError("Native prediction TEST split/domain differs from ROI")
     return {"status": "complete", "sidecar": str(root / "predictions.pkl.image_ids.json"),
             "execution": str(root / "execution.json"),
-            "checkpoint_bytes": Path(run["checkpoint"]).stat().st_size,
+            "checkpoint_bytes": host.read_path(run["checkpoint"]).stat().st_size,
             "prepared_training_code_sha": binding["prepared_training_code_sha"],
             "training_code_sha": sidecar["training_code_sha"],
             "evaluation_code_sha": sidecar["evaluation_code_sha"],
@@ -103,15 +105,15 @@ def native_binding_evidence(run):
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text())
+    return json.loads(host.read_path(path).read_text())
 
 
 def write_json(path, payload):
-    Path(path).write_text(json.dumps(payload, indent=2) + "\n")
+    host.read_path(path).write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def test_image_ids(path):
-    path = Path(path)
+    path = host.read_path(path)
     if path.is_dir():
         return sorted(p.stem for p in path.glob("*.txt") if p.is_file())
     return [line.strip() for line in path.read_text().splitlines() if line.strip()]
@@ -202,9 +204,10 @@ def load_run(plan_path, run_id):
 def load_export(run):
     """Validate complete image metadata eagerly; yield at most one NPZ at a time."""
     validate_run(run)
-    root = Path(run["out_dir"])
+    root = host.read_path(run["out_dir"])
     index = read_json(root / "index.json")
-    if index["schema"] != SCHEMA or index["status"] != "complete" or index["run"] != run:
+    if (index["schema"] != SCHEMA or index["status"] != "complete"
+            or not host.same_data(index["run"], run)):
         raise ValueError(f"Export identity/completion mismatch: {root}")
     if "feature_point" in index and index["feature_point"] != FEATURE_POINT:
         raise ValueError("Export must contain the aligned fc_cls input features")
@@ -212,7 +215,8 @@ def load_export(run):
         raise ValueError("Export does not cover the exact ordered full TEST same-image selection")
     if "native_prediction" in run:
         evidence = native_binding_evidence(run)
-        if (evidence["status"] != "complete" or index.get("native_prediction") != evidence
+        if (evidence["status"] != "complete"
+                or not host.same_data(index.get("native_prediction"), evidence)
                 or index.get("feature_version") != FEATURE_VERSION
                 or index.get("feature_point") != FEATURE_POINT
                 or index["code_commit"] != run["export_code_sha"]):
@@ -223,7 +227,7 @@ def load_export(run):
 def iter_export_records(run, index, image_ids=None):
     import numpy as np
 
-    root = Path(run["out_dir"])
+    root = host.read_path(run["out_dir"])
     for record in index["records"]:
         if image_ids is not None and record["image_id"] not in image_ids:
             continue
@@ -258,7 +262,7 @@ def visualize(run):
     import numpy as np
 
     index, _ = load_export(run)
-    out = Path(run["out_dir"]) / "visualizations"
+    out = host.read_path(run["out_dir"]) / "visualizations"
     out.mkdir(exist_ok=False)
     images = []
     selected = set(run["visualization_image_ids"])
@@ -266,7 +270,7 @@ def visualize(run):
         filename = (f"{run['dataset']}_{run['domain']}_{run['method']}_"
                     f"{run['role']}_{record['image_id']}.png")
         imshow_det_rbboxes(
-            record["image_path"],
+            str(host.read_path(record["image_path"])),
             np.column_stack((arrays["boxes"], arrays["scores"])),
             arrays["labels"], class_names=index["classes"],
             score_thr=run["show_score_thr"], show=False, out_file=str(out / filename))
@@ -283,14 +287,15 @@ def collect(plan):
         raise ValueError("Only v3 full-test plans can produce full TEST completion")
     for run in plan["runs"]:
         validate_run(run)
-        root = Path(run["out_dir"])
+        root = host.read_path(run["out_dir"])
         exported = None
         if (root / "index.json").exists():
             _, exported = load_export(run)
         rendered = {}
         if (root / "visualizations/index.json").exists():
             vis = read_json(root / "visualizations/index.json")
-            if vis["run"] != run or vis["status"] != "complete" or vis["schema"] != SCHEMA:
+            if (not host.same_data(vis["run"], run)
+                    or vis["status"] != "complete" or vis["schema"] != SCHEMA):
                 raise ValueError("Visualization identity/completion mismatch")
             if [i["image_id"] for i in vis["images"]] != run["visualization_image_ids"]:
                 raise ValueError("Incomplete visualization selection")
@@ -336,7 +341,7 @@ def main():
     args = parser.parse_args()
     if args.command == "plan":
         plan = build_plan(read_json(args.bindings))
-        with Path(args.out).open("x") as stream:
+        with host.read_path(args.out).open("x") as stream:
             json.dump(plan, stream, indent=2)
         print(f"Planned {len(plan['runs'])} runs; no completion evidence written")
     elif args.command == "visualize":
@@ -349,8 +354,8 @@ def main():
         # Write only the new versioned manifest, never overwrite legacy evidence.
         if "methods" in plan and not args.out:
             parser.error("Declared-method collection requires --out; run IDs have seed-specific depth")
-        out = (Path(args.out) if args.out else
-               Path(plan["runs"][0]["out_dir"]).parents[3] / "coverage.csv")
+        out = (host.read_path(args.out) if args.out else
+               host.read_path(plan["runs"][0]["out_dir"]).parents[3] / "coverage.csv")
         if args.out and out.exists():
             raise FileExistsError(out)
         out.parent.mkdir(parents=True, exist_ok=True)
