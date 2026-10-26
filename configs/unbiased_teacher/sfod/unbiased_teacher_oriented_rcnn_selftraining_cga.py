@@ -171,6 +171,8 @@ log_level = 'INFO'
 resume_from = None
 
 load_from = f'baseline/baseline.pth'
+# load_from = 'work_dirs/oriented_rcnn_r50_dior_tang034_seed42_36ep/epoch_29.pth'
+# load_from = 'work_dirs/oriented_rcnn_r50_dior_source_seed42/epoch_35.pth'
 workflow = [('train', 1)]
 
 ema_config = './configs/baseline/ema_config/baseline_oriented_rcnn_ema_dior_cga.py'

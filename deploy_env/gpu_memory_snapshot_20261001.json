@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-10-01T04:59:24.870130+00:00",
+  "torch_version": "2.0.1+cu118",
+  "virtual_gpu_settings": {
+    "CUDA_DEVICE_SM_LIMIT": "0",
+    "CUDA_DEVICE_MEMORY_LIMIT_0": "40779m",
+    "CUDA_DEVICE_MEMORY_SHARED_CACHE": "/usr/local/vgpu/1429c91f-cfe0-4a67-aba3-aa113f5bf3db.cache"
+  },
+  "requested_allocation_bytes": 0,
+  "gpu_uuid": "GPU-35ced431-b8d6-6ed6-638f-26b0dce4385e",
+  "physical_before_cuda": {
+    "total_bytes": 85520809984,
+    "free_bytes": 3639672832,
+    "used_bytes": 81881137152
+  },
+  "device_name": "NVIDIA H100 PCIe",
+  "cuda_reported": {
+    "total_bytes": 42759880704,
+    "free_bytes": 42288021504
+  }
+}

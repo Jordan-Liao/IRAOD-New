@@ -12,6 +12,7 @@ from mmcv.runner import get_dist_info
 
 from mmdet.apis.test import collect_results_cpu, collect_results_gpu
 from mmdet.core import encode_mask_results
+from mmdet_extension.core.visualization import imshow_gt_pred_side_by_side
 
 
 class PrintBar(object):
@@ -111,16 +112,31 @@ def single_gpu_test(model,
                 img_show = mmcv.imresize(img_show, (ori_w, ori_h))
 
                 if out_dir:
-                    out_file = osp.join(out_dir, img_meta['ori_filename'])
+                    out_file = osp.join(
+                        out_dir, osp.basename(img_meta['ori_filename']))
                 else:
                     out_file = None
-                # print(model.module)
-                model.module.show_result(
-                    img_show,
-                    result[i],
-                    show=show,
-                    out_file=out_file,
-                    score_thr=show_score_thr)
+                annotation = None
+                sample_idx = len(results) + i
+                if hasattr(dataset, 'get_ann_info'):
+                    annotation = dataset.get_ann_info(sample_idx)
+                if annotation is not None:
+                    version = getattr(dataset, 'version', 'le90')
+                    imshow_gt_pred_side_by_side(
+                        img_show, annotation, result[i],
+                        class_names=getattr(dataset, 'CLASSES', None),
+                        score_thr=show_score_thr,
+                        version=version,
+                        thickness=4,
+                        show=show,
+                        out_file=out_file)
+                else:
+                    model.module.show_result(
+                        img_show,
+                        result[i],
+                        show=show,
+                        out_file=out_file,
+                        score_thr=show_score_thr)
 
         # encode mask results
         if isinstance(result[0], tuple):

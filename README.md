@@ -32,6 +32,23 @@ pip install "transformers<4.56" timm safetensors peft
 
 Do not mix the old `cliptorch` environment into `iraod`.
 
+### GPU memory troubleshooting
+
+On shared HAMi GPUs, CUDA and `nvidia-smi` can report the container's virtual
+memory quota while the physical GPU has much less free memory. If an OOM error
+claims that tens of GiB are free, compare the reported and physical counters:
+
+```bash
+/opt/conda/envs/iraod/bin/python tools/analysis/probe_gpu_memory.py
+```
+
+The default check only reads counters. Add `--allocate-gib 4` to test up to
+4 GiB through normal PyTorch allocations; the tool releases its allocations
+and returns exit code 2 on OOM. Use `--output report.json` to save evidence for
+the GPU provider. If the physical GPU is full, the provider must free resources
+or move the instance. See `deploy_env/gpu_memory_diagnosis_20261001.md` for the
+diagnosis of the October 1 incident.
+
 ## RSAR
 
 ### Dataset layout

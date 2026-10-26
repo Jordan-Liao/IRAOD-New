@@ -25,16 +25,39 @@ class OrthogonalChannelAttention(nn.Module):
     contract: ``ortho_vector`` is a learned vector and ``fc`` is a bias-free
     two-layer excitation MLP. The response is the pooled channel vector with
     its component along the normalized learned vector removed.
+
+    ``attn_init`` controls the output gain:
+
+    ``legacy``
+        ``x * sigmoid(fc(...))`` with the MLP's stock initialization. A fresh
+        block therefore multiplies its residual branch by a random value near
+        ``0.5``, which does not reproduce a plain ResNet block. This is the
+        behaviour every existing checkpoint was trained under, so it remains
+        the default.
+    ``identity``
+        The output layer is zero-initialized and the gate is scaled by two, so
+        a fresh block computes ``relu(1.0 * F(x) + identity)`` exactly. This is
+        what makes an ImageNet-initialized OrthoNet a fair ResNet-50 baseline:
+        at step zero the attention is an exact pass-through rather than a
+        random 0.5 attenuation of pretrained features.
     """
 
-    def __init__(self, channels, reduction=16):
+    VALID_INIT = ('legacy', 'identity')
+
+    def __init__(self, channels, reduction=16, attn_init='legacy'):
         super().__init__()
         if channels <= 0:
             raise ValueError('channels must be positive')
         if reduction <= 0:
             raise ValueError('reduction must be positive')
+        if attn_init not in self.VALID_INIT:
+            raise ValueError(
+                f'invalid attn_init {attn_init!r}; expected one of '
+                f'{self.VALID_INIT}')
         self.channels = int(channels)
         self.reduction = int(reduction)
+        self.attn_init = attn_init
+        self.gate_scale = 2.0 if attn_init == 'identity' else 1.0
         hidden_channels = max(self.channels // self.reduction, 1)
         self.ortho_vector = nn.Parameter(torch.randn(self.channels))
         self.fc = nn.Sequential(
@@ -43,6 +66,9 @@ class OrthogonalChannelAttention(nn.Module):
             nn.Linear(hidden_channels, self.channels, bias=False),
             nn.Sigmoid(),
         )
+        if attn_init == 'identity':
+            # Zero the layer feeding the sigmoid: gate = 2 * sigmoid(0) = 1.
+            nn.init.zeros_(self.fc[2].weight)
 
     def orthogonal_response(self, x):
         if x.ndim != 4 or x.shape[1] != self.channels:
@@ -65,6 +91,10 @@ class OrthogonalChannelAttention(nn.Module):
     def forward(self, x):
         response = self.orthogonal_response(x)
         attention = self.fc(response.flatten(1)).view_as(response)
+        # Applied before SOGC so that calibrating a gate always sees the same
+        # quantity it would calibrate without SOGC. ``gate_scale`` is 1.0 for
+        # the legacy (and every existing checkpoint's) initialization.
+        attention = attention * self.gate_scale
         if hasattr(self, 'sogc'):
             attention = self.sogc(response, attention)
         return x * attention
@@ -73,10 +103,10 @@ class OrthogonalChannelAttention(nn.Module):
 class OrthoBasicBlock(BasicBlock):
     """MMDetection BasicBlock with checkpoint-compatible Ortho attention."""
 
-    def __init__(self, *args, reduction=16, **kwargs):
+    def __init__(self, *args, reduction=16, attn_init='legacy', **kwargs):
         super().__init__(*args, **kwargs)
         self.attn = OrthogonalChannelAttention(
-            self.norm2.num_features, reduction=reduction)
+            self.norm2.num_features, reduction=reduction, attn_init=attn_init)
 
     def forward(self, x):
         def _inner_forward(xx):
@@ -101,10 +131,11 @@ class OrthoBasicBlock(BasicBlock):
 class OrthoBottleneck(Bottleneck):
     """MMDetection Bottleneck with attention after the third norm."""
 
-    def __init__(self, *args, reduction=16, **kwargs):
+    def __init__(self, *args, reduction=16, attn_init='legacy', **kwargs):
         super().__init__(*args, **kwargs)
         self.attn = OrthogonalChannelAttention(
-            self.planes * self.expansion, reduction=reduction)
+            self.planes * self.expansion, reduction=reduction,
+            attn_init=attn_init)
 
     def forward(self, x):
         def _inner_forward(xx):
@@ -164,13 +195,19 @@ class OrthoNet(ResNet):
     def __init__(self,
                  depth,
                  reduction=16,
+                 attn_init='legacy',
                  sogc_cfg=None,
                  slrp_cfg=None,
                  num_stages=4,
                  **kwargs):
         if reduction <= 0:
             raise ValueError('reduction must be positive')
+        if attn_init not in OrthogonalChannelAttention.VALID_INIT:
+            raise ValueError(
+                f'invalid attn_init {attn_init!r}; expected one of '
+                f'{OrthogonalChannelAttention.VALID_INIT}')
         self.reduction = int(reduction)
+        self.attn_init = attn_init
         self._sogc_cfg = self._validate_sogc_cfg(
             sogc_cfg, num_stages=num_stages)
         self._slrp_cfg = self._validate_slrp_cfg(
@@ -348,7 +385,8 @@ class OrthoNet(ResNet):
 
     def make_res_layer(self, **kwargs):
         stage_index = len(self.res_layers)
-        res_layer = ResLayer(reduction=self.reduction, **kwargs)
+        res_layer = ResLayer(
+            reduction=self.reduction, attn_init=self.attn_init, **kwargs)
         if (self._sogc_cfg is not None and
                 stage_index in self._sogc_cfg['stages']):
             res_layer[-1].attn.enable_sogc(

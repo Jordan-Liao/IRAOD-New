@@ -60,7 +60,8 @@ def parse_args():
         ' "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC')
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument(
-        '--show-dir', help='directory where painted images will be saved')
+        '--show-dir', '--show_dir', dest='show_dir',
+        help='directory where side-by-side GT and prediction images are saved')
     parser.add_argument(
         '--show-score-thr',
         type=float,

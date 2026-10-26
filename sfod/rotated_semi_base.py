@@ -4,6 +4,8 @@ Base-Detector for semi-supervised learning
 """
 import cv2
 import os
+import sys
+import types
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +18,40 @@ import mmcv
 from mmcv.runner import load_checkpoint
 from mmdet.models.builder import build_detector
 from mmdet.core import bbox2roi
+
+
+def _install_mmengine_checkpoint_compat():
+    """Allow MMCV 1.x to read checkpoints saved by MMEngine 0.x.
+
+    The supplied DIOR checkpoint stores ``HistoryBuffer`` objects in its
+    training metadata.  MMCV only needs the state dict, but ``torch.load``
+    still resolves that class while unpickling the outer checkpoint.
+    """
+    try:
+        import mmengine.logging.history_buffer  # noqa: F401
+        return
+    except ModuleNotFoundError:
+        pass
+
+    mmengine = types.ModuleType('mmengine')
+    logging = types.ModuleType('mmengine.logging')
+    history_buffer = types.ModuleType('mmengine.logging.history_buffer')
+
+    class HistoryBuffer:
+        pass
+
+    HistoryBuffer.__module__ = 'mmengine.logging.history_buffer'
+    history_buffer.HistoryBuffer = HistoryBuffer
+    logging.history_buffer = history_buffer
+    mmengine.logging = logging
+    sys.modules.update({
+        'mmengine': mmengine,
+        'mmengine.logging': logging,
+        'mmengine.logging.history_buffer': history_buffer,
+    })
+
+
+_install_mmengine_checkpoint_compat()
 
 
 _SOGC_SOURCE_STAT_NAMES = frozenset({

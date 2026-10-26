@@ -1,0 +1,1027 @@
+================================================================================
+ OrthoNet-RS v2 设计说明
+ 面向遥感信息的正交子空间投影骨干 (Orthogonal Subspace Projection Backbone)
+================================================================================
+ 目标读者：实现这份文档的 AI 编码助手 / 本项目作者
+ 生成日期：2026-10-08
+ 仓库根目录：/mycode/mycode/IRAOD-New
+ 相关分支：sogc-orthonet-phase1
+
+ 使用方式：本文档第 1 节是实测审计（不必重跑，结论可直接引用）；
+           第 3 节是模块级规格（可直接照着写代码）；
+           第 6 节是给 AI 的任务清单（按顺序执行）；
+           第 7 节是必须跑通的验收测试，未通过不算完成。
+
+
+================================================================================
+0. 摘要：一句话结论
+================================================================================
+
+当前 OrthoNet 的 "Ortho"（正交）只是一个名字：它的核心模块
+`OrthogonalChannelAttention` 的"正交投影"在数值上只移除通道能量的 1/C
+（C=256 时 0.4%，C=2048 时 0.05%），实测移除比例为 0.02%~0.74%，其功能等价于
+一个 SE 通道注意力加一点可以忽略的扰动。
+
+OrthoNet-RS v2 把这件名字落到实处，并且对齐遥感领域已有的、被验证过的算
+法：把特征显式地分解到三个正交子空间
+    R（辐射域，各向同性）/ G（几何域，方向性）/ S（稀疏域，点散射）
+其中通道注意力改为 OSP（Orthogonal Subspace Projection，Harsanyi & Chang）
+风格的"背景估计 + 正交子空间抑制"算子，前端口改为"方向基滤波器组"，让
+backbone 在结构上真正与遥感信息的物理投影方式对齐。
+
+同时修复三个和架构无关、但代价极低的配置缺陷（第 1.3 节），其中
+"用 ImageNet 权重膨胀初始化 OrthoNet"一条已在本仓库验证过 key 与 shape
+100% 对齐，是当前投入产出比最高的一项。
+
+
+================================================================================
+1. 现状审计
+================================================================================
+
+1.1 现有结构
+--------------------------------------------------------------------------------
+文件：mmdet_extension/models/backbones/orthonet.py（425 行）
+
+  OrthogonalChannelAttention(channels, reduction=16)
+      输入 x: [B, C, H, W]
+      pooled   = adaptive_avg_pool2d(x, 1)              # 全局平均池化
+      direction= normalize(ortho_vector)                 # 单位向量
+      response = pooled - (pooled·direction) * direction # "正交"投影
+      attention= sigmoid(fc(response))                   # 2 层 MLP, bias=False
+      return x * attention
+
+  OrthoBottleneck / OrthoBasicBlock
+      在 norm3 / norm2 之后、残差相加之前插入 attn。
+      即 out = relu( attn(F(x)) + identity )。
+      attn 输出恒在 (0,1) 区间，所以残差分支被压到 [0, F(x)]。
+
+  OrthoNet(ResNet)
+      arch_settings: 18/34 → OrthoBasicBlock, 50/101/152 → OrthoBottleneck
+      参数：reduction、sogc_cfg、slrp_cfg、num_stages、**kwargs
+      新增钩子：SLRP tap（默认 stages=(-1,)，即 maxpool 之后）
+                SOGC 校准器（stages=(2,3)，即 C4/C5 的最后一个 block）
+
+  实测规模（tools/analysis/audit_orthonet_attention.py 的 keys 检查）：
+      OrthoNet(depth=50)         总计 26.038M 参数，其中 attn 2.530M（9.7%）
+      非 attn 部分               23.508M 参数
+      输出                        C2 (256,200,200) C3 (512,100,100)
+                                 C4 (1024,50,50)  C5 (2048,25,25)  @ 800×800
+      注意：ResNet 的 conv1(s2)+maxpool(s2) 让整个网络**没有 stride-2 的 tap**。
+
+
+1.2 实测问题（附证据）
+--------------------------------------------------------------------------------
+
+【问题 A】"正交投影"在数值上几乎不做事
+    从 [B,C] 向量中减掉一个单位方向，期望移除的能量比例是 1/C。
+    C=256 → 0.39%，C=512 → 0.20%，C=1024 → 0.098%，C=2048 → 0.049%。
+    实测（tools/analysis/audit_orthonet_attention.py，单位尺度代理激活，
+    随机权重与两个训练后权重各测一遍）：
+        随机初始化   layer1 0.184%  layer2 0.041%  layer3 0.072%  layer4 0.015%
+        RSAR ckpt    layer1 0.167%  layer2 0.443%  layer3 0.559%  layer4 0.071%
+        DIOR ckpt    layer1 0.054%  layer2 0.053%  layer3 0.075%  layer4 0.051%
+    全部落在 1/C 或以下。也就是说 response 和 pooled 的差别只有万分之几，
+    这个模块实质上就是一个 SE block。
+    → 结论：`ortho_vector` 的"正交"贡献在功能上不可观测。
+
+【问题 B】ortho_vector 的模长不是功能参数，却被 weight decay 惩罚
+    前向只用到 F.normalize(ortho_vector)：模长完全不进入计算，只有方向进
+    入计算。但 optimizer 的 weight decay 作用在幅值上，等于对功能做纯噪声
+    扰动，同时让"方向"这个唯一有意义的量在模长趋零时被浮点噪声接管。
+    实测（括号内是随机初始化的期望模长 sqrt(C)）：
+        RSAR ckpt /myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth
+            layer1 15.938 (16.0)   layer2  0.091 (22.6)
+            layer3  0.130 (32.0)   layer4  0.047 (45.3)
+            → layer2~4 塌缩到接近 0，方向由浮点噪声决定
+        DIOR ckpt work_dirs/oriented_rcnn_orthonet_dior_trainval/epoch_100.pth
+            layer1  6.278 (16.0)   layer2  7.919 (22.6)
+            layer3 11.632 (32.0)   layer4 16.130 (45.3)
+            → 也远低于初始化，但没有塌到不可用
+    → 模长塌缩本身是配置问题（configs/baseline/oriented_rcnn_slrp_orthonet_rsar.py
+      里加了 custom_keys={'ortho_vector': decay_mult=0.0}，其它 config 都没加）。
+      但**修掉它并不能救活这个模块**，见问题 C。
+
+【问题 C】注意力在训练后趋向常量增益（这是最致命的一条）
+    同一脚本，单位尺度代理激活（batch 8），训练后权重的 gate 统计：
+        RSAR ckpt   layer1 gate std 0.01335  layer2 0.00122
+                    layer3 0.00038          layer4 0.00019
+        DIOR ckpt   layer1 gate std 0.00217  layer2 0.00158
+                    layer3 0.00173          layer4 0.00152
+        两者的 gate mean 全部 = 0.5000
+    即 attn(x) ≈ 0.5 * x，与样本、通道几乎无关。整个 2.53M 参数的机制做
+    的事情等价于 relu(0.5·F(x) + x) —— 一个可学习的残差缩放标量。
+    **两个 checkpoint（RSAR 与 DIOR）都是如此**，所以这不是某次训练的意外：
+    问题 A 已经说明这个模块的输出扰动只有万分之几，网络自然把它压成常量。
+    同期 fc.2（sigmoid 输出层）的幅值也随之衰减：
+        RSAR   layer1 |fc.2|max 0.250 → layer4 0.0325（缩 7.7 倍）
+        DIOR   layer1 |fc.2|max 0.093 → layer4 0.0319（缩 2.9 倍）
+    （注意：gate 统计用代理激活测得，真实 BN 激活会略有不同；但问题 A 的
+      移除比例是算子的结构性质，与激活分布无关。）
+
+
+1.3 配置层缺陷（与架构无关，改动成本极低）
+--------------------------------------------------------------------------------
+
+【缺陷 1】OrthoNet 没有 ImageNet 初始化 —— 本仓库已验证可一键修复
+    实测：tools/analysis/audit_orthonet_attention.py 的 keys 检查
+        OrthoNet(depth=50).state_dict() 与 ResNet(depth=50).state_dict()
+        比较：ResNet 独有 key 0 个，shape 不匹配 0 个，
+        OrthoNet 独有 48 个 key，全部是 `*.attn.*`（ortho_vector / fc.0 / fc.2）。
+        非 attn 参数量 23.508M，与 ResNet-50 完全一致。
+        torchvision resnet50 权重（去掉 fc.）load_state_dict(strict=False)：
+        missing_keys = 48，全部含 '.attn.'；unexpected_keys = []。
+    也就是说：**torchvision 的 ResNet-50 权重可以直接灌进 OrthoNet**，
+    只有 attention 是新参数。
+    代价对照（本仓库实测 mAP）：
+        configs/baseline/oriented_rcnn_r50_dior_trainval.py      0.6693 (36ep)
+        configs/baseline/oriented_rcnn_orthonet_dior_trainval.py 0.5771 (100ep)
+        OrthoNet 多训 64 个 epoch，还低 9.2 mAP。
+    所以当前"OrthoNet 从头训练"是一个自造的劣势，不是架构的锅。
+
+【缺陷 2】configs/baseline/oriented_rcnn_orthonet_dior.py 用 frozen_stages=-1
+    当前注释的理由是"没有 ImageNet 初始化，冻结 random 特征没意义"。
+    一旦接了缺陷 1 的 ImageNet 初始化，这条理由消失，应该改回
+    frozen_stages=1 / norm_eval=True（与 oriented_rcnn_r50_dior_trainval.py 一致）。
+
+【缺陷 3】ortho_vector 的 decay_mult=0.0 只写在 SLRP 的 config 里
+    configs/baseline/oriented_rcnn_slrp_orthonet_rsar.py 的文档字符串甚至已经
+    点明了这个塌缩现象（"the supplied RSAR checkpoint has it collapsed to
+    ||v|| ~ 0.02-0.09 in stages 2-4 for exactly this reason"），但没有推广到
+    SOGC / StripNet / 所有 baseline config。
+
+【现状小结 —— 深度剖面证据（重要，第 3 节设计依据）】
+    工具：tools/analysis/depth_profile.py
+    结果：work_dirs/depth_profile_400/summary.json（400 张图，7 种干扰）
+    每种干扰最优可观测量在各 tap 上的可分性（AUROC，0.5 = 随机）：
+
+      corruption            peak_tap   peak_obs                 input  stem  maxpool    C2     C3     C4     C5
+      am_noise_horizontal   maxpool    0.996  profile_anis     0.877 0.960  0.996   0.904  0.967  0.892  0.760
+      am_noise_vertical     maxpool    0.991  col_spectral_pk  0.842 0.843  0.991   0.892  0.899  0.794  0.803
+      chaff                 maxpool    0.978  col_profile_cv   0.604 0.955  0.978   0.785  0.571  0.521  0.588
+      noise_suppression     maxpool    0.878  mean_energy      0.549 0.649  0.878   0.510  0.545  0.516  0.513
+      smart_suppression     maxpool    0.840  local_cv_contr   0.682 0.762  0.840   0.772  0.614  0.519  0.686
+      gaussian_white_noise  C4         0.639  mean_energy      0.524 0.513  0.569   0.541  0.585  0.639  0.578
+      point_target          C5         0.556  row_spectral_pk  0.503 0.516  0.502   0.508  0.509  0.501  0.556
+
+    → 7 种干扰里 5 种的签名峰值落在 maxpool（stride 4、64 通道），
+      到 C4 基本衰减到接近随机。噪声/干扰的信息是**浅层、高分辨率、
+      方向性**的；而 OrthoNet 现有的全部"遥感特化"机制（attn 在
+      stage4 最深，SOGC 在 C4/C5）都放在了签名已经消失的地方。
+
+
+================================================================================
+2. 设计依据：遥感信息的三域正交分解
+================================================================================
+
+这一节解释为什么下面的模块长这样。可以跳过，但改代码时请回来对齐语义。
+
+遥感（尤其 SAR / 光学航拍）影像的信息可以按物理来源分成三个**近似正交**的
+子空间。这三者在遥感文献里都有对应的、成熟的经典算法：
+
+  ┌── R 域：辐射域 / 各向同性 (radiometric, isotropic) ──────────────────────┐
+  │  内容：太阳照度、大气散射、地表平均反射率、SAR 的斑点噪声底、增益漂移。  │
+  │  性质：与方向无关，全局（或大尺度）共享，是"背景"。                      │
+  │  经典对应：CFAR 的局部背景估计、辐射定标、直方图匹配。                   │
+  │  失效代价：把增益当结构学，跨域/跨传感器迁移直接崩。                      │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  ┌── G 域：几何域 / 方向性 (geometric, directional) ────────────────────────┐
+  │  内容：道路、桥梁、跑道、防波堤、船体尾迹、机翼与机身长轴、输电线路。    │
+  │  性质：强各向异性，能量集中在频域的窄方向扇形里；方向 = 目标的物理朝向。│
+  │  经典对应：Gabor / 方向滤波器组、Radon 变换、Hough 直线检测。            │
+  │  失效代价：方向选择性丢失，长条目标和"随机纹理"在特征上不可分。          │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  ┌── S 域：稀疏域 / 点散射 (sparse, point-like) ─────────────────────────────┐
+  │  内容：点目标、角反射器、飞机机头、孤立强散射体、以及干扰注入的尖峰。    │
+  │  性质：空间稀疏，局部近似全秩，能量远高于局部背景。                      │
+  │  经典对应：CFAR 超阈值检测、匹配滤波、稳健 PCA 的稀疏项。                │
+  │  失效代价：小目标被池化和下采样平均掉。                                  │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+本仓库已有的 SLRP（mmdet_extension/models/utils/slrp.py）实际上就是 R/G/S 分解
+的一个特例：它用 local_separable_decomposition 估计"可分离（低秩）= 干扰"，
+残差是"S = 目标"，并用两者的能量占比 + 方向profile 比值构成描述子。
+SLRP 的思路是对的，方向也对（放在 maxpool 之后，与第 1.2 节的深度剖面一致）。
+**v2 的设计就是把 SLRP 的物理直觉从"一个外挂模块"推广成 backbone 本身的组织
+原则**，并且补上 SLRP 没有覆盖的 G 域（方向基）。
+
+同样地，"OrthoNet" 的正交性应该体现在：网络显式地估计 R（背景/辐射），
+把它投影掉，只在正交补空间（G ⊕ S）里做判别。这跟高光谱目标检测里的
+OSP（Orthogonal Subspace Projection, Harsanyi & Chang 1994）和 RX 异常检测
+是同一个数学操作，是一个 30 年前就被遥感界验证过的算子。名字与做法终于一致。
+
+
+================================================================================
+3. 目标结构：OrthoNet-RS v2
+================================================================================
+
+3.1 总览
+--------------------------------------------------------------------------------
+输入 [B,3,800,800]
+  │
+  ├─► [M1] SpeckleAwareLocalNorm          零初始化残差，初始时严格等于输入
+  │
+  ├─► [M2] DirectionalOrthoStem           各向同性基 ⊕ 方向基（4 个方向共享权重）
+  │        ├── 输出 A: stride-2, 64ch   ─► 可选 HR tap（见 3.6）
+  │        └── maxpool(s2) ─► SLRP（保持不变）
+  │
+  ├─► [M4] Stage1..Stage2                 可选 7×7 大核 depthwise（RepLK 风格）
+  │
+  ├─► [M4] Stage3..Stage4                 可选并行空洞卷积 (d=1,2,3,5)
+  │        每个 block 内部用 [M3] OrthoSubspaceAttention
+  │        替换 OrthogonalChannelAttention
+  │
+  └─► C2 / C3 / C4 / C5（+ 可选 stride-2 tap）
+
+设计硬约束（违反任一条即不可用）：
+  H1. 默认参数下，`OrthoNet` 的前向输出必须与旧版本**逐位一致**
+      （所有新模块的最后一层零初始化 → 初始时是严格恒等映射）。
+      这条沿用 SLRP 已经建立的做法（见 slrp.py 模块 docstring 最后一段）。
+  H2. 旧 checkpoint（/myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth）
+      必须能 load_state_dict(strict=False) 且 missing/unexpected 只包含
+      新增模块；已有的 `attn.*` 三个 key 不删除、不改名（见 3.4）。
+  H3. 任何新增模块必须在 `enabled=False` 时**完全不注册任何参数和 buffer**，
+      以保持 legacy state-dict 表面不变（沿用 `_validate_sogc_cfg` /
+      `_validate_slrp_cfg` 的写法）。
+  H4. 所有可调参数走 config，不写死在代码里；不引入新依赖
+      （torch 2.0.1 + mmcv 1.7.2 + mmdet 2.28.0 + mmrotate 0.3.4 + timm 1.0.27，
+       不引入 e2cnn / kornia / einops）。
+
+
+3.2 模块 M1：SpeckleAwareLocalNorm（辐射域前端）
+--------------------------------------------------------------------------------
+新建：mmdet_extension/models/utils/radiometric.py
+类名：SpeckleAwareLocalNorm
+
+物理动机
+    遥感（特别是 SAR）的噪声以**乘性**为主，同一目标的绝对亮度随传感器增益、
+    入射角、地表反射率剧烈变化，但"目标相对局部背景的对比度"是稳定的。
+    CFAR 检测器就建立在这一点上。当前网络直接把标准化后的 8bit 像素喂进
+    conv1，让卷积自己去学增益不变性，这是一个昂贵的、需要大量数据的方式。
+    本模块用 200 行以内的代码把增益不变性**结构性地**给进去。
+
+规格
+    class SpeckleAwareLocalNorm(nn.Module):
+        def __init__(self,
+                     channels=3,
+                     window=5,            # 奇数；局部统计窗口
+                     eps=1e-4,
+                     gamma=0.5,           # 修正幅度上界，输出 ∈ [1-γ, 1+γ]
+                     learnable_affine=True,
+                     log_input=False,     # SAR 臂可打开：先做 log1p 同态变换
+                     use_variance=True):  # False 时退化为纯减去局部均值
+
+        forward(x):                              # x: [B,3,H,W]
+            x_ref = torch.log1p(x.clamp_min(0)) if log_input else x
+            mu      = _local_mean(x_ref, window)                 # 复用 slrp._band_mean 的实现风格
+            if use_variance:
+                var = (_local_mean(x_ref*x_ref, window) - mu*mu).clamp_min(0)
+                z   = (x_ref - mu) / torch.sqrt(var + eps)
+            else:
+                z   = x_ref - mu
+            if learnable_affine: z = z * weight.view(1,-1,1,1) + bias.view(1,-1,1,1)
+            correction = torch.tanh(self.proj(z))                # proj 最后一层零初始化
+            return x * (1.0 + gamma * correction)
+
+    实现要点
+      * padding 用 replicate，不要用 reflect：reflect 在 pad >= size 时会报错，
+        而 C5 只有 25×25（同 slrp.py 里 _replicate_pad 的注释）。
+      * `_local_mean` 用 avg_pool2d(stride=1) 做 box filter，O(N)，不要用 unfold。
+      * 最后一个 Conv2d/Linear 必须 nn.init.zeros_ 初始化 → 初始时
+        correction=0，输出严格等于 x（满足 H1）。
+      * 只作用在输入层（3 通道），全分辨率 800×800，开销约
+        3 通道 × 2 次 box filter。实测应该 < 0.3 ms/图，可以忽略。
+      * **不要**把它放在 conv1 之后（浅层特征已经是 64 通道，局部统计不再有
+        物理意义）。它属于输入域的辐射校正。
+
+    可选（SAR 专用，默认关）：把 log_input=True 与 SLRP 联用。log 域把乘性
+    斑点变成加性，SLRP 的稳健 PCA 假设正好匹配。
+
+
+3.3 模块 M2：DirectionalOrthoStem（几何域前端，本设计的核心创新）
+--------------------------------------------------------------------------------
+位置：mmdet_extension/models/backbones/orthonet.py
+类名：DirectionalOrthoStem
+替换：ResNet 的 stem（conv1 7×7/s2 + norm1 + relu，随后保持原有 maxpool 不变）
+
+物理动机
+    G 域（方向性结构）是遥感与自然图像差别最大的一项：跑道、桥梁、防波堤、
+    船体尾迹在一个 800×800 的图里是几十到几百像素长的、单一方向的条带。
+    标准 3×3 卷积核在初始化时是各向同性的，必须靠大量数据才能长出方向选择性。
+    既然我们**知道**目标是方向性的（本任务本身就是 oriented detection，训练
+    时用 RRandomFlip 的 diagonal 方向增强、用 le90 角度编码），就应该把方向基
+    直接写进网络结构里 —— 这就是"符合遥感信息的投影"最直接的落地。
+
+    这与 Strip R-CNN（本仓库已有 StripNet 实现，
+    mmdet_extension/models/backbones/stripnet.py 的 StripBlock 用 (1,k)/(k,1)
+    条带卷积）的动机一致。v2 在两点上更进一步：
+      (a) 条带核由**一个可学习模板旋转生成**，天然支持任意角度，而且参数
+          量与方向数无关 —— 这是可导向滤波器组 (steerable filter bank) 的做法；
+      (b) 方向支路是**加性零初始化旁路**，不破坏 ImageNet 权重膨胀（缺陷 1 的
+          修复），而 StripNet 无法复用 ResNet 权重。
+
+规格
+    class DirectionalOrthoStem(nn.Module):
+        """正交分解 stem：各向同性基 + 方向基。
+
+        前向恒等式（初始化时）：
+            stem(x) == conv1(x) + 0
+        所以可以直接吃 torchvision resnet50 的 conv1 权重。
+        """
+
+        def __init__(self,
+                     in_channels=3,
+                     out_channels=64,
+                     kernel_size=7,          # 主卷积，与 ResNet 一致，便于膨胀初始化
+                     stride=2,
+                     orientations=(0, 45, 90, 135),
+                     dir_kernel_size=7,      # 方向模板尺寸，必须是奇数
+                     dir_channels=8,         # 每个方向的输出通道
+                     fusion='additive',      # 'additive'（推荐，保持恒等初始化）
+                     norm_cfg=dict(type='BN', requires_grad=True)):
+            # --- 各向同性基：就是标准 ResNet stem，命名保持 conv1/norm1/relu ---
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size,
+                                   stride=stride, padding=kernel_size//2,
+                                   bias=False)
+            self.norm1 = build_norm_layer(norm_cfg, out_channels)[1]
+            self.relu  = nn.ReLU(inplace=True)
+
+            # --- 方向基：单一 7x7 模板，按角度旋转生成方向核 ---
+            n_dir = len(orientations)
+            self.orientations = tuple(orientations)
+            self.dir_kernel_size = dir_kernel_size
+            # template: [n_dir * dir_channels, in_channels, k, k] 的"基"参数，
+            # 每组的卷积核由 rotate_kernel(template[g], theta) 生成
+            self.dir_template = nn.Parameter(
+                torch.empty(n_dir * dir_channels, in_channels,
+                            dir_kernel_size, dir_kernel_size))
+            nn.init.kaiming_normal_(self.dir_template, mode='fan_out',
+                                    nonlinearity='relu')
+            self.dir_stride = stride
+
+            # --- 融合：零初始化的 1x1，保证初始化时方向支路贡献为 0 ---
+            self.dir_fuse = nn.Conv2d(n_dir * dir_channels, out_channels,
+                                      kernel_size=1, bias=False)
+            nn.init.zeros_(self.dir_fuse.weight)
+
+        def forward(self, x):
+            iso = self.conv1(x)
+            dir_out = F.conv2d(
+                x,
+                self._rotated_kernels(),
+                stride=self.dir_stride,
+                padding=self.dir_kernel_size // 2)
+            dir_out = F.conv2d(dir_out, self.dir_fuse.weight)   # 1x1
+            return self.relu(self.norm1(iso + dir_out))
+
+        def _rotated_kernels(self):
+            """把模板按各方向旋转，得到 [n_dir*dir_channels, in, k, k]。"""
+            kernels = []
+            for g, theta in enumerate(self.orientations):
+                block = self.dir_template[
+                    g*self.dir_channels:(g+1)*self.dir_channels]
+                kernels.append(_rotate_kernel_2d(block, theta))
+            return torch.cat(kernels, dim=0)
+
+    def _rotate_kernel_2d(kernel, theta_deg):
+        """把一个 [N, C, k, k] 卷积核绕中心旋转 theta 度（可微分）。
+
+        用 F.affine_grid + F.grid_sample 在 (k, k) 网格上做双线性重采样。
+        k 很小（7×7=49 个采样点），开销可以忽略。
+        旋转矩阵注意 y 轴朝下，因此构造时用
+            [[cosθ, -sinθ], [sinθ, cosθ]]
+        并配合 align_corners=False 的网格约定；实现后必须用第 7 节的
+        旋转等变测试（rotate 90° 两次 == rotate 180°）验证符号方向。
+        """
+        # 实现提示：
+        #   theta = math.radians(theta_deg)
+        #   grid  = F.affine_grid(rot_matrix[None], kernel.shape,
+        #                         align_corners=False)
+        #   return F.grid_sample(kernel, grid, mode='bilinear',
+        #                        padding_mode='zeros', align_corners=False)
+        # 为了不破坏 H1（初始化严格恒等），旋转本身不影响恒等性：dir_fuse 零
+        # 初始化已经保证方向支路初始输出为 0，旋转是否正确只影响训练后的效果。
+
+    实现要点
+      * **不要**把 self.conv1 改名（H2 要求 checkpoint 兼容）。
+      * `OrthoNet.__init__` 里当 `stem_cfg.enabled=False` 时不构建本模块，
+        保持 `self.conv1 / self.norm1 / self.relu` 的原样路径。
+      * `OrthoNet.forward` 中把
+            x = self.conv1(x); x = self.norm1(x); x = self.relu(x)
+        换成
+            x = self.stem_block(x) if self._stem_cfg else <原路径>
+      * num_stages / out_indices / maxpool 全部保持原样。
+      * 参数量：dir_template = 4×8×3×49 = 4704，dir_fuse = 64×32 = 2048，
+        合计约 6.8K，相对 23.5M 的主干是 0.03%。这是本设计里性价比最高的地方。
+      * 计算量：多 4 条 7×7/s2 卷积，输入 3 通道、输出 8 通道，
+        800×800 → 400×400，约 4 × (400×400×8×3×49) ≈ 0.75 GFLOP，
+        相对 ResNet-50 主干在 800×800 上的 ~90 GFLOP 是 0.8%。
+      * 可选扩展（默认关，写进 config）：`orientations=(0,30,60,90,120,150)`
+        六方向版本，方向分辨更细，代价线性增长。
+      * 可选扩展：把 `padding_mode='zeros'` 的旋转核与 'circular'/'replicate'
+        做成可选项 —— 边界处理会影响边缘响应，RS 图边缘常有大目标。
+
+
+3.4 模块 M3：OrthoSubspaceAttention（替换 OrthogonalChannelAttention）
+--------------------------------------------------------------------------------
+位置：mmdet_extension/models/backbones/orthonet.py
+类名：OrthoSubspaceAttention
+
+物理动机
+    现有模块用"减去一个学习到的单位方向"来伪装正交性，但 1/C 的能量移除
+    在数值上不可观测（第 1.2 节问题 A）。真正的遥感做法是 OSP / RX 异常检测：
+        (1) 估计"背景"（辐射域 R 的基）—— 这里 = 一个可学习的原型 μ
+            加上一个 k 维的低维子空间 B；
+        (2) 把观测投影到背景的正交补 —— r⊥ = (I - BBᵀ)(d - μ)
+        (3) 在残差上做判决，而不是在原始观测上。
+    k 是显式可控的：k/C 就是被抑制的子空间占比（例如 C=2048 时 k=32 → 1.6%，
+    C=256 时 k=32 → 12.5%），比现在的 1/C 大一到两个数量级，而且可调、
+    可诊断、可验证。
+
+规格
+    class OrthoSubspaceAttention(nn.Module):
+        def __init__(self,
+                     channels,
+                     reduction=16,
+                     basis_rank=32,          # k，正交基个数；0 = 退化为 legacy
+                     strip_pool=True,        # 额外使用 H/W 条带池化描述子
+                     identity_init=True,     # fc 输出层零初始化 → gate ≡ 1
+                     eps=1e-5):
+            self.channels = int(channels)
+            hidden = max(channels // reduction, 1)
+
+            # --- 描述子：GAP + 可选 H/W 条带池化 ---
+            # d = cat([GAP(x), Hstrip(x).expand, Wstrip(x).expand])  ∈ R^{3C}
+            # H strip: adaptive_avg_pool2d(x, (H,1)) → [B,C,H,1] → 沿 H 广播回
+            # W strip: adaptive_avg_pool2d(x, (1,W)) → [B,C,1,W] → 沿 W 广播回
+            # 之所以用条带而不是只留 GAP：方向性长目标（桥梁、尾迹）的能量在
+            # 沿其长轴的池化后才会凸显，逐轴池化天然给出这个方向自由度，
+            # 而且成本是 O(H+W) 而不是 O(HW)（对比 non-local / self-attention）。
+
+            # --- 背景模型（OSP）---
+            self.register_parameter('bg_mean', nn.Parameter(torch.zeros(channels)))
+            if basis_rank > 0:
+                self.register_parameter(
+                    'bg_basis', nn.Parameter(torch.zeros(channels, basis_rank)))
+
+            # --- 判别 MLP：保持 legacy 的 key 名 fc.0 / fc.2 ---
+            self.fc = nn.Sequential(
+                nn.Linear(3 * channels if strip_pool else channels, hidden,
+                          bias=False),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden, channels, bias=False),
+                nn.Sigmoid())
+
+            # --- 兼容旧 checkpoint：ortho_vector 保留为"不参与前向的"参数 ---
+            # 见下方"兼容性说明"。
+
+        def forward(self, x):
+            d  = self._descriptor(x)                       # [B, D]
+            if self.basis_rank > 0:
+                r  = d - self.bg_mean                      # 去背景原型
+                B  = _orthonormalize(self.bg_basis)        # [C, k]，列正交
+                r  = r - (r @ B) @ B.t()                   # 正交子空间投影
+            else:
+                r  = d
+            gate = self.fc(r).view_as(<pooled shape>)      # [B,C,1,1]
+            if self.identity_init:
+                gate = 2.0 * gate                          # 初始时 2σ(0)=1
+            return x * gate
+
+    def _orthonormalize(B):
+        """把 [C,k] 参数变成列正交基。
+
+        注意：**不能**用 F.normalize 只做列归一化，那样列之间不保证正交，
+        投影 (I - BBᵀ) 就不再是正交投影，会引入非正交的"过投影"。
+        用 torch.linalg.qr 的 reduced 模式即可（C×k，k 很小，开销可忽略）：
+            Q, _ = torch.linalg.qr(B)   # [C,k], [k,k]
+            # qr 的符号约定可能带来列符号翻转，但 (I - QQᵀ) 对列符号不敏感，
+            # 所以不需要 fix sign。
+            return Q
+        第 7 节有 ||BᵀB - I||_F < 1e-5 的验收测试。
+
+    兼容性说明（满足 H2，必须照做）
+      旧 checkpoint 的 `attn.ortho_vector`（shape [C]）、`attn.fc.0.weight`
+      （shape [hidden, C]）、`attn.fc.2.weight`（shape [C, hidden]）必须能
+      被本模块接收。
+        * `ortho_vector`：注册为普通 Parameter，但**不参与前向**，并加
+          `decay_mult=0.0`（见 3.7）。留着是为了 strict=False 时少一个
+          missing key，也为了不破坏 tools/analysis 里已有的诊断脚本。
+          在 docstring 里注明它是 legacy 残留。
+        * `fc.0.weight`：新模块的输入维度是 3C 而不是 C，shape 不兼容。
+          **实现选择**：把 `strip_pool` 改成"描述子拼接但 MLP 输入仍是 C"的
+          形式 —— 具体做法是先把条带描述子与 GAP 融合成一个 C 维向量：
+              d = gap + alpha_h * h_strip_pooled + alpha_w * w_strip_pooled
+          其中 alpha_* 是每通道可学习的标量（初始 0）。这样 `fc.0` 的
+          in_features 仍是 C，旧权重可以直接 load（虽然只覆盖 GAP 支路）。
+          这是**推荐方案**，代价是表达力略弱于 cat，但换来完全的状态字典兼容。
+          如果实现者判断兼容性不重要（例如只跑 DIOR 从零训练），可以用
+          cat 版本并把 strip_pool 默认设为 False。
+        * `fc.2.weight`：shape [C, hidden] 完全一致，直接复用。
+
+    实现要点
+      * `basis_rank=0` 且 `strip_pool=False` 且 `identity_init=False` 时，
+        模块行为与 legacy 完全一致（除了 ortho_vector 不再参与前向）——
+        这是给老实验留的后门，默认**不要**用它。
+      * gate 在 `identity_init=True` 时用 `2*sigmoid(·)`，值域 (0,2)，
+        初始 1.0。注意 legacy 的 sigmoid 值域是 (0,1)，训练后的权重
+        （gate≈0.5）会让新模块初始输出 2×0.5=1.0 —— **这正好也是恒等**，
+        所以加载 RSAR 权重时新模块也接近恒等，过渡非常平滑。这一点要在
+        代码注释里写清楚，否则后人会以为加载旧权重会翻倍。
+      * `bg_mean` 初始 0、`bg_basis` 初始 0（QR 之后是 0 矩阵，投影为恒等），
+        满足 H1。
+      * 每 stage 的额外参数：bg_mean C + bg_basis C·k。
+        C=2048,k=32 → 68K；48 个 attn 模块合计约 0.6M（相对 2.53M 的
+        legacy attn 是 24%）。相对 26M 主干是 2.3%，可接受。
+      * 诊断接口（沿用 SOGCCalibrator._last_diagnostics 的写法）：
+            get_attention_diagnostics() -> {
+                'gate_mean', 'gate_std', 'gate_min', 'gate_max',
+                'subspace_energy_fraction',   # ||BBᵀr||²/||r||²，应接近 k/C
+                'residual_energy_fraction',   # ||r⊥||²/||r||²
+            }
+        第 7 节的验收要求 gate_std > 0.05（证明它不是常量增益——正是
+        第 1.2 节问题 C 的死因）。
+
+
+3.5 模块 M4：MultiScaleContextBlock（可选层，建议第二阶段再上）
+--------------------------------------------------------------------------------
+动机：RS 同一幅图内目标尺度跨两个数量级（DIOR 的 vehicle ≈ 12px，harbor ≈ 400px）。
+      ResNet 每个 block 固定 3×3 有效感受野，stage3/4 靠堆叠才勉强够。
+      参考 RepLKNet/ConvNeXt 的结论：大核 depthwise 是提高有效感受野最便宜的
+      方式。
+
+规格（两个变体，独立开关）
+  M4a「大核」（stage1、stage2 的第一个 block）
+      conv2 的 3×3 替换为 7×7 depthwise(k=7, groups=C) + 1×1 pointwise。
+      参数量 49C vs 9C²（C=256 时是 12.5K vs 590K，**减少**参数）。
+      必须零初始化 pointwise 的残差旁路以保持恒等（同 H1）。
+
+  M4b「并行空洞」（stage3、stage4 每隔一个 block）
+      把 conv2 按通道分成 4 组，分别用 dilation=1,2,3,5 的 depthwise 3×3，
+      concat 后接 1×1 融合。感受野从 3 扩到 11，参数量不变。
+      同样零初始化融合层。
+
+这两个是**加成项**，不是本设计的必需品。第 8 节的实验矩阵把它们排在
+M1/M2/M3 之后单独 A/B，避免一次改动太多变量。
+
+
+3.6 高分辨率 tap（HRP，可选，默认关闭）
+--------------------------------------------------------------------------------
+证据：第 1.2 节的深度剖面显示干扰签名在 maxpool(stride 4) 最强、C4 之后消失；
+      而 RS 小目标在 stride 4 上只有 3 个像素宽。
+当前网络**没有任何 stride-2 的 tap**（conv1 s2 + maxpool s2 = stride 4）。
+而 conv1/norm1/relu 之后的特征图天然就是 stride 2、64 通道 —— 提取它是
+零额外计算。
+
+实现
+    OrthoNet.__init__(..., hrp=False)
+    forward 中：
+        x = <stem>                       # stride 2, 64ch
+        hr = x if self.hrp else None     # 保存 stride-2 tap
+        x = self.maxpool(x)              # stride 4
+        ...
+        outs = ([hr] if self.hrp else []) + outs
+    注意 `out_indices` / `_tap_channels` / SLRP 的 stage 索引都要相应处理，
+    否则 `_apply_slrp` 会错位。**建议做法**：不要改动 out_indices 语义，
+    而是新增一个独立属性 `self.hr_output`，在 forward 里单独 append，
+    并在 `OrthoNet.get_backbone_outputs()` 之类的辅助方法里区分。
+
+检测器侧配套（configs 里的改动）
+    model = dict(
+        neck=dict(
+            _delete_=True, type='FPN',
+            in_channels=[64, 256, 512, 1024, 2048],   # 多了 stride-2 的 64ch
+            out_channels=256, num_outs=6, start_level=0,
+            add_extra_convs='on_output'),
+        rpn_head=dict(
+            anchor_generator=dict(
+                strides=[2, 4, 8, 16, 32, 64])),      # 6 个
+        roi_head=dict(
+            bbox_roi_extractor=dict(
+                out_channels=256, featmap_strides=[2, 4, 8, 16])))
+
+成本（必须写进配置注释，这是本设计里唯一有实质代价的改动）
+    stride-2 特征图 400×400×256(fp32) = 160 MB / 图，
+    samples_per_gpu=8 时仅这一层激活就 1.3 GB，反向还要再一份；
+    RPN 在 P2 上的 anchor 数 = 400×400×3 = 480K。
+    → 建议：samples_per_gpu ≤ 4 时才开 HRP，并把
+      rpn.test_cfg / train_cfg.rpn_proposal.nms_pre 从 2000 调到 3000，
+      max_per_img 保持 2000，min_bbox_size 保持 0。
+    → 只在 RSAR（小目标为主：car/tank 在 800×800 上只有十几像素）臂开启；
+      DIOR 臂先不开，作为独立消融。
+
+
+3.7 参数量与配置层修改汇总
+--------------------------------------------------------------------------------
+参数账（depth=50、800×800 输入）
+    legacy OrthoNet                     26.04 M（attn 2.53 M）
+    + M1 SpeckleAwareLocalNorm          +~0.01 M
+    + M2 DirectionalOrthoStem           +~0.007 M
+    + M3 OrthoSubspaceAttention(k=32)   +~0.6 M（并保留 legacy attn 参数）
+    + M4a/M4b                           净减少或持平
+    --------------------------------------------------
+    合计                                约 26.6 M（+2.2%）
+
+必须修改的 config（这份清单在实现时逐条打勾）
+  [C1] 新增 configs/baseline/oriented_rcnn_orthonet_rs_v2_dior.py
+       backbone.init_cfg = dict(type='Pretrained',
+                                checkpoint='torchvision://resnet50')
+       backbone.frozen_stages = 1
+       backbone.norm_eval = True
+       backbone.stem_cfg = dict(enabled=True, orientations=(0,45,90,135),
+                                dir_kernel_size=7, dir_channels=8)
+       backbone.attn_cfg = dict(enabled=True, basis_rank=32,
+                                strip_pool=True, identity_init=True)
+       backbone.rad_cfg  = dict(enabled=True, window=5, gamma=0.5,
+                                log_input=False)
+  [C2] 同一实验的 R50 对照 config 保持不变（保证对比公平）。
+  [C3] optimizer.paramwise_cfg.custom_keys 增加：
+           'ortho_vector':  dict(decay_mult=0.0),
+           'bg_basis':      dict(decay_mult=0.0),   # 只由 QR 归一化决定尺度
+           'rad_norm':      dict(decay_mult=0.0),
+       并且**把这个 paramwise_cfg 推广到所有 configs/baseline/*.py 和
+       configs/unbiased_teacher/**/*.py**（缺陷 3）。SLRP 那个 config 已经
+       有这个字段，直接继承即可。
+  [C4] configs/baseline/oriented_rcnn_orthonet_dior.py 的
+       frozen_stages=-1 / norm_eval=False 注释需要更新（缺陷 2）：
+       一旦接 ImageNet 初始化，这两项应回到 1 / True。
+  [C5] 若启用 HRP，改动 detector 的 neck / rpn strides / roi strides
+       （见 3.6），并单独出一个 config，不要改默认。
+
+实现完成时的自检清单
+  [ ] `python train.py <cfg>` 在 stem/attn/rad 全关时与旧 config 的
+      iter loss 曲线一致（同 seed 前 20 iter 逐位一致的测试见第 7 节）。
+  [ ] `grep -rn "ortho_vector" configs/` 的所有 config 都带 decay_mult=0.0。
+  [ ] 新增参数在 `enabled=False` 时不出现在 state_dict（H3）。
+
+
+================================================================================
+4. 兼容性与初始化契约（实现时最容易翻车的地方，单独强调）
+================================================================================
+
+4.1 恒等初始化是硬要求
+    所有新增模块的"最后一层"必须零初始化，使得：
+        x 经过 M1 → 严格等于 x
+        stem 经过 M2 → 等于 conv1(x) 经 norm1 + relu
+        block 经过 M3 → 等于 legacy 的 x * sigmoid(fc(...))（保留旧行为）
+    只有这样，才能把 torchvision ResNet-50 权重灌进 OrthoNet（缺陷 1），
+    也才能让所有既有实验的 config 不被悄悄改变语义。
+    仓库里的先例：mmdet_extension/models/utils/slrp.py 结尾那段
+    "The gate is 1 + gamma * tanh(...) with a zero-initialized output layer,
+     so a freshly constructed module is exactly the identity"。
+
+4.2 状态字典契约
+    必须保留（不删不改名）：
+        backbone.conv1.*, backbone.norm1.*, backbone.relu,
+        backbone.maxpool, backbone.layer{1..4}.*（含 .attn.ortho_vector,
+        .attn.fc.0.weight, .attn.fc.2.weight）
+    可以新增：
+        backbone.<新模块>.*, *.attn.bg_mean, *.attn.bg_basis
+    验证方法：见第 7 节 T1。
+
+4.3 复用仓库既有的 config 校验风格
+    照抄 `OrthoNet._validate_slrp_cfg` / `_validate_sogc_cfg`：
+      - `enabled=False` 或 `None` → 返回 None，不构建任何模块；
+      - 白名单校验未知字段（`unknown = set(cfg) - allowed` → raise）；
+      - 参数范围校验（window 必须是正奇数等）；
+      - 非法配置**必须 fail-closed 抛异常**，不要静默降级。
+        （参见 commit 8234694 "Make CGA VLST experiments fail closed" 的取向。）
+
+
+================================================================================
+5. 建议的实施顺序（为什么是这个顺序）
+================================================================================
+这个顺序是**按"验证成本 / 收益"排的**，不是按代码依赖排的。
+
+  第 0 步  [C1/C3/C4] 只做配置修复，不碰架构。跑 DIOR source 100ep。
+          预期：0.577 → 0.63+（ImageNet 初始化通常值 5 个点以上）。
+          如果这一步就把差距追平，后面所有架构改动的基线就都变了，
+          必须先知道这个数。
+  第 1 步  [M3] 换注意力。因为它是唯一一个"用了很多参数但实测没干活"的模块，
+          替换的收益最确定。单独 A/B。
+  第 2 步  [M2] 方向基 stem。零初始化旁路，风险最低，是"遥感特化"的主卖点。
+  第 3 步  [M1] 辐射归一化。在 DIOR 的光学 corruption（brightness/contrast/
+          fog）上预期收益最大。
+  第 4 步  [M4]、[HRP] 加成项，视第 0-3 步结果决定是否继续。
+
+  每一步之间必须用第 7 节的 T2/T3 确认"没有把 legacy 行为改掉"。
+
+
+================================================================================
+6. 给 AI 的任务清单（可逐条执行）
+================================================================================
+
+TASK-0  配置修复（不需要改 backbone 代码）
+  0.1 configs/baseline/oriented_rcnn_orthonet_dior.py：
+      model.backbone.init_cfg = dict(type='Pretrained',
+                                     checkpoint='torchvision://resnet50')
+      model.backbone.frozen_stages = 1
+      model.backbone.norm_eval = True
+      更新文件顶部与 model 段的注释，说明 OrthoNet 的非 attn 参数与
+      ResNet-50 逐 key 同构（附第 1.3 节的证据），所以可以吃 ImageNet 权重；
+      只有 48 个 attn.* 是新参数。
+  0.2 检查整个 configs/ 目录，给所有包含 OrthoNet 的 config 加上
+      optimizer.paramwise_cfg=dict(custom_keys={'ortho_vector':
+      dict(decay_mult=0.0)})（若已有 optimizer.paramwise_cfg 则合并，
+      不要覆盖）。
+  0.3 不改动 configs/baseline/oriented_rcnn_r50_*.py（对照组必须原样）。
+
+TASK-1  新增 mmdet_extension/models/utils/radiometric.py
+      实现 SpeckleAwareLocalNorm（规格见 3.2），在 utils/__init__.py 导出。
+      单测：tools/analysis/tests/test_radiometric.py
+        - 零初始化时输出严格等于输入（torch.equal 级）；
+        - 输入整体乘以常数 a>0 时，z 不变（增益不变性）—— 这是本模块的
+          核心性质，必须显式测；
+        - replicate padding 在 8×8 输入上不报错。
+
+TASK-2  OrthoNet 支持 stem_cfg / attn_cfg / rad_cfg（3.3 / 3.4 / 3.2）
+      2.1 按 _validate_slrp_cfg 的模式写 _validate_stem_cfg /
+          _validate_attn_cfg / _validate_rad_cfg。
+      2.2 新增 DirectionalOrthoStem 与 _rotate_kernel_2d。
+      2.3 新增 OrthoSubspaceAttention，并让 OrthoBasicBlock /
+          OrthoBottleneck 通过参数选择用哪一个（默认保持 legacy 类不变，
+          用 attn_cfg.enabled 切换）。
+      2.4 forward 按 3.3 的方式分派；启用 rad_cfg 时在 stem 之前插 M1。
+      2.5 加诊断接口 get_attention_diagnostics()，并接到
+          tools/analysis/ 现有的诊断框架里
+          （参考 tools/analysis/verify_sogc_equivalence.py 与
+            tools/analysis/verify_slrp_descriptor.py 的写法）。
+
+TASK-3  验收测试（见第 7 节 T1/T2/T3/T4/T5），全部纳入
+        tools/cga_research/tests/ 或 tools/analysis/tests/。
+
+TASK-4  新 config：configs/baseline/oriented_rcnn_orthonet_rs_v2_dior.py
+        与 configs/baseline/oriented_rcnn_orthonet_rs_v2_rsar.py。
+        只写 model.backbone 的差异，其余 _base_ 继承。
+
+TASK-5  文档：更新 README.md 的 OrthoNet 段，说明 v2 的开关与默认值，
+        并把这七个 RSAR 干扰在哪一层被处理（结合第 1.2 节深度剖面）写清楚。
+
+**不要做的事**
+  * 不要引入 e2cnn / kornia / einops 等新依赖（环境是 torch 2.0.1 + mmcv 1.7.2）。
+  * 不要改动 mmdet_extension/models/utils/slrp.py 的现有行为（它已经过
+    校准与验证，见 work_dirs/slrp_calibrated_v2）。
+  * 不要在 TASK-1/2 里同时改配置（分层提交，便于二分定位）。
+  * 不要把 M3 的 strip_pool 写成 non-local / self-attention：P2 层的
+    H×W=400×400，全局注意力会直接 OOM。
+
+
+================================================================================
+7. 验收测试（未通过不算完成）
+================================================================================
+
+T1  legacy 前向逐位一致
+    构造 enabled=False 的 v2 OrthoNet，与当前实现（git HEAD 的 orthonet.py）
+    用同一组权重、同一输入，比较所有输出张量：
+        torch.equal(out_legacy, out_v2) 必须为 True（不是 allclose，
+        必须是 equal —— 因为恒等模块不应该引入任何浮点重排）。
+    参考 tools/analysis/verify_sogc_equivalence.py 的做法。
+
+T2  旧 checkpoint 可加载
+    对 /myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth：
+        model.load_state_dict(sd, strict=False)
+        unexpected_keys == []
+        missing_keys 只包含新模块（radiometric.* / stem_block.* /
+        bg_mean / bg_basis），不含 conv1/norm1/layer1-4 的任何基础 key。
+    已实测：当前实现下 missing 48 个（全是 attn.*）、unexpected 0 个；
+    v2 必须保持 unexpected=0，且不允许任何基础 key 变成 missing。
+
+T3  正交基正确
+    对每个 OrthoSubspaceAttention：
+        B = _orthonormalize(module.bg_basis)
+        ||B.t() @ B - I||_F < 1e-5  （fp32）
+    并且在训练 100 iter 之后再测一次（验证 QR 的梯度路径没把参数推坏）。
+    另外测 subspace_energy_fraction 在随机输入上 ≈ k/C（容差 3 倍以内）。
+    这是对第 1.2 节问题 A 的直接反向验证：如果新实现测出来还是 1/C 量级，
+    说明投影没有生效。
+
+T4  方向基的旋转等变性
+    对 DirectionalOrthoStem：
+      (a) rotate_kernel_2d(K, 0) 与 K 逐元素一致（容差 1e-6）；
+      (b) rotate_kernel_2d(rotate_kernel_2d(K, 90), 90) ≈ rotate_kernel_2d(K, 180)；
+      (c) 把 dir_fuse 权重设成随机非零后，
+          输入沿空间轴 rot90 一次，方向支路输出应等于原输出 rot90 一次
+          （对 90° 倍数严格成立）。
+    这三条是在确认"方向基"不是一句空话。
+
+T5  注意力不再塌缩
+    在 DIOR source 训练 5 个 epoch 后，导出
+    get_attention_diagnostics()：
+        gate_std 在 layer3/layer4 必须 > 0.05（当前两个 checkpoint 在
+        layer3/layer4 只有 0.0002 ~ 0.0017，见第 1.2 节问题 C）；
+        ||bg_basis||_F 不为 0（没被 weight decay 吞掉）；
+        subspace_energy_fraction 稳定在 k/C 附近而不是漂到 0。
+    这是对第 1.2 节问题 B/C 的回归测试。
+
+T6  mAP 基线（每个改动单独跑，不允许合并汇报）
+    命令模板（与 README 的 DIOR 段一致）：
+        CUDA_VISIBLE_DEVICES=0 python train.py \
+          <cfg> --work-dir work_dirs/<name> --seed 42 --deterministic \
+          --cfg-options data.samples_per_gpu=8 optimizer.lr=0.01 \
+                        runner.max_epochs=100 evaluation.interval=1 \
+                        checkpoint_config.interval=1 log_config.interval=10
+    评估用 test.py --eval mAP，与
+    work_dirs/oriented_rcnn_r50_dior_tang034_seed42_36ep（0.6693）和
+    work_dirs/oriented_rcnn_orthonet_dior_trainval（0.5771）对齐协议。
+    必须至少 3 个 seed（42/13/2001，与 work_dirs/recal_slrp_seed2001/2002
+    的现有做法一致），报均值±标准差。
+    单一 seed 上的 +0.5 不构成结论。
+
+
+================================================================================
+8. 预期与风险
+================================================================================
+
+预期收益（保守估计，按第 5 节的顺序）
+
+  改动                                    预期                   不确定性
+  ---------------------------------------------------------------- -----------
+  0. ImageNet 初始化 + frozen_stages=1     +3 ~ +7 mAP DIOR       低（机制已实测，
+                                            0.577 → 0.60~0.65       量级靠类比）
+  1. M3 替换注意力                       +0.5 ~ +2 mAP          中
+  2. M2 方向基 stem                      +0.5 ~ +2 mAP（RSAR     中
+                                            小目标/长条目标上更明显）
+  3. M1 辐射归一化                       +1 ~ +2 mAP 在 DIOR     中
+                                            brightness/contrast/fog
+  4. HRP (stride-2 tap)                  +1 ~ +3 mAP 在          中（显存代价高）
+                                            RSAR car/tank
+  --------------------------------------------------------------
+  合计（全部叠加）                        目标接近/超过 R50 的 0.6693
+
+  已知的同协议实测参照（trainval 训练 / test 评估，见第 6 节 T6）：
+      R50 + ImageNet, 36 ep, trainval   → 0.6693
+      OrthoNet 从零, 100 ep, trainval   → 0.5771
+  另有一条不同协议的参考（R50 + ImageNet, 36 ep, 只用 train.txt）：
+      work_dirs/oriented_rcnn_r50_dior_source_seed42 → 0.5454
+      不要用它跟 0.5771 比 —— 训练集大小不同，不是公平对照。
+
+  诚实提示：M1/M2/M3 的收益估计没有本仓库内的直接证据支撑，它们是基于
+  同类方法的公开结果给的量级判断。第 0 项有直接证据（key 对齐已实测）。
+  **先做第 0 项、先拿到那个数**，再决定后面投多少。
+
+风险与回退
+
+  R1  ImageNet 权重膨胀后 fine-tune，BN 统计与遥感域不匹配。
+      → norm_eval=True 时 BN 用 ImageNet 统计，而 DIOR 的 800×800 遥感图
+        与 ImageNet 的 224×224 自然图分布差异较大。缓解：先用
+        norm_eval=True 跑，若 mAP 明显低于 R50 对照组，改 norm_eval=False
+        让 BN 跟着更新（此时 learning rate 需要相应降低）。
+        这条要作为独立消融记录。
+
+  R2  M2 的方向模板旋转在 padding_mode='zeros' 下会削弱核的总能量。
+      → 旋转后 4 个方向核的能量不一致（45° 时四角被裁掉），训练时可能
+        出现方向偏好。缓解：旋转后按 L2 范数重新归一化每个方向核，
+        或改用 padding_mode='border'。实现时两种都测。
+
+  R3  M3 的 bg_mean / bg_basis 在源域上会被训成"类别原型"而不是"背景"，
+      从而在目标域上误抑制。
+      → 用一个大的 momentum 统计（类似 SOGC 的 source statistics、
+        SGD 的 prototype momentum 0.9）来冻结源域背景，而不是当自由参数。
+        本仓库已有 SOGCCalibrator 的 source-buffer 机制（source_mean /
+        source_var / stats_ready）可以直接扩展，这是最稳的做法。
+        如果实现者时间紧，先把 bg_mean/bg_basis 设为不可学习 buffer，
+        在源域训练结束后冻结，作为第一阶段实现。
+
+  R4  一次改太多，无法归因。
+      → 第 6 节的 TASK 2.3 里已经把"legacy attn 保留"做成后门；
+        每个模块独立 config 开关；T6 要求单变量报告。
+
+  R5  HRP 在 40GB 显存下 batch 8 直接 OOM。
+      → 已经在 3.6 给了显存账（160MB/图/层）。默认关闭，且只在
+        samples_per_gpu ≤ 4 时启用。若仍 OOM，把 stride-2 分支的
+        通道数从 64 降到 32 再测。
+
+  R6  "Ortho" 的语义被过度包装而没人验证。
+      → T3 / T5 就是防止这件事的：如果 subspace_energy_fraction 仍是
+        1/C 量级、gate_std 仍接近 0，说明新模块和旧模块一样是摆设，
+        必须如实汇报，不要用 mAP 的小波动掩盖机制失效。
+
+
+================================================================================
+9. 附录
+================================================================================
+
+A. 复现第 1 节审计的命令
+   一条命令覆盖"缺陷 1"与"问题 A/B/C"：
+     cd /mycode/mycode/IRAOD-New
+     /opt/conda/envs/iraod/bin/python \
+       tools/analysis/audit_orthonet_attention.py \
+       --checkpoints \
+         /myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth \
+         work_dirs/oriented_rcnn_orthonet_dior_trainval/epoch_100.pth \
+       --out-json work_dirs/orthonet_attention_audit.json
+   本次运行的输出已存于 work_dirs/orthonet_attention_audit.json。
+
+   深度剖面重跑（第 1.2 节末尾那张表）：
+     /opt/conda/envs/iraod/bin/python tools/analysis/depth_profile.py \
+       --config configs/baseline/oriented_rcnn_orthonet_rsar.py \
+       --checkpoint /myfile/pretrain/oriented_rcnn_orthonet_rsar_epoch_100.pth \
+       --out-dir work_dirs/depth_profile_v2 --overwrite
+     （本次引用的结果在 work_dirs/depth_profile_400/summary.json）
+
+B. 关键文件索引
+   mmdet_extension/models/backbones/orthonet.py        现有 OrthoNet
+   mmdet_extension/models/backbones/stripnet.py        StripNet（方向条带卷积参考）
+   mmdet_extension/models/utils/slrp.py                R/S 域分解 + 零初始化先例
+   mmdet_extension/models/utils/sogc.py                源域统计 buffer 先例
+   mmdet_extension/models/utils/spatial_geometry.py    15 个几何可观测量（诊断用）
+   tools/analysis/depth_profile.py                     深度剖面
+   tools/analysis/audit_orthonet_attention.py          第 1 节审计（本次新增）
+   tools/analysis/gate_spatial_geometry.py             可观测量的可分性门控
+   tools/analysis/verify_sogc_equivalence.py           恒等/等价性测试的写法模板
+   configs/baseline/oriented_rcnn_orthonet_dior.py     DIOR 源模型
+   configs/baseline/oriented_rcnn_orthonet_rsar.py     RSAR 源模型
+   configs/baseline/oriented_rcnn_slrp_orthonet_rsar.py 已有的 paramwise_cfg 先例
+
+C. 术语对照
+   R 域 / radiometric / 各向同性 / 背景        —— CFAR 的背景估计
+   G 域 / geometric / 方向基 / 各向异性        —— Gabor / 方向滤波器组
+   S 域 / sparse / 点散射                      —— CFAR 超阈值 / 匹配滤波
+   OSP (Orthogonal Subspace Projection)        —— Harsanyi & Chang 1994
+   RX 异常检测                                 —— Reed & Yu 1990
+   SLRP (Separable Low-Rank Projection)        —— 本仓库已有的 R/S 分解实现
+
+================================================================================
+D. 实施记录（2026-10-26）
+================================================================================
+
+已落地（未提交，全部在工作区）：
+
+  第 0 步  ImageNet 初始化（文档 TASK-0）
+    mmdet_extension/models/backbones/orthonet.py
+        新增 attn_init='legacy'|'identity'。identity 时 fc 输出层零初始化且
+        gate 乘 2，初始 gate = 1.0。默认 legacy，旧 checkpoint 语义不变。
+    configs/baseline/oriented_rcnn_orthonet_dior.py
+        init_cfg=torchvision://resnet50、frozen_stages=1、norm_eval=True、
+        attn_init='identity'、ortho_vector decay_mult=0。
+    实测（/tmp/final_verify.py）：
+        OrthoNet(attn_init='identity') 与 ResNet-50 在 C2..C5 上
+        torch.equal=True（逐位相等）。
+        OrthoNet(attn_init='legacy') 与 ResNet 在 C5 上 max|d| = 6.16
+        —— 证实"随机 0.5 衰减会毁掉预训练特征"这个判断。
+
+  第 1-3 步  OrthoRSNet（M1 + M2 + M3）
+    mmdet_extension/models/backbones/orthorsnet.py（新）
+        OrthoRSNet(OrthoNet)
+          M1 SpeckleAwareLocalNorm
+          M2 方向基 stem（单一 7×7 模板旋转生成 4 个方向核）
+          M3 OrthoSubspaceAttention（OSP + 深度可分离条带池化）
+          OrthoRSBottleneck / OrthoRSBasicBlock
+    配置：
+        configs/baseline/oriented_rcnn_orthorsnet_dior.py
+        configs/baseline/oriented_rcnn_orthorsnet_dior_trainval.py
+        configs/baseline/oriented_rcnn_orthorsnet_rsar.py
+        configs/baseline/ema_config/baseline_oriented_rcnn_ema_{dior,rsar_cga}_orthorsnet.py
+        configs/unbiased_teacher/sfod/..._vlst_cga_{dior,rsar}_orthorsnet.py
+    实测：M1+M2+M3 全开、初始化后与 ResNet-50 在 C2..C5 逐位相等；
+          gate_mean 精确等于 1.0；学生与 EMA 教师 state-dict 形状完全一致
+          （454 个张量）。
+    参数量：ResNet-50 23.508M | OrthoNet 26.038M | OrthoRSNet 26.770M。
+
+本实现在三处偏离了正文的设计，原因如下（正文保留原方案以备追溯）：
+
+  D1  3.4 的"strip 描述子融合成 C 维"未采用。
+      正文自己也指出了问题：把条带剖面压成标量，等于又做了一次全局平均。
+      实做改为"通道门 × 空间门"两个独立乘法门，二者都在初始化时为 1.0。
+      fc.0 的输入维度因此仍是 C，旧 checkpoint 的 fc 权重依然可用。
+
+  D2  3.4 的 QR / 极分解正交化未采用——它在数值上不可用。
+      首次实现用 torch.linalg.eigh 做极分解。实测：bg_basis 初始为 0 时
+      eigh 的梯度为 NaN（特征向量导数除以特征值差，而特征值全为 0）；
+      NaN 在第一次 optimizer.step 后污染参数，随后 eigh 不再收敛。
+      现改为 ridge 形式 r - rA(A^T A + λI)^{-1}A^T：
+        - 处处可微，A=0 时严格恒等（solve 的右端为 0）；
+        - 只需 k×k 求解，不需要 C×C 投影矩阵；
+        - 随机初始化 bg_basis（~N(0, 1/C)），因为 A=0 是 ridge 投影的
+          驻点，零初始化会让该子空间永远不训练。
+      实测：k/C = 0.0625 时，随机基移除 0.0613 的能量——OSP 确实生效，
+      而 legacy 只移除 ~1/C ≈ 0.2%。
+
+  D3  正文没有提到、但实现时必须处理：mmdet 的 ResNet.__init__ 在
+      init_cfg=None 时会自动装一个默认的 [Kaiming(Conv2d), Constant(1,BN)]
+      init_cfg，而 BaseModule.init_weights 会把它应用到模块树里的每个
+      Conv2d——包括新加的零初始化层。实测 dir_fuse / strip_h /
+      radiometric.proj 全部被重新随机化，恒等性静默失效。
+      OrthoRSNet.init_weights 因此在 init_cfg 不是 Pretrained 时重新施加
+      零初始化。
+      **同一机制已经在现有 SLRP 上得到确认**（已实测，不是推测）：
+        configs/baseline/oriented_rcnn_slrp_orthonet_rsar.py 构建后
+        backbone.init_cfg = [Kaiming(Conv2d), Constant(1, BN)]，
+        SLRP gate 的最后一层在 init_weights 之前全零（True），
+        init_weights 之后 max|w| = 6.07e-01（False）。
+      也就是说该 config 文档字符串里"SLRP is zero-initialized, so
+      load_from may point at a plain OrthoNet checkpoint: the backbone
+      reproduces its pretrained forward pass exactly until the gate is
+      trained"这句话在当前代码下不成立——SLRP 的 gate 是随机初始化的。
+      这不影响 SLRP 能否训练，但影响"初始恒等"和"权重兼容"这两个承诺，
+      以及所有基于"零初始化"做的对照解读。建议单独修复（在 SLRP 里重写
+      init 或在 config 里给 gate 加显式 init_cfg），本次未改动以免与
+      已完成的 SLRP 实验混淆。
+
+未做（正文里列为可选项，本次未要求）：
+  M4 大核 / 并行空洞卷积（3.5）、HRP stride-2 tap（3.6）。
+
+================================================================================
+ 结束
+================================================================================

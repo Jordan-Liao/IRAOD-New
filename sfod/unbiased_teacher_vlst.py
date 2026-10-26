@@ -7,6 +7,28 @@ from .rotated_unbiased_teacher import UnbiasedTeacher
 from .semantic_teacher.prototype_teacher import SemanticPrototypeTeacher
 
 
+_OPENAI_CLIP_EMBED_DIMS = {
+    'RN50': 1024,
+    'RN101': 512,
+    'RN50x4': 640,
+    'RN50x16': 768,
+    'RN50x64': 1024,
+    'ViT-B/32': 512,
+    'ViT-B/16': 512,
+    'ViT-L/14': 768,
+    'ViT-L/14@336px': 768,
+}
+
+
+def _normalize_vlst_backend(value):
+    value = (value or '').strip().lower()
+    if value in ('clip', 'openai', 'optical', 'optical_clip'):
+        return 'clip'
+    if value in ('sarclip', 'sar_clip', 'sar-clip'):
+        return 'sarclip'
+    return value
+
+
 @DETECTORS.register_module()
 class UnbiasedTeacherVLST(UnbiasedTeacher):
     """UnbiasedTeacher with Vision-Language Semantic Teacher.
@@ -33,10 +55,42 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
         if self.vlst_score_thr is None:
             self.vlst_score_thr = self.score_thr
 
+        vlst_backend = os.environ.get('VLST_BACKEND', '').strip().lower()
+        if not vlst_backend:
+            vlst_backend = os.environ.get('CGA_SCORER', '').strip().lower()
+        if vlst_backend in ('', 'none', 'false', '0', 'raw'):
+            vlst_backend = 'sarclip'
+        self.vlst_backend = _normalize_vlst_backend(vlst_backend)
+
+        if self.vlst_backend == 'clip':
+            self.vlst_model_name = os.environ.get(
+                'VLST_CLIP_MODEL', os.environ.get('CLIP_MODEL', 'RN50x64'))
+            inferred_vlm_dim = _OPENAI_CLIP_EMBED_DIMS.get(
+                self.vlst_model_name)
+        elif self.vlst_backend == 'sarclip':
+            self.vlst_model_name = os.environ.get(
+                'VLST_SARCLIP_MODEL',
+                os.environ.get('SARCLIP_MODEL', 'ViT-B-32'))
+            inferred_vlm_dim = 512 if self.vlst_model_name == 'ViT-B-32' else None
+        else:
+            raise ValueError(f'Unsupported VLST_BACKEND: {self.vlst_backend}')
+
         # Detector ROI feature dimension (from Oriented R-CNN bbox head)
         # RotatedShared2FCBBoxHead: fc_out_channels=1024 (default in configs)
         vlst_detector_dim = int(cfg.get('vlst_detector_dim', 1024))
-        vlst_vlm_dim = int(cfg.get('vlst_vlm_dim', 512))  # ViT-B-32 SARCLIP
+        configured_vlm_dim = cfg.get('vlst_vlm_dim', None)
+        if configured_vlm_dim is None:
+            if inferred_vlm_dim is None:
+                raise ValueError(
+                    f'vlst_vlm_dim is required for {self.vlst_model_name!r}')
+            vlst_vlm_dim = inferred_vlm_dim
+        else:
+            vlst_vlm_dim = int(configured_vlm_dim)
+            if (inferred_vlm_dim is not None
+                    and vlst_vlm_dim != inferred_vlm_dim):
+                raise ValueError(
+                    f'vlst_vlm_dim={vlst_vlm_dim} does not match '
+                    f'{self.vlst_model_name} output dim {inferred_vlm_dim}')
         vlst_projection_hidden = int(cfg.get('vlst_projection_hidden', 256))
 
         # Initialize Semantic Prototype Teacher
@@ -101,11 +155,7 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             # Pick the VLM backend. CGA_SCORER=none only disables the
             # label-level CGA branch — the feature-level prototype teacher is
             # an independent arm (ST+Proto) and must still get its VLM.
-            vlm_type = os.environ.get('VLST_BACKEND', '').strip().lower()
-            if not vlm_type:
-                vlm_type = os.environ.get('CGA_SCORER', '').strip().lower()
-            if vlm_type in ('', 'none', 'false', '0', 'raw'):
-                vlm_type = 'sarclip'
+            vlm_type = self.vlst_backend
 
             # Build a VLM dedicated to VLST. Its adapter must be explicit:
             # Arm C has label-level CGA disabled, so relying on the ambient
@@ -117,13 +167,29 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
                     os.environ['SARCLIP_LORA'] = self.vlst_lora_path
                 elif inherited_lora:
                     os.environ.pop('SARCLIP_LORA')
-                vlm = CGA(
-                    class_names=class_names,
-                    backend=vlm_type,
-                    model="ViT-B-32",
-                    pretrained="/myfile/pretrain/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-                    cache_dir="/myfile/pretrain/SARCLIP/ViT-B-32",
-                )
+                if vlm_type == 'clip':
+                    vlm = CGA(
+                        class_names=class_names,
+                        backend='clip',
+                        model=self.vlst_model_name,
+                    )
+                else:
+                    vlm = CGA(
+                        class_names=class_names,
+                        backend='sarclip',
+                        model=self.vlst_model_name,
+                        pretrained=os.environ.get(
+                            'VLST_SARCLIP_PRETRAINED',
+                            os.environ.get(
+                                'SARCLIP_PRETRAINED',
+                                '/myfile/pretrain/SARCLIP/ViT-B-32/'
+                                'vit_b_32_model.safetensors')),
+                        cache_dir=os.environ.get(
+                            'VLST_SARCLIP_CACHE_DIR',
+                            os.environ.get(
+                                'SARCLIP_CACHE_DIR',
+                                '/myfile/pretrain/SARCLIP/ViT-B-32')),
+                    )
             finally:
                 if inherited_lora is None:
                     os.environ.pop('SARCLIP_LORA', None)
@@ -138,7 +204,8 @@ class UnbiasedTeacherVLST(UnbiasedTeacher):
             text_proto_tensor = torch.from_numpy(text_proto).float()
 
             self.vlst_teacher.set_text_prototypes(text_proto_tensor)
-            print(f"[VLST] Initialized text prototypes directly from {vlm_type}: "
+            print(f"[VLST] Initialized text prototypes directly from "
+                  f"{vlm_type}/{self.vlst_model_name}: "
                   f"shape={text_proto_tensor.shape}, classes={class_names}")
 
         except Exception as e:
