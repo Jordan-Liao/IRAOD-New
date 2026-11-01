@@ -11,3 +11,4 @@ SFUT,SFUT-OBB,yes,OBB,none,eval_only,off,off,yes,required; independent of B
 DRU,DRU-OBB,yes,OBB,none,eval_only,off,off,yes,required; DRUUnbiasedTeacher not B; chaff/seed42 gate
 AASFOD,AASFOD-OBB,yes,OBB,none,eval_only,off,off,yes,required; complete missing TEST
 SFYOLO,SFYOLO-OBB,yes,OBB,none,eval_only,off,off,yes,required; TAM+TEST gaps then DIOR-17
+OURS,本文方法 (strict),yes,OBB,CLIP-RN50x64,eval_only,veto_soft,on,yes,F with CLIP RN50x64 CGA+VLST; DIOR only; DDP2

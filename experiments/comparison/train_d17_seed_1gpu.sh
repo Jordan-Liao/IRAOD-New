@@ -2,7 +2,7 @@
 # DIOR extra-seed cell: train + final-EMA TEST eval, matching the seed-42 DIOR protocol.
 # Usage: GPUS METHOD DOMAIN SEED [PORT]
 #   GPUS "a"   -> 1 GPU x samples_per_gpu 32
-#   GPUS "a,b" -> DDP2  x samples_per_gpu 16   (required for E/F: 1x32 OOMs)
+#   GPUS "a,b" -> DDP2  x samples_per_gpu 16   (required for E/F/OURS: 1x32 OOMs)
 # Protocol (= seed 42): global batch 32, lr 0.02, runner.max_epochs=1 (~185 iters),
 # unlabeled_epoch_size 5863, strict_source_free, weight_l=0, final-iteration EMA.
 # Outputs go to ext_runs_e1/ so the old 2-epoch / batch-16 runs in ext_runs/ are never reused.
@@ -41,6 +41,12 @@ case "$METHOD" in
     CFG=/home/zechuan/iraod_jobs/dior_bf/configs/dior_${METHOD}_strict.py
     EXTRA+=(model.cfg.use_bbox_reg=False)
     ;;
+  OURS)
+    # F's protocol and code (strict-af @ 0f98a48) + ours_strict_vlst_model.patch; CLIP RN50x64 CGA+VLST.
+    CODE=/home/zechuan/IRAOD-New-ours-strict
+    CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_vlst_cga_dior_orthonet_ours_strict.py
+    EXTRA+=(model.cfg.use_bbox_reg=False)
+    ;;
   DRU)
     CODE=/home/zechuan/IRAOD-New-dru-20260919
     CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_dru_dior_orthonet_strict.py
@@ -71,8 +77,8 @@ else
   NGPU=1; SPG=32
   LAUNCH=(train.py "$CFG" --gpus 1)
 fi
-if [[ ( "$METHOD" == E || "$METHOD" == F ) && "$NGPU" -ne 2 ]]; then
-  echo "E/F need two GPUs (DDP2 x16); got GPUS=$GPUS"; exit 2
+if [[ ( "$METHOD" == E || "$METHOD" == F || "$METHOD" == OURS ) && "$NGPU" -ne 2 ]]; then
+  echo "E/F/OURS need two GPUs (DDP2 x16); got GPUS=$GPUS"; exit 2
 fi
 export CUDA_VISIBLE_DEVICES=$GPUS
 
