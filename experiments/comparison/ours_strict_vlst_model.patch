@@ -1,0 +1,29 @@
+--- a/sfod/unbiased_teacher_vlst.py
++++ b/sfod/unbiased_teacher_vlst.py
+@@ -33,6 +33,8 @@
+         self.vlst_strict = bool(cfg.get('vlst_strict', False))
+         self.vlst_pretrained = cfg.get('vlst_pretrained', None)
+         self.vlst_cache_dir = cfg.get('vlst_cache_dir', None)
++        # VLST encoder name; CLIP backend needs e.g. 'RN50x64' (vlst_vlm_dim=1024).
++        self.vlst_model = cfg.get('vlst_model', 'ViT-B-32')
+         if self.vlst_strict:
+             if self.vlst_lora_path:
+                 raise ValueError(
+@@ -148,7 +150,7 @@
+                 vlm = CGA(
+                     class_names=class_names,
+                     backend=vlm_type,
+-                    model="ViT-B-32",
++                    model=self.vlst_model,
+                     pretrained=pretrained,
+                     cache_dir=cache_dir,
+                     strict=True,
+@@ -163,7 +165,7 @@
+                     vlm = CGA(
+                         class_names=class_names,
+                         backend=vlm_type,
+-                        model="ViT-B-32",
++                        model=self.vlst_model,
+                         pretrained=pretrained,
+                         cache_dir=cache_dir,
+                     )

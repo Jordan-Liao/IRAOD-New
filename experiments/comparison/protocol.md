@@ -20,6 +20,7 @@ Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, 
 | D | SARCLIP-CGA | yes | frozen base SARCLIP, veto_soft, no LoRA |
 | E | VLST | yes | CGA off, independent frozen SARCLIP VLST |
 | F | CGA+VLST | yes | D's CGA + E's VLST |
+| OURS | 本文方法 (strict) | yes | F with CLIP RN50x64 (CGA + VLST) instead of SARCLIP; method knobs of sogc-orthonet-phase1 @ 8b42687 `..._vlst_cga_dior_orthonet.py`; DIOR only, DDP2 × 16 |
 | IRG | IRG-OBB | yes | required; rerun NaN cells once |
 | LPLD | LPLD-OBB | yes | required; rerun NaN cells once |
 | SFUT | SFUT-OBB | yes | required; not B |
@@ -38,3 +39,13 @@ Official DIOR-C (19, severity 3). Already compared: brightness, contrast. Extra 
 - Δada = mAP_method − mAP_A (same corruption)
 - mPC = mean over official completed corruptions; DIOR mPC uses the 19 DIOR-C names
 - rPC = mPC / A_clean × 100%
+
+## OURS deployment
+Code = `IRAOD-New-strict-af` @ 0f98a48 (F's code) + `ours_strict_vlst_model.patch`, which adds `model.cfg.vlst_model`: strict VLST hardcoded `ViT-B-32`, so `VLST_BACKEND=clip` would have built CLIP ViT-B/32 (512-d), not RN50x64 (1024-d). Default `ViT-B-32` keeps E/F unchanged. Per host:
+```
+cp -a ~/IRAOD-New-strict-af ~/IRAOD-New-ours-strict && cd ~/IRAOD-New-ours-strict
+patch -p1 < <repo>/experiments/comparison/ours_strict_vlst_model.patch
+cp <repo>/configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_vlst_cga_dior_orthonet_ours_strict.py configs/unbiased_teacher/sfod/
+train_d17_seed_1gpu.sh a,b OURS <domain> <seed>
+```
+The resolved config differs from F's dumped `dior_F_strict.py` only in `vlst_model`, `vlst_pretrained`, `vlst_cache_dir`, `vlst_vlm_dim` (512 → 1024) and the CGA/VLST env (`clip`, `CLIP_MODEL=RN50x64`).
