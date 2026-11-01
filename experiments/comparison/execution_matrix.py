@@ -1,6 +1,6 @@
 """Parseable execution matrix for the approved Source-Free OBB comparison.
 
-Main table: A–F plus six external SFOD ports. DRU is required and is not B.
+Main table: A–F plus seven external SFOD ports. DRU is required and is not B.
 Defensive extras are listed so tests can assert they are out of the queue.
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ EXTERNAL_METHODS: tuple[str, ...] = (
     "DRU",
     "AASFOD",
     "SFYOLO",
+    "LODS",
 )
 
 MAIN_TABLE_METHODS: tuple[str, ...] = OWN_METHODS + EXTERNAL_METHODS
@@ -25,6 +26,7 @@ MAIN_TABLE_METHODS: tuple[str, ...] = OWN_METHODS + EXTERNAL_METHODS
 # DRU-OBB detector type. Must not be UnbiasedTeacher (method B).
 DRU_DETECTOR_TYPE = "DRUUnbiasedTeacher"
 B_DETECTOR_TYPE = "UnbiasedTeacher"
+LODS_DETECTOR_TYPE = "LODSTeacher"
 
 REQUIRED_TEST_ROLE = "ema"
 STUDENT_REQUIRED_TEST = False

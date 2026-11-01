@@ -46,6 +46,13 @@ case "$METHOD" in
     CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_dru_dior_orthonet_strict.py
     EXTRA+=(data.train.type=StrictSourceFreeDOTADataset)
     ;;
+  LODS)
+    # = /home/zechuan/IRAOD-New-dru-20260919 + feat/lods-obb files (see lods_obb_port.md)
+    CODE=/home/zechuan/IRAOD-New-lods-20261101
+    CFG=configs/unbiased_teacher/sfod/lods_oriented_rcnn_dior_orthonet_strict.py
+    SEM=$LOCAL/${METHOD}_d17_s${SEED}/$DOMAIN/sem/sem_iter_160000.pth
+    EXTRA+=(data.train.type=StrictSourceFreeDOTADataset model.cfg.sem_ckpt=$SEM)
+    ;;
   IRG|LPLD|SFUT)
     CODE=/home/zechuan/iraod_jobs/ext/repo_code_a39c832
     CFG=configs/unbiased_teacher/sfod/extensions/${METHOD,,}_dior.py
@@ -81,6 +88,16 @@ work=$root/work
 logd=$root/logs
 done_file=$root/train_done
 mkdir -p "$logd"
+
+# LODS: Style Enhancement Module first, trained on the same unlabeled val images.
+if [[ "$METHOD" == LODS && ! -f "$SEM" ]]; then
+  mkdir -p "$(dirname "$SEM")"
+  ( cd "$CODE" && CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$CODE "$PY" tools/lods/train_sem.py \
+      --target-dir "$SPLITS/$DOMAIN/val" --seed "$SEED" --workers 16 \
+      --encoder /mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_split_enc_keys.pt \
+      --work-dir "$(dirname "$SEM")" > "$(dirname "$SEM")/stdout.log" 2>&1 )
+  [[ -f "$SEM" ]] || { echo "SEM_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }
+fi
 
 # Skip only a run that finished; a partial work dir is discarded, never evaluated.
 if [[ -f "$done_file" ]]; then
@@ -137,6 +154,11 @@ if ! grep -q eval_exit=0 "$out/eval_status" 2>/dev/null; then
   echo "eval_exit=$rec name=$METHOD corrupt=$DOMAIN seed=$SEED $(date --iso-8601=seconds) ema=$ema" | tee -a "$out/eval_status" "$out/eval.log"
   set -u
   [[ "$rec" -eq 0 ]] || { echo "EVAL_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }
+fi
+if [[ "$METHOD" == LODS && ! -f "$out/map50_95.json" ]]; then
+  ( cd "$CODE" && PYTHONPATH=$CODE "$PY" tools/eval_map50_95.py "$RESOLVED" "$out/pred_new.pkl" --out "$out/map50_95.json" \
+      --cfg-options data.test.ann_file="$DIOR/ImageSets/test.txt" data.test.img_prefix="$SPLITS/$DOMAIN/test/" \
+        data.test.ann_subdir="$DIOR/Annotations/Oriented Bounding Boxes/" >> "$out/eval.log" 2>&1 )
 fi
 echo "CELL_DONE $METHOD $DOMAIN seed=$SEED"
 exit 0
