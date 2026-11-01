@@ -824,6 +824,32 @@ class TestMixins:
         return cga, exclude_ids
 
     @staticmethod
+    def _source_frame_results(image_results, img_meta):
+        """Copy of ``image_results`` with boxes in the unflipped source frame.
+
+        ``simple_test(rescale=True)`` removes resize scaling, but mmrotate's
+        bbox-head post-processing does not undo ``RRandomFlip``. CGA crops
+        ``img_meta['filename']``, the unflipped source image, so it must crop
+        restored boxes. The flip is an involution: re-applying it with the
+        source shape restores the boxes. Callers keep ``image_results`` (the
+        teacher frame) for every output; only crops use the restored copy.
+        """
+        if not img_meta.get("flip", False):
+            return image_results
+        from mmrotate.datasets.pipelines import RRandomFlip
+
+        flip = RRandomFlip(version="le90")  # every RRandomFlip in configs/ is le90
+        shape = img_meta["ori_shape"][:2]
+        restored = []
+        for result in image_results:
+            result = np.array(result, copy=True)
+            if len(result):
+                result[:, :5] = flip.bbox_flip(
+                    result[:, :5], shape, img_meta["flip_direction"])
+            restored.append(result)
+        return restored
+
+    @staticmethod
     def _flatten_cga_inputs(image_results):
         boxes, scores, labels = [], [], []
         for class_id, result in enumerate(image_results):
@@ -930,9 +956,11 @@ class TestMixins:
         strict = self._proto_strict()
 
         filename = img_meta["filename"]
+        source_obb = self._flatten_cga_obb(
+            self._source_frame_results(image_results, img_meta))[0]
         try:
             embed, text_sim, text_prob = self.cga.forward_rotated_embed(
-                filename, obb_list, context_ratio=ctx)
+                filename, source_obb, context_ratio=ctx)
         except Exception as e:
             diag["alignment_error_count"] += 1
             if strict:
@@ -1058,8 +1086,10 @@ class TestMixins:
                 raise RuntimeError(
                     "prototype_v2: AABB/OBB proposal alignment mismatch")
 
+            source_boxes = self._flatten_cga_inputs(
+                self._source_frame_results(image_results, img_meta))[0]
             embedding, text_sim, text_prob = self.cga.forward_aabb_embed(
-                img_meta["filename"], boxes, raw_scores, labels)
+                img_meta["filename"], source_boxes, raw_scores, labels)
             expected_prob_shape = (len(boxes), num_classes)
             if (embedding.ndim != 2 or embedding.shape[0] != len(boxes)
                     or text_sim.shape != expected_prob_shape
@@ -1242,7 +1272,8 @@ class TestMixins:
         contexts = []
         all_scores, all_labels, all_probabilities, all_identities = [], [], [], []
         for image_results, img_meta in zip(results, img_metas):
-            inputs = self._flatten_cga_inputs(image_results)
+            inputs = self._flatten_cga_inputs(
+                self._source_frame_results(image_results, img_meta))
             if inputs is None:
                 continue
             boxes, scores, labels = inputs
@@ -1347,7 +1378,9 @@ class TestMixins:
                 return out, self._empty_cga_meta(num_classes)
             return out
 
-        inputs = precomputed_inputs or self._flatten_cga_inputs(image_results)
+        # These boxes only feed crops; scores are written back by flat index.
+        inputs = precomputed_inputs or self._flatten_cga_inputs(
+            self._source_frame_results(image_results, img_meta))
         if inputs is None:
             if collect_meta:
                 return image_results, self._empty_cga_meta(num_classes)
