@@ -18,7 +18,7 @@ launchers `experiments/comparison/rsar_lods_seed.sh` and the `LODS` case of
 | SEM architecture | VGG16 `features[:19]` encoder (frozen, ceil-mode pools), mirrored decoder, `fc1`/`fc2` 1024→512→512 (`Enhance/net.py:6-36`) | same (`lods_sem.py`) |
 | SEM AdaIN | target mean/std = `fc(style stats ++ content stats)` (`Enhance/function.py:15-29`) | same |
 | SEM training losses | decoder step: `loss_c` + 4-level reconstruction `loss_const`; fc step: 50·style(g, style) + 1·style(g, content), 4 levels (`net.py:97-140`, generic branch) | same |
-| SEM optimisation | two Adam, lr 1e-4, decay `lr/(1+5e-5·i)`, batch 8, 128 crops, h-flip, 160 000 iters, content & style both = target images (`Enhance/train.py:22-162`, README:59) | same per-step settings; length mapped to 53 334 iters (budget table) |
+| SEM optimisation | two Adam, lr 1e-4, decay `lr/(1+5e-5·i)`, batch 8, 128 crops, h-flip, 160 000 iters, content & style both = target images (`Enhance/train.py:22-162`, README:59) | same, 160 000 iters (budget table) |
 | SEM inference | per image, random target image as style resized to content size, alpha blend, clip to [0,255] (`enhance_base.py:14-40,83-129`) | same (`LODSTeacher.enhance`) |
 | Teacher/student | teacher gets the original image, student gets SEM(original) (`faster_rcnn_style.py:66-68`); student classifies the teacher's proposals (`:101-102`) | same; student RoIs = teacher RoIs index-for-index |
 | Teacher proposals | teacher RPN forced to eval (`faster_rcnn_style.py:75-76`) → test-mode proposals | teacher `rpn_head.simple_test_rpn` (eval EMA model, detector test cfg) |
@@ -35,24 +35,29 @@ launchers `experiments/comparison/rsar_lods_seed.sh` and the `LODS` case of
 Rule for the whole comparison: per-step constants (EMA keep rate 0.999, loss
 weights 1/0.1/0.1, threshold 0.8, gw_add_rate 0.5, SEM lr / lr-decay
 coefficient / loss weights / batch 8 / crop 128, param-group multipliers) keep
-their official values; only schedule events are scaled to the shared 1-epoch
-budget. LODS has one schedule event, the SEM stage length.
+their official values; schedule events are scaled to the shared 1-epoch
+budget. The SEM stage is the exception, for parity with the other style-network
+port: the SF-YOLO TAM (same fc-AdaIN decoder recipe) ran its full official
+160 000 steps, one seed-42 fit per (dataset, domain) shared by detector seeds
+42/43/44 (`experiments/comparison/train_tam.py:6,65-66,152-153,209-210` in
+`/mnt/shared/zechuan/iraod_code/worktrees/accepted-d668a77-67-20260912`;
+`tam_runs_84a1aeb/rsar/chaff/seed_42/{training_config,terminal}.json`:
+`steps=formal_steps=160000`, `detector_seeds=[42,43,44]`). LODS SEM follows
+the same rule.
 
 | Item | Official | Here |
 |---|---|---|
 | Detector schedule | bs 1, 3 epochs (clipart) / 1 epoch (foggy) (README:162-171), `USE_FLIPPED` doubles the epoch (`train_target.py:391`) | 1 epoch, global batch 32 (1 GPU × 32), RSAR iter_266 / DIOR ~185 |
 | LR | SGD 1e-4 constant (`train_target.py:60-62`; `inv_lr_scheduler(gamma=0, power=-1)`, `utils.py:9-16`), momentum 0.9 | SGD lr 0.02, momentum 0.9, wd 1e-4, shared 100-iter linear warmup |
 | Input scale | shorter side 600, max 1000 | shared 800×800 RResize, RRandomFlip h/v/diag |
-| SEM stage | separate stage of 160 000 iters × 8 ahead of a 3-epoch detector stage (generic branch, README:59,162) | 160 000 × (1 / 3) = **53 334 iters × 8** (~45 min on one A100) ahead of the 1-epoch detector stage, once per (target domain, seed); reads only the unlabeled adaptation images |
+| SEM stage | separate stage, 160 000 iters × 8, before a 3-epoch detector stage (README:59,162) | **full 160 000 iters × 8** (~1.6 h alone on one A100), one seed-42 fit per (dataset, domain) at `<ART>/rsar/<domain>/lods_sem_seed42/` (DIOR: `ext_runs_e1/LODS_sem_s42/<domain>/`), reused by detector seeds 42/43/44; reads only the unlabeled adaptation images |
 
-Effect of the mapping: the SEM decoder/fc see 1/3 of the official crop count
-(~427k vs 1.28M 128-px crops), and because the official per-step lr decay
-`lr/(1+5e-5·i)` is kept, training stops at lr ≈ 2.7e-5 instead of ≈ 1.1e-5.
-The SEM is therefore less converged than the official one (expected: weaker
-style fidelity and more decoder blur/artifacts; see the visual check). The
-detector stage is the shared 1×32, 1-epoch run, so the teacher receives
-265 EMA updates at 0.999 (≈ 23 % student weight) instead of ~6000 bs-1 updates
-in the official clipart recipe.
+Effect: the SEM matches the official one in length and recipe. The detector
+stage is the shared 1×32, 1-epoch run, so the teacher receives 265 EMA updates
+at 0.999 (≈ 23 % student weight) instead of ~6000 bs-1 updates in the official
+clipart recipe; the per-update style augmentation is official. Seeds 43/44 of a
+domain must start after its seed-42 SEM file exists (the launchers train it
+only when missing).
 
 ## Deviations
 
