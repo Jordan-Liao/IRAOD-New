@@ -246,7 +246,7 @@ R-CNN 组与 DETR 组共有、本端口没有改的一点：CGA 按 `img_meta['f
 | SFUT（第二批） | 49.97 | +7.85 | 1.04 | `SFUT_s42/.../iter_1060_ema.pth` | `67e3c80` |
 | SFYOLO（第二批，2 epoch） | 37.71 | −4.41 | 0.60 | `SFYOLO_s42/.../iter_2119_ema.pth` | `67e3c80` |
 
-`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
+代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
 
 **C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
 
