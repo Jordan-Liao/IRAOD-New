@@ -87,9 +87,29 @@ SEM-specific:
 
 ## Open questions (method-relevant)
 
-- **alpha / branch.** Official commands use `style_add_alpha 1.0` with random target styles (clipart) and `0.4` with a fixed mean-fog style (city2foggy); the argparse default is 0.5 and no value is given for watercolor/KITTI. Our corruptions (SAR chaff/noise, DIOR-C weather/noise) are closer in kind to foggy, but the foggy recipe cannot be reproduced (see 14). The port uses the generic branch with alpha 1.0. Changing it is a one-line `model.cfg.style_add_alpha` override, but it changes the method and must not be tuned on target labels.
+- **alpha / branch** (see Visual check: alpha 1.0 erases many RSAR small ships). Official commands use `style_add_alpha 1.0` with random target styles (clipart) and `0.4` with a fixed mean-fog style (city2foggy); the argparse default is 0.5 and no value is given for watercolor/KITTI. Our corruptions (SAR chaff/noise, DIOR-C weather/noise) are closer in kind to foggy, but the foggy recipe cannot be reproduced (see 14). The port uses the generic branch with alpha 1.0. Changing it is a one-line `model.cfg.style_add_alpha` override, but it changes the method and must not be tuned on target labels.
 - **Proposal count** (deviation 2): 2000 vs 300 teacher RoIs changes the instance-graph size and the confident-background share of the CE.
 
 ## Visual check
 
-`tools/lods/vis_sem.py` grids (original | SEM | original zoom with GT outline | SEM zoom). GT is read only to pick and outline targets in the figure. Paths and verdict: see the PR description.
+`tools/lods/vis_sem.py` grids (columns: original | SEM | original zoom with GT
+outline | SEM zoom), detector input scale, random target style, alpha 1.0 unless
+named. GT is read only to pick and outline targets in the figure. Full-size
+files: `/mnt/shared/zechuan/iraod_artifacts/comparison/lods_visual/` (gpu-67);
+1000-px copies plus per-image metrics in `experiments/comparison/lods_visual/`.
+SEMs: RSAR chaff `<ART>/rsar/chaff/lods_sem_seed42/sem_iter_160000.pth`, DIOR fog
+`<ART>/dior/fog/lods_sem_seed42/sem_iter_160000.pth` (160k iters each).
+
+| Grid | Verdict |
+|---|---|
+| `rsar_chaff_small_ships` | **Destroys structure.** The river/land layout is barely visible; dark water is filled with checkerboard/speckle texture; most small ships are erased or merged into texture. Sobel-gradient correlation inside ship boxes 0.05–0.12; ship-vs-ring contrast falls from 1.2–1.6 to 0.4–1.3. |
+| `rsar_chaff_slender` | Bridges and wakes mostly lost in fake texture; one dark-style case flattens the scene. |
+| `dior_fog_dense` | Scene layout kept (buildings, track, runway, harbour) and the fog is removed, but small vehicles become faint blobs or vanish; embossed "relief" fake texture over flat areas. Gradient correlation 0.01–0.30. |
+| `dior_fog_slender` | Ships in the marina and bridges/roads kept as shapes; fine detail lost; same embossed texture. |
+| `diag_rsar_..._alpha0_reconstruction` | Decoder(encoder(x)) without style keeps the geometry and every ship in place (gradient corr 0.53–0.57), so the destruction comes from the alpha-1 fc-AdaIN style step, not from misaligned geometry in the port. |
+| `diag_..._alpha0.4` | Milder: the river and many ships survive, blurred, and the texture is still fake (RSAR gradient corr 0.19–0.38). |
+
+Consequence: with the generic branch (alpha 1.0), on RSAR the student is trained on
+views where many small ships are absent, while the CE targets come from the teacher on
+the original. This is the official mechanism applied to SAR, not a port defect,
+but it makes the alpha / branch question below decision-relevant.
