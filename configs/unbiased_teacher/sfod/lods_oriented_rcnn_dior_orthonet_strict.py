@@ -22,7 +22,7 @@ model = dict(
         gw_global_weight=0.1,
         label_weight=1.0,
         gw_add_rate=0.5,
-        style_add_alpha=1.0,
+        style_add_alpha=0.4,
         gw_global_level=2,
         sem_ckpt=None,
     ),

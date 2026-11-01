@@ -26,7 +26,7 @@ model = dict(
         gw_global_weight=0.1,  # --gw_global_weight
         label_weight=1.0,      # --label_weight
         gw_add_rate=0.5,       # --gw_add_rate
-        style_add_alpha=1.0,   # README voc2clipart (generic random-style branch)
+        style_add_alpha=0.4,   # official city2foggy value (README:164); see lods_obb_port.md
         gw_global_level=2,     # backbone C4 (official res101 RCNN_base4 = layer3)
         sem_ckpt=None,
     ),

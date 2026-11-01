@@ -106,7 +106,7 @@ class LODSTeacher(SemiTwoStageDetector):
         self.gw_global_weight = float(cfg.get('gw_global_weight', 0.1))
         self.label_weight = float(cfg.get('label_weight', 1.0))
         self.gw_add_rate = float(cfg.get('gw_add_rate', 0.5))
-        self.style_add_alpha = float(cfg.get('style_add_alpha', 1.0))
+        self.style_add_alpha = float(cfg.get('style_add_alpha', 0.4))
         self.gw_global_level = int(cfg.get('gw_global_level', 2))  # C4 = res layer3
         self.num_classes = self.roi_head.bbox_head.num_classes
         self.cur_iter = 0
