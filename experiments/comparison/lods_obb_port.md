@@ -137,3 +137,25 @@ Rejected setting, alpha 1.0 (kept for the record):
 `diag_rsar_chaff_small_ships_alpha0_reconstruction`: decoder(encoder(x)) without
 style keeps every ship in place (corr 0.53–0.57). The damage therefore comes from
 the fc-AdaIN style step, not from misaligned geometry in the port.
+
+## Gate cell (RSAR chaff, seed 42, alpha 0.4)
+
+| | AP50 | mAP50-95 |
+|---|---|---|
+| A Source Only (raw_results.csv) | 0.4719 | — |
+| B ST / Mean Teacher (raw_results.csv) | 0.4631 | — |
+| **LODS (our reimplementation)** | **0.4519** | **0.2192** |
+
+- Train: 1 GPU × 32, lr 0.02, 1 epoch (265 updates); final EMA `iter_266_ema.pth`
+  (sha256 `bbe5bb67a92889b4279b8baacaab913a2db79c4e7e6380098b54c1b1b796cc5e`).
+  All logged losses are finite. At the end: label ≈ 0.011, gw_ins ≈ 0.003,
+  gw_global ≈ 0.005; ~2000 teacher RoIs per image, 97.7 % confident, 0.9 %
+  confident foreground.
+- Teacher and student both start from the clean RSAR source
+  `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
+  (sha256 `e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c`).
+- SEM `comparison/rsar/chaff/lods_sem_seed42/sem_iter_160000.pth`
+  (sha256 `1ab18eee3ac8417338a788add20d0cfbec2e083a067c982a5b2080d6d4dcb8c3`).
+- Cell on gpu-67: `/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/lods_e1/methods/LODS/`
+  (`eval_full_chaff_ids_v1/{eval.log,eval_status,predictions.pkl}`); code dir
+  `/mnt/SSD2_8TB/zechuan/IRAOD-New-lods-20261101`.
