@@ -241,6 +241,25 @@ class TestVLSTOnDETR(unittest.TestCase):
                                    [[169., 59., 189., 79.]])
 
 
+class TestConfigEnv(unittest.TestCase):
+
+    def test_method_cga_env_survives_base(self):
+        for method, scorer, mode in (('st', 'none', None),
+                                     ('clip_cga', 'clip', 'legacy'),
+                                     ('sarclip_cga', 'sarclip', 'veto_soft'),
+                                     ('vlst', 'none', None),
+                                     ('vlst_cga', 'sarclip', 'veto_soft')):
+            for key in [k for k in os.environ if k.startswith('CGA_')]:
+                os.environ.pop(key)
+            cfg = Config.fromfile(CFG.format(method))
+            self.assertEqual(os.environ['CGA_SCORER'], scorer, method)
+            self.assertEqual(os.environ.get('CGA_FILTER_MODE'), mode, method)
+            self.assertEqual(cfg.model.type, {'vlst': 'DETRVLSTTeacher',
+                                              'vlst_cga': 'DETRVLSTTeacher'}
+                             .get(method, 'DETRMeanTeacher'))
+        os.environ['CGA_SCORER'] = 'none'
+
+
 class TestDRUGuard(unittest.TestCase):
 
     def test_raises_without_roi_bbox_head(self):
