@@ -7,8 +7,9 @@ source /mnt/shared/zechuan/iraod_artifacts/comparison/queue_dru20260919/common.s
 set +e
 CODE=/mnt/SSD2_8TB/zechuan/IRAOD-New-lods-20261101
 export PYTHONPATH=$CODE
-# official SEM stage 160000 iters for a 3-epoch detector stage (README:59,162) -> x1/3 for 1 epoch
-SEM_ITERS=53334
+# SEM = full official 160000 iters, one seed-42 fit per domain shared by detector seeds 42/43/44
+# (same rule as the SF-YOLO TAM, lods_obb_port.md)
+SEM_ITERS=160000
 ENC=/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_split_enc_keys.pt
 GPU=$1; SEED=$2; shift 2
 export CUDA_VISIBLE_DEVICES=$GPU
@@ -16,11 +17,12 @@ prep_env
 cd "$CODE"
 for CORRUPT in "$@"; do
   CELL=$ART/rsar/${CORRUPT}/seed_${SEED}/lods_e1
-  SEM=$CELL/sem/sem_iter_${SEM_ITERS}.pth
+  SEMD=$ART/rsar/${CORRUPT}/lods_sem_seed42
+  SEM=$SEMD/sem_iter_${SEM_ITERS}.pth
   if [ ! -f "$SEM" ]; then
-    mkdir -p "$CELL/sem"
+    mkdir -p "$SEMD"
     "$PY" tools/lods/train_sem.py --target-dir "$RSAR/corruptions/${CORRUPT}/val/images" \
-      --encoder "$ENC" --work-dir "$CELL/sem" --seed "$SEED" --workers 32 --max-iter "$SEM_ITERS" > "$CELL/sem/stdout.log" 2>&1
+      --encoder "$ENC" --work-dir "$SEMD" --seed 42 --workers 32 --max-iter "$SEM_ITERS" > "$SEMD/stdout.log" 2>&1
     [ -f "$SEM" ] || { echo "SEM_FAIL LODS $CORRUPT seed=$SEED"; continue; }
   fi
   ROOT=$CELL/methods/LODS

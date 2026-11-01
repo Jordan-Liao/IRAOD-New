@@ -50,7 +50,7 @@ case "$METHOD" in
     # = /home/zechuan/IRAOD-New-dru-20260919 + feat/lods-obb files (see lods_obb_port.md)
     CODE=/home/zechuan/IRAOD-New-lods-20261101
     CFG=configs/unbiased_teacher/sfod/lods_oriented_rcnn_dior_orthonet_strict.py
-    SEM=$LOCAL/${METHOD}_d17_s${SEED}/$DOMAIN/sem/sem_iter_53334.pth  # 160000 x 1/3 epochs (lods_obb_port.md)
+    SEM=$LOCAL/LODS_sem_s42/$DOMAIN/sem_iter_160000.pth  # official length; one seed-42 fit per domain for all seeds
     EXTRA+=(data.train.type=StrictSourceFreeDOTADataset model.cfg.sem_ckpt=$SEM)
     ;;
   IRG|LPLD|SFUT)
@@ -93,7 +93,7 @@ mkdir -p "$logd"
 if [[ "$METHOD" == LODS && ! -f "$SEM" ]]; then
   mkdir -p "$(dirname "$SEM")"
   ( cd "$CODE" && CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$CODE "$PY" tools/lods/train_sem.py \
-      --target-dir "$SPLITS/$DOMAIN/val" --seed "$SEED" --workers 16 --max-iter 53334 \
+      --target-dir "$SPLITS/$DOMAIN/val" --seed 42 --workers 16 --max-iter 160000 \
       --encoder /home/zechuan/iraod_weights/vgg16_oxford/encoder_split_enc_keys.pt \
       --work-dir "$(dirname "$SEM")" > "$(dirname "$SEM")/stdout.log" 2>&1 )
   [[ -f "$SEM" ]] || { echo "SEM_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }

@@ -4,7 +4,7 @@ Port of the official ``Enhance/train.py`` (generic scenario branch: content and
 style images both come from the target training images). No labels are read.
 
     python tools/lods/train_sem.py --target-dir DIR --encoder ENC.pt \
-        --work-dir OUT --seed 42 --max-iter 53334   # official 160000, x1/3 epochs
+        --work-dir OUT --seed 42 [--max-iter 160000]
 """
 from __future__ import annotations
 
