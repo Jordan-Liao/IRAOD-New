@@ -6,6 +6,7 @@ Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, 
 ## Frozen scientific identity
 - RSAR source: `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
 - DIOR source: `/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
+- Source recipes (resolved config + command, copied from each run's `reproducibility/`; RSAR code at b474aaa, DIOR at 0f98a48): `experiments/comparison/rsar_source/` (+ `launch.sh`), `experiments/comparison/dior_source/`. `configs/baseline/oriented_rcnn_orthonet_rsar.py` on main is not the RSAR source recipe (see `rsar_source/`).
 - Seed 42 on new DIOR-17 cells; existing 42/43/44 cells reused when valid
 - `weight_l=0`, `weight_u=1`, `use_bbox_reg=False`
 - Final checkpoint: last-iteration EMA Teacher; no test-set selection
