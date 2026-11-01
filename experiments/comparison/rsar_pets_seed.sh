@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # RSAR PETS cell = the DRU seed recipe (rsar_dru_seed.sh) with the PETS config and code dir.
-# Usage: rsar_pets_seed.sh GPU SEED DOMAIN...   (1 GPU x 32, 1 epoch -> iter_266, 8 exchanges)
+# Usage: rsar_pets_seed.sh GPU SEED DOMAIN...   (1 GPU x 32, 1 epoch = 265 iters -> iter_266, 8 exchanges)
 source /mnt/shared/zechuan/iraod_artifacts/comparison/queue_dru20260919/common.sh
 CODE=/home/zechuan/IRAOD-New-pets-20261101
 export PYTHONPATH=$CODE
