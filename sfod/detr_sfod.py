@@ -3,7 +3,7 @@
 Same dataflow as the Oriented R-CNN group's strict UnbiasedTeacher: target
 images only (weak view -> EMA teacher, strong view -> student), weight_l = 0,
 pseudo labels = teacher detections with score >= score_thr. DETR-specific
-choices and their reasons are in experiments/comparison/detr_sfod_port.md.
+choices and their reasons are in experiments/comparison/detr_portability_audit.md §10.
 """
 from __future__ import annotations
 
@@ -12,10 +12,16 @@ import os
 
 import numpy as np
 import torch
+from mmcv.parallel import is_module_wrapper
+from mmcv.runner import HOOKS, Hook
 from mmrotate.models.builder import ROTATED_DETECTORS
 
 from ars_detr.models.detectors.ars_detr import ARSDETR
+from experiments.comparison import tam_artifacts
 from .cga import DIOR_CLASSES, RSAR_CLASSES, CGA, TestMixins
+from .extensions.sfut import SFUTOBB
+from .extensions.sfyolo import SFYOLOOBB, augment_detector_batch
+from .extensions.tam import TargetAugmentationModule
 from .rotated_pets import PETSUnbiasedTeacher
 from .rotated_semi_base import SemiBaseDetector
 from .semantic_teacher import SemanticPrototypeTeacher
@@ -96,7 +102,7 @@ class DETRMeanTeacher(SemiBaseDetector, ARSDETR):
         for img, metas in ((img_weak, metas_weak), (img_strong, metas_strong)):
             for meta in metas:
                 meta['batch_input_shape'] = tuple(img.shape[-2:])
-        self.update_ema_model(self.momentum)
+        self.before_student_step()
         self.cur_iter += 1
         self.image_num += len(metas_weak)
         results = self.inference_unlabeled(img_weak, metas_weak)
@@ -104,11 +110,17 @@ class DETRMeanTeacher(SemiBaseDetector, ARSDETR):
         self.pseudo_num += sum(len(b) for b in gt_bboxes)
         losses = self.student_losses(img_strong, metas_strong, gt_bboxes,
                                      gt_labels, results)
-        losses = weight_pseudo_label_losses(losses, self.weight_u)
+        losses = self.weight_losses(losses)
         losses = {f'{key}_unlabeled': val for key, val in losses.items()}
         losses['pseudo_num'] = torch.tensor(
             [self.pseudo_num / self.image_num], device=img_strong.device)
         return losses
+
+    def before_student_step(self):
+        self.update_ema_model(self.momentum)
+
+    def weight_losses(self, losses):
+        return weight_pseudo_label_losses(losses, self.weight_u)
 
     @torch.no_grad()
     def inference_unlabeled(self, img, img_metas, rescale=True):
@@ -297,6 +309,83 @@ class DETRVLSTTeacher(DETRMeanTeacher):
             score_thr=self.vlst_score_thr)
         losses['loss_vlst_proto'] = self.vlst_loss_weight * loss
         return losses
+
+
+@ROTATED_DETECTORS.register_module()
+class DETRSFUTTeacher(DETRMeanTeacher):
+    """SF-UT (arXiv 2407.07586) on ARS-DETR, same mechanics as SFUTOBB.
+
+    Pseudo labels >= score_thr, every pseudo loss kept (classification and
+    box/angle regression), teacher frozen during the step and EMA-updated
+    after each optimizer step (DETRAfterOptimizerTeacherHook).
+    """
+    iteration_teacher_momentum = SFUTOBB.iteration_teacher_momentum
+
+    def before_student_step(self):
+        pass  # the teacher moves after the optimizer step, not before the forward
+
+    def weight_losses(self, losses):
+        return {key: self.weight_u * value if 'loss' in key else value
+                for key, value in losses.items()}
+
+
+@ROTATED_DETECTORS.register_module()
+class DETRSFYOLOTeacher(DETRSFUTTeacher):
+    """SF-YOLO (TAM + Mean Teacher + SSM) on ARS-DETR, same mechanics as SFYOLOOBB:
+    TAM-stylised strong view, parameter EMA 0.999 after each optimizer step,
+    student stabilisation at each later epoch start (StudentStabilizationHook).
+    """
+    iteration_teacher_momentum = SFYOLOOBB.iteration_teacher_momentum
+    ssm_teacher_fraction = SFYOLOOBB.ssm_teacher_fraction
+    update_ema_model = SFYOLOOBB.update_ema_model
+    stabilize_student = SFYOLOOBB.stabilize_student
+
+    def __init__(self, *args, cfg=dict(), **kwargs):
+        super().__init__(*args, cfg=cfg, **kwargs)
+        self.tam_checkpoint = cfg['tam_checkpoint']
+        self.tam_encoder_weights = cfg['tam_encoder_weights']
+        self.tam_identity = dict(dataset=cfg['tam_dataset'],
+                                 domain=cfg['tam_domain'], seed=int(cfg['tam_seed']))
+        object.__setattr__(self, '_tam', None)
+
+    def forward_train_semi(self, img_weak, metas_weak, img_strong, metas_strong):
+        if self._tam is None:
+            object.__setattr__(self, '_tam', load_tam(
+                self.tam_checkpoint, self.tam_identity,
+                self.tam_encoder_weights, img_strong.device))
+        style_index = int(torch.randint(len(metas_strong), ()).item())
+        img_strong = augment_detector_batch(
+            self._tam, img_strong, metas_strong, style_index)
+        return super().forward_train_semi(img_weak, metas_weak, img_strong,
+                                          metas_strong)
+
+
+def load_tam(path, identity, encoder_weights, device):
+    """tam_artifacts.load_completed_tam, but the frozen VGG encoder is read from
+    this host's copy (the payload records the fitting host's path)."""
+    payload = torch.load(path, map_location='cpu', weights_only=True)
+    if (payload['schema'] != tam_artifacts.SCHEMA
+            or payload['status'] != 'complete'
+            or payload['training_steps'] != tam_artifacts.FORMAL_STEPS
+            or payload['identity'] != identity
+            or identity['seed'] != tam_artifacts.FIT_SEED
+            or payload['normalization'] != tam_artifacts.NORMALIZATION
+            or os.path.basename(encoder_weights)
+            != os.path.basename(payload['encoder_weights'])):
+        raise ValueError(f'{path} is not the completed seed-42 TAM for {identity}')
+    model = TargetAugmentationModule(weights_path=encoder_weights)
+    for name in ('decoder', 'F1', 'F2'):
+        getattr(model, name).load_state_dict(payload['components'][name], strict=True)
+    return model.to(device).freeze_for_inference()
+
+
+@HOOKS.register_module()
+class DETRAfterOptimizerTeacherHook(Hook):
+    """Teacher EMA after the optimizer step (priority 45: optimizer 40, checkpoint 50)."""
+
+    def after_train_iter(self, runner):
+        model = runner.model.module if is_module_wrapper(runner.model) else runner.model
+        model.update_ema_model(model.iteration_teacher_momentum)
 
 
 def last_layer_positive_queries(head, outs, queries, gt_bboxes, gt_labels,

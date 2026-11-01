@@ -241,6 +241,56 @@ class TestVLSTOnDETR(unittest.TestCase):
                                    [[169., 59., 189., 79.]])
 
 
+TAM_CHAFF = ('/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/'
+             'tam_runs_84a1aeb/rsar/chaff/seed_42/tam.pth')
+
+
+class TestSFUTAndSFYOLOOnDETR(unittest.TestCase):
+
+    def test_sfut_keeps_regression_and_moves_teacher_after_step(self):
+        model = build('sfut')
+        model.train()
+        key = 'bbox_head.cls_branches.5.bias'
+        with torch.no_grad():
+            model.state_dict()[key].add_(1.0)
+        before = model.ema_model.module.state_dict()[key].clone()
+        raw = model.student_losses(torch.randn(2, 3, 128, 128), metas(2, 128),
+                                   PSEUDO_B, PSEUDO_L, None)
+        out = model.weight_losses(raw)
+        self.assertTrue(all(float(out[k]) == float(raw[k]) > 0 for k in REG_KEYS))
+        model(**strict_batch())
+        self.assertTrue(torch.equal(model.ema_model.module.state_dict()[key], before))
+        runner = types.SimpleNamespace(model=model)
+        detr_sfod.DETRAfterOptimizerTeacherHook().after_train_iter(runner)
+        expected = 0.9996 * before + 0.0004 * model.state_dict()[key]
+        self.assertTrue(torch.allclose(model.ema_model.module.state_dict()[key], expected))
+
+    @unittest.skipUnless(os.path.isfile(TAM_CHAFF), 'needs the RSAR chaff TAM fit')
+    def test_sfyolo_tam_view_ema_and_stabilisation(self):
+        model = build('sfyolo', tam_checkpoint=TAM_CHAFF, tam_domain='chaff')
+        model.train()
+        self.assertEqual(model.iteration_teacher_momentum, 0.999)
+        batch = strict_batch()
+        for m in batch['img_metas_unlabeled_1']:
+            m['img_norm_cfg'] = dict(mean=[123.675, 116.28, 103.53],
+                                     std=[58.395, 57.12, 57.375], to_rgb=True)
+        strong = batch['img_unlabeled_1'].clone()
+        seen = []
+        orig = model.student_losses
+        model.student_losses = lambda img, *a: seen.append(img) or orig(img, *a)
+        losses = model(**batch)
+        self.assertFalse(torch.allclose(seen[0], strong))  # TAM-stylised strong view
+        self.assertTrue(torch.isfinite(sum(v for k, v in losses.items() if 'loss' in k)))
+        name = 'bbox_head.cls_branches.5.bias'
+        student = dict(model.named_parameters())[name]
+        teacher = dict(model.ema_model.module.named_parameters())[name]
+        with torch.no_grad():
+            student.add_(2.0)
+        expected = 0.5 * student.detach() + 0.5 * teacher.detach()
+        model.stabilize_student()
+        self.assertTrue(torch.allclose(student, expected))
+
+
 class TestConfigEnv(unittest.TestCase):
 
     def test_method_cga_env_survives_base(self):
