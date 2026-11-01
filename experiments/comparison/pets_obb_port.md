@@ -85,7 +85,11 @@ rejection). RSAR cells run with
 Pseudo-box admission across code dirs: the main-table B–F, DRU, IRG, LPLD and
 SFUT code dirs run `sfod/rotated_unbiased_teacher.py` blob `99ec4141` (no
 `valid_geometry` filter; among the deployed dirs only `repo_code_a39c832_fix1`
-has it). PETS runs blob `0f4f852` (with the filter). For PETS this makes no
+has it). Exception: the RSAR seed-44 NaN-rerun main-table cells (IRG and LPLD
+on point_target; IRG, LPLD and SFUT on noise_suppression) came from
+`repo_code_a39c832_fix1`, which has the `valid_geometry` filter. The blob of the
+`sfyolo_runs_84a1aeb_fix1` code dir was not checked. PETS runs blob `0f4f852`
+(with the filter). For PETS this makes no
 difference: rotated WBF already drops zero-area and non-finite teacher boxes
 (`sfod/pets_dynamics.py:82-84`), and a fused box is a score-weighted mean of
 positive widths and heights, so the filter never fires on a PETS pseudo label.
