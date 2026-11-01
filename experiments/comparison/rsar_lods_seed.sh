@@ -7,6 +7,8 @@ source /mnt/shared/zechuan/iraod_artifacts/comparison/queue_dru20260919/common.s
 set +e
 CODE=/mnt/SSD2_8TB/zechuan/IRAOD-New-lods-20261101
 export PYTHONPATH=$CODE
+# official SEM stage 160000 iters for a 3-epoch detector stage (README:59,162) -> x1/3 for 1 epoch
+SEM_ITERS=53334
 ENC=/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_split_enc_keys.pt
 GPU=$1; SEED=$2; shift 2
 export CUDA_VISIBLE_DEVICES=$GPU
@@ -14,11 +16,11 @@ prep_env
 cd "$CODE"
 for CORRUPT in "$@"; do
   CELL=$ART/rsar/${CORRUPT}/seed_${SEED}/lods_e1
-  SEM=$CELL/sem/sem_iter_160000.pth
+  SEM=$CELL/sem/sem_iter_${SEM_ITERS}.pth
   if [ ! -f "$SEM" ]; then
     mkdir -p "$CELL/sem"
     "$PY" tools/lods/train_sem.py --target-dir "$RSAR/corruptions/${CORRUPT}/val/images" \
-      --encoder "$ENC" --work-dir "$CELL/sem" --seed "$SEED" --workers 32 > "$CELL/sem/stdout.log" 2>&1
+      --encoder "$ENC" --work-dir "$CELL/sem" --seed "$SEED" --workers 32 --max-iter "$SEM_ITERS" > "$CELL/sem/stdout.log" 2>&1
     [ -f "$SEM" ] || { echo "SEM_FAIL LODS $CORRUPT seed=$SEED"; continue; }
   fi
   ROOT=$CELL/methods/LODS
@@ -44,7 +46,7 @@ for CORRUPT in "$@"; do
   grep -qs eval_exit=0 "$OUT/eval_status" && continue
   mkdir -p "$OUT"
   "$PY" test.py configs/baseline/oriented_rcnn_orthonet_rsar.py "$EMA" --eval mAP --map50-95 \
-    --out "$OUT/pred.pkl" --work-dir "$OUT" \
+    --out "$OUT/predictions.pkl" --work-dir "$OUT" \
     --cfg-options data.samples_per_gpu=16 data.workers_per_gpu=4 \
       data.test.ann_file=$RSAR/test/annfiles/ \
       data.test.img_prefix=$RSAR/corruptions/${CORRUPT}/test/images/ \

@@ -35,9 +35,7 @@ def rotated_map50_95(dataset, results, eval_kwargs=None):
     """Return {'AP50', 'mAP50-95', 'AP_per_iou'} using ``dataset.evaluate``."""
     aps = {}
     for thr in IOU_THRS:
-        kwargs = dict(eval_kwargs or {'metric': 'mAP'}, iou_thr=thr)
-        if thr != 0.5:
-            kwargs['logger'] = 'silent'
+        kwargs = dict(eval_kwargs or {'metric': 'mAP'}, iou_thr=thr, logger='silent')
         aps[f'{thr:.2f}'] = float(dataset.evaluate(results, **kwargs)['mAP'])
     return {'AP50': aps['0.50'], 'mAP50-95': float(np.mean(list(aps.values()))),
             'AP_per_iou': aps}
