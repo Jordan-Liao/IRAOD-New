@@ -30,10 +30,10 @@ DIOR_C19 = ["brightness", "contrast", "gaussian_noise", "shot_noise", "impulse_n
 DOMAINS = {"RSAR": RSAR, "DIOR": ["clean"] + DIOR_C19 + ["cloudy"]}
 # mPC domains: RSAR = its 7 corruptions; DIOR = the 19 official DIOR-C names (cloudy is extra).
 MPC = {"RSAR": RSAR[1:], "DIOR": DIOR_C19}
-METHODS = ["A", "B", "C", "D", "E", "F", "IRG", "LPLD", "SFUT", "DRU", "AASFOD", "SFYOLO"]
+METHODS = ["A", "B", "C", "D", "E", "F", "IRG", "LPLD", "SFUT", "DRU", "PETS", "AASFOD", "SFYOLO"]
 NAMES = {"A": "Source Only", "B": "ST / Mean Teacher", "C": "CLIP-CGA", "D": "SARCLIP-CGA",
          "E": "VLST", "F": "CGA+VLST", "IRG": "IRG-OBB", "LPLD": "LPLD-OBB", "SFUT": "SFUT-OBB",
-         "DRU": "DRU-OBB", "AASFOD": "AASFOD-OBB", "SFYOLO": "SFYOLO-OBB"}
+         "DRU": "DRU-OBB", "PETS": "PETS (our reimplementation)", "AASFOD": "AASFOD-OBB", "SFYOLO": "SFYOLO-OBB"}
 SEEDS = [42, 43, 44]
 EXCLUDE = ("oracle", "b_reg", "f_deletion", "roi_", "LoRA", "B_REG", "F_text", "F_veto", "probe", "smoke",
            "qualitative", "vis_subset", "collector", "report-readiness", "tsne", "clean_val", "/val", "noop_runs")

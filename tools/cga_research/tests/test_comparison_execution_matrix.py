@@ -1,4 +1,4 @@
-"""Gating tests for the approved comparison matrix (DIOR-17 + DRU required)."""
+"""Gating tests for the approved comparison matrix (DIOR-17 + DRU and PETS required)."""
 from __future__ import annotations
 
 import importlib.util
@@ -126,8 +126,9 @@ class ComparisonExecutionMatrixTests(unittest.TestCase):
         self.assertNotIn("cloudy", remaining)
         self.assertNotIn("cloudy", DIOR_C_CORRUPTIONS)
 
-    def test_external_six_including_dru_are_required(self):
-        for method_id in ("IRG", "LPLD", "SFUT", "DRU", "AASFOD", "SFYOLO"):
+    def test_external_seven_including_dru_and_pets_are_required(self):
+        self.assertEqual(len(EXTERNAL_METHODS), 7)
+        for method_id in ("IRG", "LPLD", "SFUT", "DRU", "PETS", "AASFOD", "SFYOLO"):
             self.assertIn(method_id, EXTERNAL_METHODS)
             self.assertIn(method_id, MAIN_TABLE_METHODS)
             self.assertTrue(method_is_required(method_id))
