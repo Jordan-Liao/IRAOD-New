@@ -139,6 +139,7 @@ data/
 weights/
 models/
 !mmdet_extension/models/
+!ars_detr/models/
 !mmdet_extension/models/backbones/
 mmdet_extension/models/backbones/orthonet.py
 !mmdet_extension/models/backbones/stripnet.py
