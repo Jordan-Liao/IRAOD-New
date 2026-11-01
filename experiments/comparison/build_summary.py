@@ -30,10 +30,11 @@ DIOR_C19 = ["brightness", "contrast", "gaussian_noise", "shot_noise", "impulse_n
 DOMAINS = {"RSAR": RSAR, "DIOR": ["clean"] + DIOR_C19 + ["cloudy"]}
 # mPC domains: RSAR = its 7 corruptions; DIOR = the 19 official DIOR-C names (cloudy is extra).
 MPC = {"RSAR": RSAR[1:], "DIOR": DIOR_C19}
-METHODS = ["A", "B", "C", "D", "E", "F", "IRG", "LPLD", "SFUT", "DRU", "AASFOD", "SFYOLO"]
+METHODS = ["A", "B", "C", "D", "E", "F", "IRG", "LPLD", "SFUT", "DRU", "AASFOD", "SFYOLO", "OURS"]
+DIOR_ONLY = {"OURS"}  # 本文方法 (strict) has no RSAR cells
 NAMES = {"A": "Source Only", "B": "ST / Mean Teacher", "C": "CLIP-CGA", "D": "SARCLIP-CGA",
          "E": "VLST", "F": "CGA+VLST", "IRG": "IRG-OBB", "LPLD": "LPLD-OBB", "SFUT": "SFUT-OBB",
-         "DRU": "DRU-OBB", "AASFOD": "AASFOD-OBB", "SFYOLO": "SFYOLO-OBB"}
+         "DRU": "DRU-OBB", "AASFOD": "AASFOD-OBB", "SFYOLO": "SFYOLO-OBB", "OURS": "本文方法 (strict)"}
 SEEDS = [42, 43, 44]
 EXCLUDE = ("oracle", "b_reg", "f_deletion", "roi_", "LoRA", "B_REG", "F_text", "F_veto", "probe", "smoke",
            "qualitative", "vis_subset", "collector", "report-readiness", "tsne", "clean_val", "/val", "noop_runs")
@@ -95,6 +96,8 @@ def classify(scan_dir):
     for ds, doms in DOMAINS.items():
         for dom in doms:
             for me in METHODS:
+                if ds == "RSAR" and me in DIOR_ONLY:
+                    continue
                 for s in ([42] if me == "A" else SEEDS):
                     v = by_cell.get((ds, dom, me, s))
                     row = dict(dataset=ds, domain=dom, method=me, seed=s, status="missing", mAP50="",
@@ -145,6 +148,8 @@ def build():
     for ds in DOMAINS:
         a_clean = a(ds, "clean")
         for me in METHODS:
+            if ds == "RSAR" and me in DIOR_ONLY:
+                continue
             per_seed = {}
             for s in ([42] if me == "A" else SEEDS):
                 v = [val.get((ds, d, me, s)) for d in MPC[ds]]
@@ -191,7 +196,7 @@ def build():
                 cells_.append("--" if r["mPC_3seed_mean"] == "N/A"
                               else r"%.3f$\pm$%.3f" % (r["mPC_3seed_mean"], r["mPC_3seed_std"]))
             tex.append(" & ".join(cells_) + r" \\")
-            if r["method"] == "F":
+            if r["method"] == "F" or (r["method"] == "SFYOLO" and ds == "DIOR"):
                 tex.append(r"\midrule")
         tex += [r"\bottomrule", r"\end{tabular}", ""]
     open(os.path.join(OUT, "main_table.tex"), "w").write("\n".join(tex))

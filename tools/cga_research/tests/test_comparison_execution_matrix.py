@@ -132,6 +132,11 @@ class ComparisonExecutionMatrixTests(unittest.TestCase):
             self.assertIn(method_id, MAIN_TABLE_METHODS)
             self.assertTrue(method_is_required(method_id))
 
+    def test_ours_is_in_main_table(self):
+        self.assertIn("OURS", MAIN_TABLE_METHODS)
+        self.assertTrue(method_is_required("OURS"))
+        self.assertNotIn("OURS", EXTERNAL_METHODS)
+
     def test_dru_is_not_method_b(self):
         self.assertNotEqual("DRU", "B")
         self.assertNotEqual(DRU_DETECTOR_TYPE, B_DETECTOR_TYPE)
