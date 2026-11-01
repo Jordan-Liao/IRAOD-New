@@ -5,6 +5,7 @@ CPU only. Run from the repo root (configs use repo-relative paths):
 """
 import math
 import unittest
+from unittest import mock
 
 import numpy as np
 import torch
@@ -118,6 +119,47 @@ class DetectorScheduleAndEMATest(unittest.TestCase):
                 m._pets_before_iter()
         finally:
             m.pets_exchange_iters = saved
+
+    def test_both_teachers_feed_the_fused_pseudo_labels_to_the_student(self):
+        m = self.model
+        m.set_pets_schedule(20)
+        m.cur_iter = 0
+        static, dynamic = _empty(6), _empty(6)
+        static[0] = np.array([[50, 50, 20, 10, 0.1, 0.9],      # paired with dynamic
+                              [300, 300, 20, 10, 0.0, 0.9]],   # static only
+                             np.float32)
+        dynamic[0] = np.array([[52, 50, 20, 10, 0.1, 0.6],     # paired with static
+                               [500, 500, 20, 10, 0.0, 0.9]],  # dynamic only
+                              np.float32)
+        img = torch.zeros(1, 3, 32, 32)
+        meta = [dict(scale_factor=np.ones(4, np.float32))]
+        empty_boxes = [torch.zeros((0, 5))]
+        empty_labels = [torch.zeros((0,), dtype=torch.long)]
+        seen = {}
+
+        def student_forward_train(img_, metas_, gt_bboxes, gt_labels, *a, **k):
+            seen['img'], seen['boxes'], seen['labels'] = img_, gt_bboxes, gt_labels
+            return {'loss_cls': torch.tensor(1.0)}
+
+        with mock.patch.object(m.static_teacher, 'simple_test',
+                               return_value=[static]) as st, \
+                mock.patch.object(m.ema_model.module, 'simple_test',
+                                  return_value=[dynamic]) as dt, \
+                mock.patch.object(m, 'forward_train', side_effect=student_forward_train):
+            strong = torch.ones(1, 3, 32, 32)
+            m.forward_train_semi(img, meta, empty_boxes, empty_labels,
+                                 img, meta, empty_boxes, empty_labels,
+                                 strong, meta, empty_boxes, empty_labels)
+        self.assertEqual(st.call_count, 1)
+        self.assertEqual(dt.call_count, 1)
+        self.assertIs(st.call_args.args[0], img)   # both teachers see the weak view
+        self.assertIs(dt.call_args.args[0], img)
+        self.assertIs(seen['img'], strong)         # the student trains on the strong view
+        fused = pets_consensus(static, dynamic)[0]
+        self.assertEqual(fused.shape, (1, 6))
+        self.assertAlmostEqual(float(fused[0, 0]), (0.9 * 50 + 0.6 * 52) / 1.5, places=4)
+        torch.testing.assert_close(seen['boxes'][0], torch.from_numpy(fused[:, :5]))
+        self.assertEqual(seen['labels'][0].tolist(), [0])
 
 
 class RotatedConsensusTest(unittest.TestCase):

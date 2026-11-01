@@ -54,12 +54,14 @@ without the hook raises.
 | 4 | No `[0, 1]` normalisation and clipping of box coordinates before WBF (`trainer.py:256-261`, `wbf.py:41-64`): it exists only for HBB WBF. Zero-area and non-finite boxes are still skipped (`wbf.py:65-67`). | OBB adaptation |
 | 5 | Teacher predictions use the shared Oriented R-CNN test config (score 0.05, rotated NMS 0.1, 2000 per image) instead of detectron2's (0.05, NMS 0.5, 100). All NMS is rotated. | OBB adaptation (shared detector) |
 | 6 | Fused pseudo labels go through `UnbiasedTeacher.create_pseudo_results`, so the repo's degenerate rotated-box rejection applies. Its `>= 0.5` threshold drops nothing, because every fused score is the max of scores `> 0.5`. | Repo invariant |
+| 6a | Pairing follows the official code: class-agnostic, rotated IoU `> 0.5` (`trainer.py:251-252`). The paper requires the same class and `IoU >= η` (§4.3.1). | Paper vs official; official followed |
+| 6b | Fused confidence = max of the cluster (`conf_type='max'`, `trainer.py:272`). The paper uses a β = 0.5 weighted mean of the two teachers' mean scores (Eq. 3). | Paper vs official; official followed |
 | 7 | Exchange period mapped to virtual epochs of the 1-epoch run (above). | Budget adaptation |
 | 8 | Optimiser and schedule are the shared ones (SGD lr 0.02, 1 epoch, global batch 32, 100-iter linear warm-up), not 8e-4 with WarmupMultiStepLR over 10 epochs at batch 8. | Shared protocol |
 | 9 | Loss weights: `weight_u=1`, `use_bbox_reg=False` (RPN and ROI box regression off) instead of `UNSUP_LOSS_WEIGHT=2`, box regression weight 1 and focal loss. | Shared protocol |
 | 10 | Weak/strong views are the shared strict pipelines (flip; colour jitter, grayscale, blur), not the official ones (random erasing, flip, colour). | Shared protocol |
 | 11 | EMA updates every iteration; the C2F config alone updates every 2. | Faithfulness choice |
-| 12 | EMA keep rates are the official per-step values, not rescaled to the shorter run. | Not adapted, **open question** |
+| 12 | EMA keep rates are the official per-step values (0.9996, then 0.999 from the first exchange), not rescaled to the shorter run. Table-wide rule: per-step constants keep their official values; only schedule events (exchange periods) are mapped to the 1-epoch budget. No other port re-tunes per-step constants (B uses 0.998 per step). Effect: the Dynamic Teacher keeps 0.9996^53 · 0.999^212 ≈ 79% of the source weights at the end of the RSAR run, vs ≈ 4% in the official 10-epoch C2F schedule (373 iters/epoch) with per-step updates, and ≈ 19% with C2F's every-2-step updates. | Decided: not adapted |
 | 13 | The Static Teacher is not saved in checkpoints; only the Student and the Dynamic Teacher (`iter_*_ema.pth`, the evaluated model) are. | Implementation |
 
 No CGA, SARCLIP, VLST, SOGC or SLRP. No target labels are used in training or
@@ -80,5 +82,20 @@ rejection). RSAR cells run with
 `rsar_pets_seed.sh GPU SEED DOMAIN...`; DIOR cells with
 `train_d17_seed_1gpu.sh GPU PETS DOMAIN SEED`.
 
-Tests (CPU): `python -m unittest tools.cga_research.tests.test_pets_obb -v`
-from the code dir.
+Pseudo-box admission across code dirs: the main-table B–F, DRU, IRG, LPLD and
+SFUT code dirs run `sfod/rotated_unbiased_teacher.py` blob `99ec4141` (no
+`valid_geometry` filter; among the deployed dirs only `repo_code_a39c832_fix1`
+has it). PETS runs blob `0f4f852` (with the filter). For PETS this makes no
+difference: rotated WBF already drops zero-area and non-finite teacher boxes
+(`sfod/pets_dynamics.py:82-84`), and a fused box is a score-weighted mean of
+positive widths and heights, so the filter never fires on a PETS pseudo label.
+
+Tests (CPU), from the code dir:
+`python -m unittest tools.cga_research.tests.test_pets_obb -v`. The degenerate
+admission replay is `tools/tests/check_positive_pseudo_geometry.py` (from
+`82e08b0`). It needs a checkout that holds commits `a39c832` and `d668a77`, the
+captured operand packet
+`.../nonfinite_attempt9_bbox_capture_20260914/rsar/noise_suppression/seed_44/LPLD/failure/bbox_loss_operands.pt`,
+and a source packet copied from the installed mmdet/mmrotate
+(`losses/utils.py`, `delta_xywha_rbbox_coder.py`, `smooth_l1_loss.py`; angle
+source `mmrotate/core/bbox/transforms.py`).
