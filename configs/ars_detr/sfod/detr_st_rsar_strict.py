@@ -1,7 +1,7 @@
 """DETR group, method B (ST / Mean Teacher) on RSAR, strict source-free.
 
 Shared DETR-group protocol (fixed before any target run, see
-experiments/comparison/detr_sfod_port.md): source = public ARS-DETR RSAR
+experiments/comparison/detr_portability_audit.md §10): source = public ARS-DETR RSAR
 epoch_36, target = image-only corruption val, the R-CNN group's weak/strong
 views, 1 GPU x 8 images (global batch 8), 1 epoch, the source's AdamW 1e-4,
 score_thr 0.7, classification-only loss on pseudo labels, final EMA.
@@ -17,9 +17,9 @@ custom_imports = dict(
     imports=['sfod', 'ars_detr', 'sfod.detr_sfod', 'mmdet_extension'],
     allow_failed_imports=False)
 
-list(map(os.environ.pop,
-         [k for k in os.environ if k.startswith(('CGA_', 'VLST_'))]))
-os.environ['CGA_SCORER'] = 'none'
+# mmcv executes a child config before its _base_, so a base must never
+# overwrite the CGA env a method config sets; the cell script clears CGA_*.
+os.environ.setdefault('CGA_SCORER', 'none')
 
 classes = ('ship', 'aircraft', 'car', 'tank', 'bridge', 'harbor')
 source_ckpt = ('/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/'
