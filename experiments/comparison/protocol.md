@@ -38,3 +38,13 @@ Official DIOR-C (19, severity 3). Already compared: brightness, contrast. Extra 
 - Δada = mAP_method − mAP_A (same corruption)
 - mPC = mean over official completed corruptions; DIOR mPC uses the 19 DIOR-C names
 - rPC = mPC / A_clean × 100%
+
+## DETR group (separate fairness group)
+Not ranked together with the Oriented R-CNN group above: backbone, initialization and source models differ (the R-CNN sources are random-init OrthoNet-50). Details and evidence: [`detr_portability_audit.md`](detr_portability_audit.md).
+- Detector: ARS-DETR, no-DN AR-CSL variant (`ARSDETR` / `ARSDeformableDETRHead`, `ars_detr/`), R-50 with torchvision ImageNet init
+- RSAR source: public `arcsl_detr_r50_rsar_epoch_36.pth` (last epoch, RSAR train only), sha256 `1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185`, at `/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/`
+- DIOR source: `configs/ars_detr/arcsl_detr_r50_dior.py`, DIOR `ImageSets/train.txt` only, 72 epochs, last epoch, no val-based selection
+- Pseudo-label score thresholds are fixed a priori with the same rule as the R-CNN group: 0.7 for UT-style methods; ports that use their method's official threshold keep it (PETS 0.5, LODS 0.8). Never tuned on DIOR `val.txt` or RSAR val
+- Wherever the R-CNN group uses `use_bbox_reg=False`, the pseudo-label loss is classification only: every regression term (box L1, IoU/PIoU, angle, including `d{i}.` and `enc_` prefixes) is zeroed. Methods whose paper trains on pseudo-box regression keep it, as in the R-CNN group (SF-UT and SF-YOLO; see the audit's method table)
+- Metrics: the same VOC AP50 evaluator (`test.py --eval mAP`), plus mAP50-95 via `tools/eval_map50_95.py` (from PR #44, which PR #45 depends on)
+- Adaptation (fixed for every DETR-group method; details in [`detr_portability_audit.md`](detr_portability_audit.md) §10): the R-CNN group's strict weak/strong dataflow, 1 GPU x 8 images (global batch 8), 1 epoch (RSAR 1,059 iter, DIOR-R 733 iter), the source's AdamW 1e-4 with grad clip 35, 100-iter warm-up with no decay inside epoch 1, EMA 0.998 updated before each student forward, final-iteration EMA evaluated on corruption TEST. Exceptions, each as in the method's R-CNN port: PETS EMA 0.9996, then 0.999 after the first exchange; SFUT EMA 0.9996 after each optimizer step, pseudo-box regression kept; SFYOLO 2 epochs, parameter EMA 0.999 after each optimizer step, regression kept, lr x0.1 in epoch 2; cell script `experiments/comparison/detr_sfod_cell.sh`
