@@ -54,6 +54,11 @@ case "$METHOD" in
     SEM=$LOCAL/LODS_sem_s42/$DOMAIN/sem_iter_160000.pth
     EXTRA+=(data.train.type=StrictSourceFreeDOTADataset model.cfg.sem_ckpt=$SEM)
     ;;
+  PETS)
+    CODE=/home/zechuan/IRAOD-New-pets-20261101
+    CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_pets_dior_orthonet_strict.py
+    EXTRA+=(data.train.type=StrictSourceFreeDOTADataset)
+    ;;
   IRG|LPLD|SFUT)
     CODE=/home/zechuan/iraod_jobs/ext/repo_code_a39c832
     CFG=configs/unbiased_teacher/sfod/extensions/${METHOD,,}_dior.py
