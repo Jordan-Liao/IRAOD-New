@@ -11,3 +11,4 @@ SFUT,SFUT-OBB,yes,OBB,none,eval_only,off,off,yes,required; independent of B
 DRU,DRU-OBB,yes,OBB,none,eval_only,off,off,yes,required; DRUUnbiasedTeacher not B; chaff/seed42 gate
 AASFOD,AASFOD-OBB,yes,OBB,none,eval_only,off,off,yes,required; complete missing TEST
 SFYOLO,SFYOLO-OBB,yes,OBB,none,eval_only,off,off,yes,required; TAM+TEST gaps then DIOR-17
+LODS,LODS (our reimplementation),yes,OBB,none,eval_only,off,off,yes,LODSTeacher; SEM on target images + GW graph alignment; chaff/seed42 gate; lods_obb_port.md
