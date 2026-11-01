@@ -43,6 +43,6 @@ Not ranked together with the Oriented R-CNN group above: backbone, initializatio
 - Detector: ARS-DETR, no-DN AR-CSL variant (`ARSDETR` / `ARSDeformableDETRHead`, `ars_detr/`), R-50 with torchvision ImageNet init
 - RSAR source: public `arcsl_detr_r50_rsar_epoch_36.pth` (last epoch, RSAR train only), sha256 `1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185`, at `/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/`
 - DIOR source: `configs/ars_detr/arcsl_detr_r50_dior.py`, DIOR `ImageSets/train.txt` only, 72 epochs, last epoch, no val-based selection
-- Pseudo-label score threshold fixed a priori at 0.7 (same rule as the R-CNN group), never tuned on DIOR `val.txt` or RSAR val
-- Wherever the R-CNN group uses `use_bbox_reg=False`, the pseudo-label loss is classification only: every regression term (box L1, IoU/PIoU, angle, including `d{i}.` and `enc_` prefixes) is zeroed
+- Pseudo-label score thresholds are fixed a priori with the same rule as the R-CNN group: 0.7 for UT-style methods; ports that use their method's official threshold keep it (PETS 0.5, LODS 0.8). Never tuned on DIOR `val.txt` or RSAR val
+- Wherever the R-CNN group uses `use_bbox_reg=False`, the pseudo-label loss is classification only: every regression term (box L1, IoU/PIoU, angle, including `d{i}.` and `enc_` prefixes) is zeroed. Methods whose paper trains on pseudo-box regression keep it, as in the R-CNN group (SF-UT; see the audit's method table)
 - Metrics: the same VOC AP50 evaluator (`test.py --eval mAP`), plus mAP50-95 via `tools/eval_map50_95.py` (from PR #44, which PR #45 depends on)
