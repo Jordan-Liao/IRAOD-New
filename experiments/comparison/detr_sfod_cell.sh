@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # DETR-group (ARS-DETR) strict source-free cell: train + final-EMA TEST eval.
 # Usage: detr_sfod_cell.sh METHOD DATASET DOMAIN SEED GPU
-#   METHOD  A (source only, eval) | B | C | D | E | F | PETS
+#   METHOD  A (source only, eval) | B | C | D | E | F | PETS | SFUT | SFYOLO (2 epochs)
 #   DATASET rsar | dior;  DOMAIN = corruption name (e.g. chaff);  GPU = one id
-# Protocol (fixed for every method, see detr_sfod_port.md): 1 GPU x 8 images,
+# Protocol (fixed for every method, see detr_portability_audit.md §10): 1 GPU x 8 images,
 # 1 epoch of target val images, AdamW 1e-4, weight_l=0, final-iteration EMA
 # evaluated on corruption TEST with the shared rotated VOC AP50 evaluator.
 # Env overrides: CODE (deployed code dir), PY, DATA (RSAR root), DIOR (DIOR
@@ -31,7 +31,7 @@ mkdir -p $HOME/.cache/clip
 
 case "$METHOD" in
   A) NAME= ;; B) NAME=st ;; C) NAME=clip_cga ;; D) NAME=sarclip_cga ;;
-  E) NAME=vlst ;; F) NAME=vlst_cga ;; PETS) NAME=pets ;;
+  E) NAME=vlst ;; F) NAME=vlst_cga ;; PETS) NAME=pets ;; SFUT) NAME=sfut ;; SFYOLO) NAME=sfyolo ;;
   *) echo "bad method $METHOD"; exit 2 ;;
 esac
 case "$DATASET" in
@@ -50,6 +50,10 @@ case "$DATASET" in
                "data.test.ann_subdir=$DIOR/Annotations/Oriented Bounding Boxes/") ;;
   *) echo "bad dataset $DATASET"; exit 2 ;;
 esac
+
+# SFYOLO reuses the R-CNN group's completed seed-42 TAM fit for this domain.
+TAM=${TAM:-/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/tam_runs_84a1aeb/$DATASET/$DOMAIN/seed_42/tam.pth}
+[[ "$METHOD" == SFYOLO ]] && TRAIN_OPTS+=(model.cfg.tam_checkpoint=$TAM)
 
 root=$ART/$DATASET/${METHOD}_s${SEED}/$DOMAIN
 work=$root/work
