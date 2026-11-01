@@ -24,6 +24,10 @@ model = dict(
         gw_add_rate=0.5,
         style_add_alpha=0.4,
         gw_global_level=2,
+        # official teacher proposals: cfg.TEST RPN_POST_NMS_TOP_N=300, RPN_NMS_THRESH=0.7
+        # (config.py:191-196); min-size filter is commented out (proposal_layer.py:113)
+        teacher_rpn=dict(nms_pre=2000, max_per_img=300,
+                         nms=dict(type='nms', iou_threshold=0.7), min_bbox_size=0),
         sem_ckpt=None,
     ),
 )

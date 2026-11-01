@@ -20,6 +20,7 @@ import random
 
 import cv2
 import mmcv
+from mmcv import ConfigDict
 import torch
 import torch.nn.functional as F
 from mmdet.models.builder import DETECTORS
@@ -81,6 +82,11 @@ def roi_cls_and_feat(roi_head, x, rois):
     return head.fc_cls(h), h
 
 
+def teacher_proposals(rpn_head, x, img_metas, rpn_cfg):
+    """Teacher RPN in test mode with the official LODS proposal settings."""
+    return rpn_head.get_bboxes(*rpn_head(x), img_metas=img_metas, cfg=rpn_cfg)
+
+
 def valid_rotated_boxes(boxes):
     """Same rule as UnbiasedTeacher.create_pseudo_results: finite, w > 0, h > 0."""
     return torch.isfinite(boxes[:, :5]).all(1) & (boxes[:, 2] > 0) & (boxes[:, 3] > 0)
@@ -108,6 +114,8 @@ class LODSTeacher(SemiTwoStageDetector):
         self.gw_add_rate = float(cfg.get('gw_add_rate', 0.5))
         self.style_add_alpha = float(cfg.get('style_add_alpha', 0.4))
         self.gw_global_level = int(cfg.get('gw_global_level', 2))  # C4 = res layer3
+        # official cfg.TEST RPN: post-NMS 300, NMS 0.7 (teacher only; shared test cfg untouched)
+        self.teacher_rpn_cfg = ConfigDict(cfg['teacher_rpn'])
         self.num_classes = self.roi_head.bbox_head.num_classes
         self.cur_iter = 0
         self.sem = StyleEnhancementModule()
@@ -171,8 +179,9 @@ class LODSTeacher(SemiTwoStageDetector):
         with torch.no_grad():
             c_t = teacher.backbone(img)
             x_t = teacher.neck(c_t)
-            # official: teacher RCNN_rpn.eval() -> test-mode proposals
-            proposals = teacher.rpn_head.simple_test_rpn(x_t, img_metas)
+            # official: teacher RCNN_rpn.eval() -> cfg.TEST proposals
+            proposals = teacher_proposals(teacher.rpn_head, x_t, img_metas,
+                                          self.teacher_rpn_cfg)
             proposals = [p[valid_rotated_boxes(p)] for p in proposals]
             rois = rbbox2roi([p[:, :5] for p in proposals])
             cls_t, feat_t = roi_cls_and_feat(teacher.roi_head, x_t, rois)

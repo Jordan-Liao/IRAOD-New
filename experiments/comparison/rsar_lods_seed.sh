@@ -7,24 +7,20 @@ source /mnt/shared/zechuan/iraod_artifacts/comparison/queue_dru20260919/common.s
 set +e
 CODE=/mnt/SSD2_8TB/zechuan/IRAOD-New-lods-20261101
 export PYTHONPATH=$CODE
-# SEM = full official 160000 iters, one seed-42 fit per domain shared by detector seeds 42/43/44
-# (same rule as the SF-YOLO TAM, lods_obb_port.md)
-SEM_ITERS=160000
-ENC=/mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_split_enc_keys.pt
+# SEM: one canonical seed-42, 160000-iter fit per domain shared by seeds 42/43/44
+# (lods_sem.sh, lods_obb_port.md). Only seed 42 may train it; other seeds fail if absent.
 GPU=$1; SEED=$2; shift 2
 export CUDA_VISIBLE_DEVICES=$GPU
 prep_env
 cd "$CODE"
 for CORRUPT in "$@"; do
   CELL=$ART/rsar/${CORRUPT}/seed_${SEED}/lods_e1
-  SEMD=$ART/rsar/${CORRUPT}/lods_sem_seed42
-  SEM=$SEMD/sem_iter_${SEM_ITERS}.pth
-  if [ ! -f "$SEM" ]; then
-    mkdir -p "$SEMD"
-    "$PY" tools/lods/train_sem.py --target-dir "$RSAR/corruptions/${CORRUPT}/val/images" \
-      --encoder "$ENC" --work-dir "$SEMD" --seed 42 --workers 32 --max-iter "$SEM_ITERS" > "$SEMD/stdout.log" 2>&1
-    [ -f "$SEM" ] || { echo "SEM_FAIL LODS $CORRUPT seed=$SEED"; continue; }
+  SEM=$ART/rsar/${CORRUPT}/lods_sem_seed42/sem_iter_160000.pth
+  if [ ! -f "$SEM.sha256" ]; then
+    if [ "$SEED" != 42 ]; then echo "SEM_MISSING LODS $CORRUPT seed=$SEED (run seed 42 first)"; continue; fi
+    bash "$CODE/experiments/comparison/lods_sem.sh" train rsar "$CORRUPT" "$GPU" || { echo "SEM_FAIL LODS $CORRUPT"; continue; }
   fi
+  ( cd "$(dirname "$SEM")" && sha256sum -c --quiet sem_iter_160000.pth.sha256 ) || { echo "SEM_SHA_FAIL LODS $CORRUPT"; continue; }
   ROOT=$CELL/methods/LODS
   WORK=$ROOT/work; LOG=$ROOT/logs; OUT=$ROOT/eval_full_${CORRUPT}_ids_v1
   mkdir -p "$LOG"
