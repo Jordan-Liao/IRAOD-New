@@ -36,8 +36,10 @@ epoch of `N` iterations (global batch 32, lr 0.02), so it is cut into 10
 virtual epochs and the Static Teacher and Student are exchanged before
 iteration `N*k//10` (0-based), `k = 2..9`:
 
-- RSAR, `N = 266`: before iterations 53, 79, 106, 133, 159, 186, 212, 239 (8 exchanges).
-- DIOR, `N = 185`: before iterations 37, 55, 74, 92, 111, 129, 148, 166 (8 exchanges).
+- RSAR, `N = 265` (8467 images / 32; checkpoint `iter_266`): before iterations
+  53, 79, 106, 132, 159, 185, 212, 238 (8 exchanges; logged by the gate run).
+- DIOR, `N = 184` (5863 / 32; checkpoint `iter_185`): before iterations
+  36, 55, 73, 92, 110, 128, 147, 165 (8 exchanges).
 
 `N` comes from the runner (`PETSScheduleHook`, `runner.max_iters`); training
 without the hook raises.
@@ -68,7 +70,13 @@ for choosing hyperparameters.
 Code dir `/home/zechuan/IRAOD-New-pets-20261101`: this branch plus the two
 gitignored OrthoNet files every deployed main-table dir carries
 (`mmdet_extension/models/backbones/orthonet.py`, `mmdet_extension/models/utils/`),
-copied unchanged from `IRAOD-New-dru-20260919`. RSAR cells run with
+copied unchanged from `IRAOD-New-dru-20260919`.
+
+`main` carried `StrictSourceFreeDOTADataset` but not the detector half of the
+strict dataflow (commit `4c052fe`), so strict batches crashed in
+`forward_train`. This branch ports it; `sfod/rotated_unbiased_teacher.py` is
+byte-identical to `82e08b0` (strict dataflow plus degenerate rotated pseudo-box
+rejection). RSAR cells run with
 `rsar_pets_seed.sh GPU SEED DOMAIN...`; DIOR cells with
 `train_d17_seed_1gpu.sh GPU PETS DOMAIN SEED`.
 

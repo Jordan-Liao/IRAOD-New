@@ -31,13 +31,13 @@ def _empty(n=2):
 
 
 class ExchangeScheduleTest(unittest.TestCase):
-    def test_rsar_266_iters_gets_official_8_exchanges(self):
+    def test_rsar_265_iters_gets_official_8_exchanges(self):
         # Official C2F: 10 epochs, warm-up 2, period 1 -> swaps at epochs 2..9.
-        self.assertEqual(exchange_iterations(266),
-                         [53, 79, 106, 133, 159, 186, 212, 239])
+        self.assertEqual(exchange_iterations(265),
+                         [53, 79, 106, 132, 159, 185, 212, 238])
 
     def test_proportion_holds_for_other_lengths(self):
-        self.assertEqual(exchange_iterations(185), [37, 55, 74, 92, 111, 129, 148, 166])
+        self.assertEqual(exchange_iterations(184), [36, 55, 73, 92, 110, 128, 147, 165])
         self.assertEqual(exchange_iterations(100, epochs=5, warmup_epochs=2), [40, 60, 80])
 
 
