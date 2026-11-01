@@ -53,6 +53,8 @@ dior_common = dict(
     classes=classes,
     version=angle_version,
     xmltype='obb')
+# Total batch must stay 8: 4 GPUs x 2 (official layout) or 1 GPU x 8 via
+# --cfg-options data.samples_per_gpu=8.
 data = dict(
     _delete_=True,
     samples_per_gpu=2,
