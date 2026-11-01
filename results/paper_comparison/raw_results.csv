@@ -985,4 +985,3 @@ DIOR,cloudy,AASFOD,44,done,0.252299,185,185,gpu-138,/home/zechuan/iraod_artifact
 DIOR,cloudy,SFYOLO,42,done,0.298658,369,369,gpu-67,/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_runs_84a1aeb/dior/cloudy/seed_42/methods/SFYOLO/eval_full_cloudy_ids_v1
 DIOR,cloudy,SFYOLO,43,done,0.298477,369,369,gpu-67,/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_runs_84a1aeb/dior/cloudy/seed_43/methods/SFYOLO/eval_full_cloudy_ids_v1
 DIOR,cloudy,SFYOLO,44,done,0.298962,369,369,gpu-67,/mnt/shared/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/sfyolo_runs_84a1aeb/dior/cloudy/seed_44/methods/SFYOLO/eval_full_cloudy_ids_v1
-RSAR,chaff,LODS,42,done,0.451928,266,266,gpu-67,/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/lods_e1/methods/LODS/eval_full_chaff_ids_v1

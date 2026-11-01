@@ -21,7 +21,7 @@ launchers `experiments/comparison/rsar_lods_seed.sh` and the `LODS` case of
 | SEM optimisation | two Adam, lr 1e-4, decay `lr/(1+5e-5·i)`, batch 8, 128 crops, h-flip, 160 000 iters, content & style both = target images (`Enhance/train.py:22-162`, README:59) | same, 160 000 iters (budget table) |
 | SEM inference | per image, random target image as style resized to content size, alpha blend, clip to [0,255] (`enhance_base.py:14-40,83-129`) | same (`LODSTeacher.enhance`) |
 | Teacher/student | teacher gets the original image, student gets SEM(original) (`faster_rcnn_style.py:66-68`); student classifies the teacher's proposals (`:101-102`) | same; student RoIs = teacher RoIs index-for-index |
-| Teacher proposals | teacher RPN forced to eval (`faster_rcnn_style.py:75-76`) → test-mode proposals | teacher `rpn_head.simple_test_rpn` (eval EMA model, detector test cfg) |
+| Teacher proposals | teacher RPN forced to eval (`train_target.py:599`, `faster_rcnn_style.py:75-76`, `rpn.py:75`) → cfg.TEST: post-NMS 300, NMS 0.7 (`config.py:191,196`) | eval EMA teacher OrientedRPN with `teacher_rpn` = max 300 per image, NMS 0.7 (LODS teacher only; the shared detector test cfg is untouched) |
 | Supervision | CE on teacher-confident RoIs (max prob ≥ 0.8, background included) (`train_target.py:606-613`); `cons_loss` × 0 (`:640`) | same; `cons_loss` not computed (weight 0) |
 | Instance graph | node feature = flatten(prob ⊗ fc7); GW-KL with cosine affinities; transport prior `T = I + 0.5·mask·cos(teacher logits)`, mask = same confident foreground class, background ignored (`train_target.py:615-635`, `gromovWasserstein.py`) | same |
 | Global graph | GW-KL over spatial positions of the shared base feature, `T = I` (`train_target.py:637-638`) | same on backbone C4 (see OBB adaptations) |
@@ -50,21 +50,22 @@ the same rule.
 | Detector schedule | bs 1, 3 epochs (clipart) / 1 epoch (foggy) (README:162-171), `USE_FLIPPED` doubles the epoch (`train_target.py:391`) | 1 epoch, global batch 32 (1 GPU × 32), RSAR iter_266 / DIOR ~185 |
 | LR | SGD 1e-4 constant (`train_target.py:60-62`; `inv_lr_scheduler(gamma=0, power=-1)`, `utils.py:9-16`), momentum 0.9 | SGD lr 0.02, momentum 0.9, wd 1e-4, shared 100-iter linear warmup |
 | Input scale | shorter side 600, max 1000 | shared 800×800 RResize, RRandomFlip h/v/diag |
-| SEM stage | separate stage, 160 000 iters × 8, before a 3-epoch detector stage (README:59,162) | **full 160 000 iters × 8** (~1.6 h alone on one A100), one seed-42 fit per (dataset, domain) at `<ART>/rsar/<domain>/lods_sem_seed42/` (DIOR: `ext_runs_e1/LODS_sem_s42/<domain>/`), reused by detector seeds 42/43/44; reads only the unlabeled adaptation images |
+| SEM stage | separate stage, 160 000 iters × 8, before a 3-epoch detector stage (README:59,162) | **full 160 000 iters × 8** (~1.6 h alone on one A100), one seed-42 fit per (dataset, domain), trained once on gpu-67 (`experiments/comparison/lods_sem.sh train`) and kept with its sha256 at the canonical `<ART>/<dataset>/<domain>/lods_sem_seed42/sem_iter_160000.pth`. All seeds use it: RSAR cells read it in place; DIOR hosts get a copy (`lods_sem.sh push`, sha256-checked) in `ext_runs_e1/LODS_sem_s42/<domain>/`. Launchers never retrain it per seed or host and fail if it is missing; reads only the unlabeled adaptation images |
 
 Effect: the SEM matches the official one in length and recipe. The detector
 stage is the shared 1×32, 1-epoch run, so the teacher receives 265 EMA updates
 at 0.999 (≈ 23 % student weight) instead of ~6000 bs-1 updates in the official
-clipart recipe; the per-update style augmentation is official. Seeds 43/44 of a
-domain must start after its seed-42 SEM file exists (the launchers train it
-only when missing).
+clipart recipe; the per-update style augmentation is official. The `push` copy is relayed through the controller (`scp -3`), because the DIOR
+hosts have no uniform private route to gpu-67 (gpu-138 has none). The DIOR fog
+SEM from the visual check was trained with the same recipe and is its canonical
+file.
 
 ## Deviations
 
 OBB / detector adaptations (forced by the shared Oriented R-CNN detector):
 
 1. HBB proposals → rotated proposals from the OrientedRPN (`(cx, cy, w, h, θ)`, le90); RoIAlign → `RoIAlignRotated` (7×7, `RotatedSingleRoIExtractor` level mapping); per-image box ROI tensors via `rbbox2roi`.
-2. Teacher proposal count follows our detector's test cfg (OrientedRPN: nms_pre 2000/level, NMS 0.8, max 2000 per image) instead of py-faster-rcnn's TEST cfg (pre 6000, post 300, NMS 0.7, min size 16, `config.py:191-199`). Both are "the teacher RPN in eval mode"; the RoI count per graph is ~2000 instead of 300.
+2. Teacher proposals use the official cfg.TEST count and NMS (post-NMS 300, IoU 0.7). The remaining differences come from the OrientedRPN: pre-NMS top-k is 2000 per FPN level (official 6000 over one map), and NMS runs per level on the horizontal hulls of the rotated proposals (`batched_nms` with level ids). The official `RPN_MIN_SIZE=16` has no effect because its filter is commented out (`proposal_layer.py:113`); we use `min_bbox_size=0`, which is equivalent. The official layer zero-pads every image to exactly 300 boxes (`proposal_layer.py:127,156-158`), and those all-zero RoIs go through RoI pooling and the losses. We pass only the real proposals (≤ 300), with no padding: zero-size rotated boxes are degenerate and would be dropped by deviation 3 anyway. A first gate with the shared test cfg (2000 per image, NMS 0.8) is kept as `superseded_2000prop` (see Gate cell).
 3. Degenerate teacher proposals (non-finite, w ≤ 0 or h ≤ 0) are dropped before RoI pooling — the same rule `UnbiasedTeacher.create_pseudo_results` applies to pseudo boxes. LODS creates no pseudo boxes, so that UT function is not called; the rule is kept on the teacher geometry LODS does use.
 4. fc7 = output of `RotatedShared2FCBBoxHead.shared_fcs` (1024-d, post-ReLU) instead of res101 `layer4`+avg-pool (2048-d). Background is mmdet's last class index instead of index 0.
 5. Global graph on backbone C4 (OrthoNet-50 stage 3 output, stride 16, 1024 ch) = the official res101 `RCNN_base4` (= `layer3`) stage. FPN levels are not used for this loss.
@@ -88,15 +89,26 @@ SEM-specific:
 ## Open questions (method-relevant)
 
 - **alpha**: decided, see "Alpha decision".
-- **Proposal count** (deviation 2): 2000 vs 300 teacher RoIs changes the instance-graph size and the confident-background share of the CE.
 
 ## Alpha decision
 
-`style_add_alpha = 0.4` for RSAR and DIOR (coordinator decision, fixed a priori from
-the shift type only). Our targets are synthetic corruptions of the same scenes
-as the source, which matches the official Cityscapes→Foggy-Cityscapes setting
-(alpha 0.4). The generic/clipart value 1.0 targets cross-style shifts we do not
-have. No target labels and no target-test result were used.
+`style_add_alpha = 0.4` for RSAR and DIOR. Rationale, from the shift type: our
+targets are synthetic corruptions of the same scenes as the source, which matches
+the official Cityscapes→Foggy-Cityscapes setting (alpha 0.4). The generic/clipart
+value 1.0 targets cross-style shifts we do not have.
+
+Chronology, stated as it happened. The port first used alpha 1.0. The
+GT-assisted visual check below came first; GT boxes were used only to locate and
+draw objects and to compute in-box image metrics, and no detector was evaluated
+and no AP computed. It showed alpha 1.0 erasing RSAR ships. About 5 minutes later
+alpha was set to 0.4 per the official foggy recipe. No target-test result entered
+the choice.
+
+0.4 + random target style + ImageNet VGG16 encoder + generic-branch SEM training is
+**not an official recipe**. The official alpha 0.4 is used with a fixed
+`meanfoggy.jpg` style image and the `vgg16_cityscape.pth` encoder taken from the
+source detector (README:164,171). Here only the alpha value comes from that recipe;
+the rest follows the generic branch (deviation 14).
 
 The first gate run used alpha 1.0. It was stopped at about iteration 160 of 265,
 unevaluated, and marked `invalid_alpha1`
@@ -122,10 +134,10 @@ Used setting, alpha 0.4:
 |---|---|
 | `rsar_chaff_small_ships_alpha0.4` | River/land layout and most ships survive as blurred blobs; fake worm/checker texture and a sepia tint over land and water; fine ship structure lost. Gradient corr in ship boxes 0.19–0.38; ship-vs-ring contrast 1.2–1.8 (orig 1.2–1.6), i.e. ships not erased. |
 | `rsar_chaff_slender_alpha0.4` | Bridges and long linear structures visible at full scale (corr 0.24–0.63); zoomed detail smeared into texture. |
-| `dior_fog_dense_alpha0.4` | Layout and dense parked vehicles/tanks preserved as small blobs; fog largely removed; mild texture (corr 0.11–0.49). |
+| `dior_fog_dense_alpha0.4` | Layout and dense parked vehicles/tanks preserved as small blobs; fog visibly reduced in some images but not uniformly; mild texture (corr 0.11–0.49). |
 | `dior_fog_slender_alpha0.4` | Marina ships and bridges keep their shape (corr 0.19–0.67). |
 
-Rejected setting, alpha 1.0 (kept for the record):
+未采用 (not adopted), alpha 1.0, kept for the record:
 
 | Grid | Finding |
 |---|---|
@@ -138,19 +150,19 @@ Rejected setting, alpha 1.0 (kept for the record):
 style keeps every ship in place (corr 0.53–0.57). The damage therefore comes from
 the fc-AdaIN style step, not from misaligned geometry in the port.
 
-## Gate cell (RSAR chaff, seed 42, alpha 0.4)
+## Gate cell (RSAR chaff, seed 42, alpha 0.4, official 300-proposal teacher)
 
 | | AP50 | mAP50-95 |
 |---|---|---|
 | A Source Only (raw_results.csv) | 0.4719 | — |
 | B ST / Mean Teacher (raw_results.csv) | 0.4631 | — |
-| **LODS (our reimplementation)** | **0.4519** | **0.2192** |
+| **LODS (our reimplementation)** | **0.4484** | **0.2164** |
 
 - Train: 1 GPU × 32, lr 0.02, 1 epoch (265 updates); final EMA `iter_266_ema.pth`
-  (sha256 `bbe5bb67a92889b4279b8baacaab913a2db79c4e7e6380098b54c1b1b796cc5e`).
-  All logged losses are finite. At the end: label ≈ 0.011, gw_ins ≈ 0.003,
-  gw_global ≈ 0.005; ~2000 teacher RoIs per image, 97.7 % confident, 0.9 %
-  confident foreground.
+  (sha256 `9697b787a77fac0e19945dc63dc7087f93b8e8b04e2cf9ba9b01f8e89de7fc2d`); peak
+  memory 38.9 GB. All logged losses are finite. `lods_rois_per_img` = 300 (min
+  299.997), mean `lods_conf_fg_frac` 0.0196 (0.0213 at the end),
+  `lods_conf_frac` 0.957 at the end.
 - Teacher and student both start from the clean RSAR source
   `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
   (sha256 `e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c`).
@@ -159,3 +171,10 @@ the fc-AdaIN style step, not from misaligned geometry in the port.
 - Cell on gpu-67: `/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/lods_e1/methods/LODS/`
   (`eval_full_chaff_ids_v1/{eval.log,eval_status,predictions.pkl}`); code dir
   `/mnt/SSD2_8TB/zechuan/IRAOD-New-lods-20261101`.
+
+Superseded, not the result: `methods/superseded_2000prop_LODS/` used the shared
+detector test cfg for the teacher (2000 proposals per image, NMS 0.8; mean
+`lods_conf_fg_frac` 0.0084) and gave AP50 0.4519 / mAP50-95 0.2192. It was
+superseded on a code-faithfulness decision (official cfg.TEST 300 / 0.7) taken
+before this rerun's result existed. `methods/invalid_alpha1_LODS/` was stopped
+at alpha 1.0 and never evaluated.

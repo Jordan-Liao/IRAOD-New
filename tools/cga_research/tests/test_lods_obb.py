@@ -15,9 +15,11 @@ from mmcv.ops import RoIAlignRotated
 from mmrotate.core import rbbox2roi, rbbox_overlaps
 from mmrotate.models import build_head
 
+from mmcv import ConfigDict
+
 from sfod.rotated_lods import (LODSTeacher, gromov_wasserstein_loss,
                                instance_relation_prior, roi_cls_and_feat,
-                               valid_rotated_boxes)
+                               teacher_proposals, valid_rotated_boxes)
 
 ROI_HEAD = dict(
     type='OrientedStandardRoIHead',
@@ -95,7 +97,31 @@ class RotatedRoIFeatureTest(unittest.TestCase):
         self.assertTrue(torch.allclose(cls, ref_cls, atol=1e-6))
 
 
+RPN_HEAD = dict(
+    type='OrientedRPNHead', in_channels=8, feat_channels=8, version='le90',
+    anchor_generator=dict(type='AnchorGenerator', scales=[8], ratios=[0.5, 1.0, 2.0],
+                          strides=[4, 8, 16, 32, 64]),
+    bbox_coder=dict(type='MidpointOffsetCoder', angle_range='le90',
+                    target_means=[0.] * 6, target_stds=[1., 1., 1., 1., 0.5, 0.5]))
+SHARED_RPN_TEST_CFG = dict(nms_pre=2000, max_per_img=2000,
+                           nms=dict(type='nms', iou_threshold=0.8), min_bbox_size=0)
+
+
 class ProposalCorrespondenceTest(unittest.TestCase):
+    def test_teacher_uses_official_300_nms07(self):
+        torch.manual_seed(4)
+        rpn = build_head(dict(RPN_HEAD, test_cfg=ConfigDict(SHARED_RPN_TEST_CFG))).eval()
+        x = [torch.randn(1, 8, 256 // s, 256 // s) for s in (4, 8, 16, 32, 64)]
+        metas = [dict(img_shape=(256, 256, 3), scale_factor=1.0, pad_shape=(256, 256, 3))]
+        cfg = ConfigDict(nms_pre=2000, max_per_img=300,
+                         nms=dict(type='nms', iou_threshold=0.7), min_bbox_size=0)
+        with torch.no_grad():
+            lods = teacher_proposals(rpn, x, metas, cfg)[0]
+            shared = rpn.simple_test_rpn(x, metas)[0]
+        self.assertEqual(lods.size(0), 300)       # official post-NMS top-N
+        self.assertGreater(shared.size(0), 300)   # shared detector test cfg untouched
+        self.assertEqual(lods.size(1), 6)         # (cx, cy, w, h, a, score)
+
     def test_student_scores_the_teacher_rois(self):
         torch.manual_seed(1)
         head_t = build_head(ROI_HEAD).eval()
