@@ -1,0 +1,15 @@
+/home/zechuan/miniforge3/envs/iraod/bin/python
+-m
+torch.distributed.launch
+--nproc_per_node=4
+--master_port=29674
+train.py
+/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/reproducibility/resolved_config.py
+--launcher
+pytorch
+--work-dir
+/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train
+--seed
+42
+--deterministic
+--no-validate
