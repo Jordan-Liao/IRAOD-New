@@ -73,6 +73,25 @@ def freeze_all(model):
         param.requires_grad = False
 
 
+def freeze_for_inference(model):
+    model.eval()
+    model.requires_grad_(False)
+    return model
+
+
+def assert_frozen_for_inference(model, name="model"):
+    trainable = [
+        param_name
+        for param_name, param in model.named_parameters()
+        if param.requires_grad
+    ]
+    if model.training or trainable:
+        raise RuntimeError(
+            f"{name} must be in eval mode with zero trainable parameters; "
+            f"training={model.training}, trainable_parameters={trainable}"
+        )
+
+
 def mark_lora_trainable(model, train_logit_scale=True):
     freeze_all(model)
     trainable_names = []
