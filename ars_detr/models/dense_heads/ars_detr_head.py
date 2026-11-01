@@ -623,7 +623,11 @@ class ARSDeformableDETRHead(RotatedDETRHead):
 
         factor = bbox_pred.new_tensor([img_w, img_h, img_w,
                                        img_h]).unsqueeze(0)
-        pos_gt_bboxes_normalized = sampling_result.pos_gt_bboxes[:, :-1] / factor
+        # Local fix (IRAOD): index gt_bboxes directly. For an image without
+        # GT, mmdet's SamplingResult reshapes pos_gt_bboxes to (0, 4), so the
+        # upstream `[:, :-1]` gave (0, 3) and crashed (empty pseudo labels).
+        pos_gt_bboxes_normalized = \
+            gt_bboxes[sampling_result.pos_assigned_gt_inds, :-1] / factor
         pos_gt_bboxes_targets = pos_gt_bboxes_normalized
         bbox_targets[pos_inds] = pos_gt_bboxes_targets
         angles[pos_inds] = gt_angles[sampling_result.pos_assigned_gt_inds]

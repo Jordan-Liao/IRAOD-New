@@ -53,7 +53,11 @@ class DRUUnbiasedTeacher(UnbiasedTeacher):
         head = getattr(getattr(self, "roi_head", None), "bbox_head", None)
         orig = getattr(head, "forward", None) if head is not None else None
         if orig is None:
-            return fn(), None
+            # Without an RoI bbox head the historical student loss cannot be
+            # computed; never let DRU silently degrade to plain UT.
+            raise NotImplementedError(
+                'DRU historical student loss needs roi_head.bbox_head; '
+                f'{type(self).__name__} has none (e.g. DETR)')
 
         def wrapped(*args, **kwargs):
             out = orig(*args, **kwargs)
