@@ -22,7 +22,7 @@
 - **RSAR 源 = 公开的 `arcsl_detr_r50_rsar_epoch_36.pth`**（最后一个 epoch，只用 RSAR train 训练，证据见 §5），按官方 pipeline / 输入尺度使用，不再训练 RSAR 源。
 - **DIOR-R 源**：R-50 ImageNet，只用 DIOR `ImageSets/train.txt`（`val.txt` 的 corruption 版本是自适应图像，绝不用于源训练），输入尺度与 Oriented R-CNN DIOR 源相同（800×800，同样的翻转增强），官方优化器（AdamW 1e-4，总 batch 8），72 epoch，取最后一个 epoch，不按 val 选模型。配置：`configs/ars_detr/arcsl_detr_r50_dior.py`。
 - **DETR 组是独立的公平性组，不与 Oriented R-CNN 组放在同一张表里排名。** 两组的 backbone、初始化和源模型都不同，只能各自组内比较。
-- 评测：两组都用本仓库同一个旋转 VOC AP50 评测器（`test.py --eval mAP`，即 `DOTADataset` / `DIORDataset.evaluate`），另外报 AP50:95（`tools/eval_ap50_95.py`，同一评测器在 IoU 0.50:0.05:0.95 上取平均）。
+- 评测：两组都用本仓库同一个旋转 VOC AP50 评测器（`test.py --eval mAP`，即 `DOTADataset` / `DIORDataset.evaluate`），另外报 AP50:95（`tools/eval_map50_95.py`，即 `test.py --map50-95`，同一评测器在 IoU 0.50:0.05:0.95 上取平均）。这个工具来自 PR #44（`feat/lods-obb`），PR #45 依赖它先合入。
 
 **备选是 O2-RTDETR**（ai4rs，TGRS 2026）。它精度最高，DIOR-R 和 RSAR 都有公开 checkpoint，但基于 mmrotate 1.x / mmengine / mmcv 2.x，整套 SFOD 代码都要重写（见 §4）。
 
@@ -112,7 +112,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 |---|---|
 | checkpoint | `/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/arcsl_detr_r50_rsar_epoch_36.pth`（gpu-67），sha256 `1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185` |
 | 官方日志 | 同目录 `arcsl_detr_r50_rsar.json`，sha256 `cf023eff536f021c98af90e37bca5aee63b14a04400807fb5b7d342ca3cd6090` |
-| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` + `tools/eval_ap50_95.py` |
+| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` 加上当时本分支的 `tools/eval_ap50_95.py`（之后已删除，改用 PR #44 的 `tools/eval_map50_95.py`；reviewer 已确认在这个配置下两者数值完全相同）。gpu-67 上的 `portcheck.sh` 和结果文件保持原样，作为实际运行的记录 |
 | AP50（本仓库 VOC 评测器） | **61.16** |
 | AP50:95 | **31.56**（AP55 57.96 / AP60 53.87 / AP65 48.29 / AP70 40.27 / AP75 28.96 / AP80 15.56 / AP85 7.00 / AP90 2.54 / AP95 0.04） |
 | 对照 | README 31.56；官方日志最后一个 epoch val AP50 0.640（最佳 ep33 0.650） |
