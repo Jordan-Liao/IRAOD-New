@@ -9,6 +9,7 @@ import unittest
 import numpy as np
 import torch
 from mmcv import Config
+from mmdet.core import bbox_cxcywh_to_xyxy
 from mmrotate.core.bbox.builder import build_assigner, build_bbox_coder
 from mmrotate.models import build_detector
 
@@ -49,33 +50,47 @@ class TestARCSLCoder(unittest.TestCase):
 
 class TestARSHungarianAssigner(unittest.TestCase):
 
-    def test_one_to_one_on_exact_predictions(self):
+    def test_box_costs_decide_the_match(self):
         cfg = Config.fromfile(RSAR_CFG)
         assigner = build_assigner(cfg.model.train_cfg.assigner)
         coder = build_bbox_coder(cfg.model.bbox_head.angle_coder)
         h = w = 800
-        gt_xyxy = torch.tensor([[100., 100., 200., 160.],
-                                [400., 300., 460., 500.],
-                                [600., 600., 760., 700.]])
+        factor = torch.tensor([w, h, w, h], dtype=torch.float32)
+        # gts as the head holds them: unnormalized (cx, cy, w, h, a), le90
+        gt = torch.tensor([[150., 130., 100., 60., 0.2],
+                           [430., 400., 60., 200., -0.9],
+                           [680., 650., 160., 100., 1.1]])
         gt_labels = torch.tensor([0, 3, 5])
-        gt_theta = torch.tensor([[0.2], [-0.9], [1.1]])
-        ratio = torch.tensor([[100 / 60], [200 / 60], [160 / 100]])
-        gt_angles = coder.encode(gt_theta, ratio)
-        # 10 queries: queries 7, 2, 4 reproduce gts 0, 1, 2; the rest are far.
-        order = torch.tensor([7, 2, 4])
-        pred = torch.rand(10, 4) * 0.05
-        pred[:, 2:] += 0.05
-        pred[order] = gt_xyxy / torch.tensor([w, h, w, h])
-        cls = torch.full((10, 6), -8.)
-        cls[order, gt_labels] = 8.
-        ang = torch.full((10, 180), -8.)
-        ang[order] = (gt_angles * 16 - 8)
-        result = assigner.assign(pred, cls, ang, gt_xyxy, gt_labels, gt_angles,
-                                 dict(img_shape=(h, w, 3)), None, ratio)
-        pos = torch.nonzero(result.gt_inds > 0).view(-1)
-        self.assertEqual(len(pos), 3)
+        ratio = torch.max(gt[:, 2] / gt[:, 3], gt[:, 3] / gt[:, 2]).view(-1, 1)
+        gt_angles = coder.encode(gt[:, 4:5], ratio)
+        # Per gt: an exact copy, a copy shifted by 0.4 w and a 1.5x copy. The
+        # shift leaves the upstream L1 term unchanged, so the IoU term must
+        # pick the exact copy; equal cls/angle logits make those costs
+        # constant per gt, so only the box costs decide.
+        exact = gt[:, :4] / factor
+        shifted = exact.clone()
+        shifted[:, 0] += 0.4 * exact[:, 2]
+        scaled = exact.clone()
+        scaled[:, 2:] *= 1.5
+        perm = torch.tensor([4, 0, 7, 2, 8, 5, 1, 6, 3])
+        pred_cxcywh = torch.cat([shifted, scaled, exact])[perm]
+        order = torch.argsort(perm)[6:]  # rows holding exact[0], [1], [2]
+        cls = torch.zeros(9, 6)
+        ang = torch.zeros(9, 180)
+        # Same call as ARSDeformableDETRHead._get_target_single.
+        pred_xyxy = bbox_cxcywh_to_xyxy(pred_cxcywh)
+        gt_xyxy = bbox_cxcywh_to_xyxy(gt[:, :4])
+        result = assigner.assign(pred_xyxy, cls, ang, gt_xyxy, gt_labels,
+                                 gt_angles, dict(img_shape=(h, w, 3)), None,
+                                 ratio)
+        self.assertEqual(int((result.gt_inds > 0).sum()), 3)
         self.assertEqual(result.gt_inds[order].tolist(), [1, 2, 3])
         self.assertEqual(result.labels[order].tolist(), gt_labels.tolist())
+        # Upstream semantics kept: BBoxL1Cost(box_format='xywh') compares the
+        # xyxy predictions with the gt converted to cxcywh.
+        reg = assigner.reg_cost(pred_xyxy, gt_xyxy / factor)
+        want = 2.0 * torch.cdist(pred_xyxy, gt[:, :4] / factor, p=1)
+        self.assertTrue(torch.allclose(reg, want, atol=1e-5))
 
 
 class TestARSDETRHead(unittest.TestCase):
