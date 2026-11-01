@@ -1,7 +1,7 @@
 # IRAOD strict Source-Free comparison protocol (revised)
 
 ## Claim
-Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, and SFYOLO on RSAR corruptions and DIOR-C. Shared OrthoNet-50 + Oriented R-CNN source, final-EMA Teacher TEST, no target GT in adaptation/selection. **DRU is required** (DRUUnbiasedTeacher; not B / Mean Teacher).
+Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, PETS, AASFOD, and SFYOLO on RSAR corruptions and DIOR-C. Shared OrthoNet-50 + Oriented R-CNN source, final-EMA Teacher TEST, no target GT in adaptation/selection. **DRU is required** (DRUUnbiasedTeacher; not B / Mean Teacher).
 
 ## Frozen scientific identity
 - RSAR source: `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
@@ -23,6 +23,7 @@ Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, 
 | LPLD | LPLD-OBB | yes | required; rerun NaN cells once |
 | SFUT | SFUT-OBB | yes | required; not B |
 | DRU | DRU-OBB | yes | required; Dynamic Retraining-Updating + Historical Student Loss; RSAR 1×32, 1 epoch (iter_266) for every seed |
+| PETS | PETS (our reimplementation) | yes | PETSUnbiasedTeacher: Static Teacher exchanged with Student 8× per run, Dynamic Teacher = EMA, rotated Teacher Consensus; final Dynamic Teacher (EMA) on TEST; deviations in `pets_obb_port.md` |
 | AASFOD | AASFOD-OBB | yes | required; standard recipe: per-seed TSD + alignment/FNS two stages (`train_aasfod`), valid only with tsd.json + stages.json |
 | SFYOLO | SFYOLO-OBB | yes | required; fill TAM/TEST then DIOR-17 |
 
