@@ -50,7 +50,7 @@ case "$METHOD" in
     # = /home/zechuan/IRAOD-New-dru-20260919 + feat/lods-obb files (see lods_obb_port.md)
     CODE=/home/zechuan/IRAOD-New-lods-20261101
     CFG=configs/unbiased_teacher/sfod/lods_oriented_rcnn_dior_orthonet_strict.py
-    SEM=$LOCAL/${METHOD}_d17_s${SEED}/$DOMAIN/sem/sem_iter_160000.pth
+    SEM=$LOCAL/${METHOD}_d17_s${SEED}/$DOMAIN/sem/sem_iter_53334.pth  # 160000 x 1/3 epochs (lods_obb_port.md)
     EXTRA+=(data.train.type=StrictSourceFreeDOTADataset model.cfg.sem_ckpt=$SEM)
     ;;
   IRG|LPLD|SFUT)
@@ -93,8 +93,8 @@ mkdir -p "$logd"
 if [[ "$METHOD" == LODS && ! -f "$SEM" ]]; then
   mkdir -p "$(dirname "$SEM")"
   ( cd "$CODE" && CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$CODE "$PY" tools/lods/train_sem.py \
-      --target-dir "$SPLITS/$DOMAIN/val" --seed "$SEED" --workers 16 \
-      --encoder /mnt/shared/zechuan/iraod_artifacts/third_party/vgg16_oxford/encoder_split_enc_keys.pt \
+      --target-dir "$SPLITS/$DOMAIN/val" --seed "$SEED" --workers 16 --max-iter 53334 \
+      --encoder /home/zechuan/iraod_weights/vgg16_oxford/encoder_split_enc_keys.pt \
       --work-dir "$(dirname "$SEM")" > "$(dirname "$SEM")/stdout.log" 2>&1 )
   [[ -f "$SEM" ]] || { echo "SEM_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }
 fi
@@ -144,7 +144,7 @@ if ! grep -q eval_exit=0 "$out/eval_status" 2>/dev/null; then
   echo "eval_start $METHOD $DOMAIN seed=$SEED gpu=${GPUS%%,*} $(date --iso-8601=seconds)" | tee "$out/eval.log"
   cd "$EVAL"
   set +e
-  CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$EVAL:$CODE "$PY" "$EVAL/test.py" "$RESOLVED" "$ema" --eval mAP --out "$out/pred_new.pkl" --work-dir "$out" \
+  CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$EVAL:$CODE "$PY" "$EVAL/test.py" "$RESOLVED" "$ema" --eval mAP --out "$out/predictions.pkl" --work-dir "$out" \
     --cfg-options data.samples_per_gpu=16 data.workers_per_gpu=4 \
       data.test.ann_file="$DIOR/ImageSets/test.txt" \
       data.test.img_prefix="$SPLITS/$DOMAIN/test/" \
@@ -156,7 +156,7 @@ if ! grep -q eval_exit=0 "$out/eval_status" 2>/dev/null; then
   [[ "$rec" -eq 0 ]] || { echo "EVAL_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }
 fi
 if [[ "$METHOD" == LODS && ! -f "$out/map50_95.json" ]]; then
-  ( cd "$CODE" && PYTHONPATH=$CODE "$PY" tools/eval_map50_95.py "$RESOLVED" "$out/pred_new.pkl" --out "$out/map50_95.json" \
+  ( cd "$CODE" && PYTHONPATH=$CODE "$PY" tools/eval_map50_95.py "$RESOLVED" "$out/predictions.pkl" --out "$out/map50_95.json" \
       --cfg-options data.test.ann_file="$DIOR/ImageSets/test.txt" data.test.img_prefix="$SPLITS/$DOMAIN/test/" \
         data.test.ann_subdir="$DIOR/Annotations/Oriented Bounding Boxes/" >> "$out/eval.log" 2>&1 )
 fi
