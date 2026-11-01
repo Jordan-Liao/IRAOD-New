@@ -61,7 +61,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 
 三条对所有方法都成立的约束：
 
-- **伪标签分数阈值事先固定，不调。** 与 Oriented R-CNN 组同一规则：UT 系方法 `score = 0.7`（`configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py:5`），R-CNN 组的端口用方法官方阈值的地方（如 PETS 的 0.5）DETR 端口用同一个值。绝不在 `val.txt` 或 RSAR val 上调阈值。DETR 每张图固定输出 top-300、无 NMS，所以阈值过滤是必需的第一步。
+- **伪标签分数阈值事先固定，不调。** 与 Oriented R-CNN 组同一规则：UT 系方法 `score = 0.7`（`configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_cga_rsar1.py:5`），R-CNN 组的端口用方法官方阈值的地方（PETS 的 0.5、LODS 的 0.8）DETR 端口用同一个值。绝不在 `val.txt` 或 RSAR val 上调阈值。DETR 每张图固定输出 top-300、无 NMS，所以阈值过滤是必需的第一步。
 - **`use_bbox_reg=False` 必须清零全部回归损失。** 现有代码只把名字里带 `bbox` 的损失乘 0（`sfod/rotated_unbiased_teacher.py:296-301`）。ARS-DETR head 另外还输出 `loss_piou`、`loss_angle`、`d{i}.loss_iou`、`d{i}.loss_angle`、`enc_loss_piou`、`enc_loss_angle`（`enc_loss_bbox` 带 `bbox`），照搬会让 IoU 和角度损失在伪标签上继续回传。DETR 的 SFOD 端口必须在伪标签上清零所有回归项（box L1、IoU/PIoU、角度，含 `enc_` 和 `d{i}.` 前缀），只保留分类损失。Hungarian 匹配本身仍用框代价（`ARS_HungarianAssigner`：FocalLossCost + BBoxL1Cost + IoUCost(giou) + CrossEntropyLossCost 角度），这是 DETR 的固有部分。
 - **挂接点缺失时必须报错。** 凡是按属性名查找 RoI head 的代码在 DETR 上会拿到 `None`，不能静默跳过（DRU 是现成的例子，见下表）。
 
