@@ -58,6 +58,12 @@ def parse_args():
         nargs='+',
         help='evaluation metrics, which depends on the dataset, e.g., "bbox",'
         ' "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC')
+    parser.add_argument(
+        '--map50-95',
+        action='store_true',
+        help='with --eval mAP, also report rotated mAP50-95 (AP averaged over '
+        'IoU 0.50:0.05:0.95, tools/eval_map50_95.py); the mAP (AP50) value '
+        'is unchanged')
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument(
         '--show-dir', help='directory where painted images will be saved')
@@ -256,6 +262,10 @@ def main():
                 eval_kwargs.pop(key, None)
             eval_kwargs.update(dict(metric=args.eval, **kwargs))
             metric = dataset.evaluate(outputs, **eval_kwargs)
+            if args.map50_95:
+                from tools.eval_map50_95 import rotated_map50_95
+                metric['mAP50-95'] = rotated_map50_95(
+                    dataset, outputs, eval_kwargs)['mAP50-95']
             print(metric)
             metric_dict = dict(config=args.config, metric=metric)
             if args.work_dir is not None and rank == 0:

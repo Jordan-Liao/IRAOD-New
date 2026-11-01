@@ -14,3 +14,4 @@ from .rotated_dru import DRUUnbiasedTeacher
 
 from .oriented_rcnn_cga import OrientedRCNN_CGA
 from .semantic_weighted_roi_head import SemanticWeightedOrientedStandardRoIHead
+from .rotated_lods import LODSTeacher

@@ -10,5 +10,6 @@ DRU is **in the live queue**. It is not N/A and is not method B.
 | DRU | github.com/lbktrinh/DRU (ECCV 2024) | **DRUUnbiasedTeacher** | chaff/seed=42 gate then matrix | required; not UnbiasedTeacher |
 | AASFOD | Chu et al. | yes (remote ports) | fill missing TEST | required |
 | SF-YOLO | TAM + two-round detector | yes (remote ports) | fill TAM/TEST | required |
+| LODS | github.com/Flashkong/Source-Free-Object-Detection-by-Learning-to-Overlook-Domain-Style (CVPR 2022) | **LODSTeacher** (`sfod/rotated_lods.py`) | chaff/seed=42 gate then matrix | deviations: `lods_obb_port.md` |
 
 Do not substitute B numbers for DRU. Do not put official HBB numbers in the main table.
