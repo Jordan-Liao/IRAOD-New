@@ -77,7 +77,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 | LPLD | 同上；在共享 proposal 上取低置信 teacher 预测，对 student 做 KL 蒸馏 | **适配（结构性）** | 同 IRG 的 query 对齐改造；"低置信 proposal"改成 teacher 低于阈值、且不与高置信伪框重叠的 query；sigmoid focal 分数与 softmax 分布不同，KL 要换成逐类 BCE，忠实度下降 |
 | SFUT（SF-UT，arXiv 2407.07586） | `SFUTOBB`：UT + 完整伪框回归 + 逐步 EMA，无辅助损失 | **适配（包装层）** | 方法本身与检测器无关；用 B 的单阶段包装即可。注意 SF-UT 按论文**保留**伪框回归，不受上面"清零回归损失"约束（与 R-CNN 组端口一致） |
 | DRU | `DRUUnbiasedTeacher`：Dynamic Retraining-Updating + Historical Student Loss；HSL 通过 `roi_head.bbox_head.forward` 抓分类分数（`sfod/rotated_dru.py:53-56,75`） | **不可直接移植，需重设计** | 在 DETR 上 `roi_head` 不存在，`_capture_student_cls` 返回 `(fn(), None)`，HSL 被静默跳过，DRU 退化成普通 UT。DETR 端口必须改为抓 `cls_branches[-1]` 的 sigmoid 输出并重写 HSL，或在挂接点缺失时直接报错；绝不能静默退化。DRU 的重训/更新调度与检测器无关 |
-| AASFOD | 标准做法：每个 seed 先按 teacher 检测把目标图分成 source-similar / dissimilar（TSD），再做对齐 + FNS 两阶段（`train_aasfod`） | **适配** | 划分只消费 teacher 检测（需先按阈值过滤 top-300），对齐作用在 backbone / neck 特征上，都与检测器无关；具体挂接点以远端端口为准（`未验证`） |
+| AASFOD | 标准做法：每个 seed 先做 TSD 划分（source-similar / dissimilar），再做对齐 + FNS 两阶段（`train_aasfod`） | **不移植（需重设计）** | TSD 用 RoI 头 `shared_fcs` 上的 20 次 MC-dropout 方差（`sfod/extensions/aasfod_mechanisms.py`），DETR 没有这个结构；详见 §10.4 |
 | SFYOLO | TAM（图像层面的目标域增强）+ 两轮 teacher-student | **适配** | TAM 是图像层面，与检测器无关；teacher-student 部分用 B 的单阶段包装；挂接点以远端端口为准（`未验证`） |
 | PETS | `PETSUnbiasedTeacher`：静态/动态 teacher 周期交换 + 两个 teacher 检测框的 WBF 共识（分数 > 0.5，IoU 0.55） | **适配** | 交换是 state_dict 互换，与架构无关；共识在检测框层面做，DETR 的 top-k 重复框会被 WBF 合并；阈值沿用 R-CNN 组端口的官方值 |
 | LODS | teacher 的 RPN proposal `rois_t` 共享给 student RoI head，做 CE + 实例图 GW；另有图像风格增强 SEM 和 backbone C4 全局 GW（远端 `sfod/rotated_lods.py:174-183`） | **适配（结构性）** | SEM 和全局 GW 与检测器无关；共享 proposal 的 CE 和实例 GW 需要与 IRG 相同的 query 对齐改造 |
@@ -208,12 +208,12 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 |---|---|---|
 | 数据流 | R-CNN 组的 strict 数据流：只用 corruption val 图像（`StrictSourceFreeDOTADataset`，目标 GT 一律为空，非空即报错），同一组 weak / strong 视图（共享 RRandomFlip；weak = RResize 800；strong = 原分辨率 + ColorJitter / 灰度 / 高斯模糊），`weight_l = 0` | R-CNN 组 `*_st_baseline_rsar_orthonet_strict.py` |
 | 拓扑 / batch | 1 GPU × 每卡 8 张，总 batch 8（= 源模型训练的总 batch） | 实测 B 在 RSAR 上 teacher + student 峰值 33.1 GB（源 spg8 20.8 GB 的 1.6×），A100-64GB 放得下；同一 GPU 放不下两份训练 |
-| 预算 | 1 个 epoch 目标图像：RSAR 8,467 张 → 1,059 iter；DIOR-R 5,863 张 → 733 iter | 与 R-CNN 组相同的图像数 |
+| 预算 | 1 个 epoch 目标图像：RSAR 8,467 张 → 1,059 iter；DIOR-R 5,863 张 → 733 iter。例外：SFYOLO 用单独的 2 epoch 预算（RSAR 2,118 iter） | 与 R-CNN 组相同的图像数；SFYOLO 同 R-CNN 端口 |
 | 优化器 | 源模型的 AdamW lr 1e-4、wd 1e-5、backbone / sampling_offsets / reference_points lr_mult 0.1、grad clip 35，所有方法相同 | 源配置 |
-| lr 策略 | R-CNN 组自适应用的策略：线性 warm-up 100 iter（ratio 0.001），单 epoch 内不衰减 | R-CNN 组 UT 配置 |
-| EMA | B / C / D / E / F：每步动量 0.998（UT 官方值），最后一个 iter 的 EMA 作为结果；PETS：0.9996，首次交换后 0.999 | UT / PETS 官方值 |
+| lr 策略 | R-CNN 组自适应用的策略：线性 warm-up 100 iter（ratio 0.001），step=[1]，即第 1 个 epoch 内不衰减。例外：SFYOLO 第 2 个 epoch lr ×0.1（同一 step=[1] 在 2 epoch 下的结果，与 R-CNN 端口相同） | R-CNN 组 UT 配置 |
+| EMA | B / C / D / E / F：每步动量 0.998（UT 官方值，在 student 前向之前更新）；PETS：0.9996，首次交换后 0.999；SFUT：优化器 step 之后 0.9996；SFYOLO：优化器 step 之后 0.999（只更新参数），外加第 2 个 epoch 开始时的 SSM。都以最后一个 iter 的 EMA 作为结果 | UT / PETS 官方值；SFUT / SFYOLO 同 R-CNN 端口 |
 | 伪标签 | teacher 的 top-300 输出，分数阈值事先固定：UT 系方法（B–F）0.7；有官方阈值的端口沿用官方值（PETS 0.5；LODS 若移植则 0.8） | 与 R-CNN 组同规则 |
-| 伪标签上的损失 | 只训练分类：所有层（最后一层、`d0`–`d4.`、`enc_`）的 `loss_bbox`（L1）、`loss_iou` / `loss_piou`（GIoU）、`loss_angle`（AR-CSL）乘 0；保留 `loss_cls`、`d{i}.loss_cls`、`enc_loss_cls` 和 VLST 损失 | `weight_pseudo_label_losses`；Hungarian 匹配仍用框代价，这是 DETR 的固有部分 |
+| 伪标签上的损失 | 只训练分类：所有层（最后一层、`d0`–`d4.`、`enc_`）的 `loss_bbox`（L1）、`loss_iou` / `loss_piou`（GIoU）、`loss_angle`（AR-CSL）乘 0；保留 `loss_cls`、`d{i}.loss_cls`、`enc_loss_cls` 和 VLST 损失。例外：SFUT 和 SFYOLO 按论文（同 R-CNN 端口）保留全部伪框损失，包括回归 | `weight_pseudo_label_losses`；Hungarian 匹配仍用框代价，这是 DETR 的固有部分 |
 | 评测 | 最后一个 iter 的 EMA，在 corruption TEST 上用本仓库同一个旋转 VOC AP50 评测器（`test.py --eval mAP`），`--out predictions.pkl` | 与 R-CNN 组相同 |
 | seed | 42 / 43 / 44 | |
 | PETS 交换点 | 官方 10 个 epoch、warm-up 2、period 1，按比例映射到单 epoch：RSAR 在第 211/317/423/529/635/741/847/953 iter 之前交换，DIOR 在 146/219/293/366/439/513/586/659 之前 | 与 R-CNN 组 PETS 端口同一规则 |
@@ -228,7 +228,7 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 6. **`batch_input_shape`**：DETR head 读这个 meta 字段，而 teacher / student 视图绕过了 `BaseDetector.forward_*`，所以在 `forward_train_semi` 里补上。
 7. **DRU 守卫**：`DRUUnbiasedTeacher._capture_student_cls` 在没有 `roi_head.bbox_head` 时改为抛出 `NotImplementedError`，不再静默退化成 UT（测试覆盖）。
 
-R-CNN 组与 DETR 组共有、本端口没有改的一点：CGA 按 `img_meta['filename']` 裁剪原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，CGA（`sfod/cga.py` 的 `_crop_patches`）不做翻转还原（VLST 会还原）。翻转概率 0.75，所以大多数训练图上 CGA 裁到的位置不对。为了与 R-CNN 组的 D/F 保持一致，这里保留原样，见 §10.7。
+R-CNN 组与 DETR 组共有、本端口没有改的一处**真实缺陷**：CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在另一个分支 `fix/cga-flip` 上进行；本分支的 `sfod/cga.py` 与 R-CNN 组逐字节相同，修复合入后同步打上，本分支不单独改。
 
 ### 10.3 门控单元格（RSAR chaff，seed 42）
 
@@ -248,10 +248,13 @@ R-CNN 组与 DETR 组共有、本端口没有改的一点：CGA 按 `img_meta['f
 
 代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
 
+**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段，修复在 `fix/cga-flip`），修复合入后需重跑。
+
 **C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
 
-1. 与 R-CNN 组的 CGA 行为一致：`sfod/cga.py` 和 `sarclip_adapter.py` 与 R-CNN 组 D/F 的部署代码（`/home/zechuan/IRAOD-New-strict-af`）逐字节相同（sha256 一致）。在 32 张 chaff val 图上，用真实 SARCLIP 比较 R-CNN 的调用方式（`refine_test` 作用于 teacher 全部输出，即 `OrientedRCNN_CGA.simple_test(with_cga=True)`）和本端口的调用方式（先按 0.7 过滤，再 `refine_test`），32/32 张图的准入伪标签逐框相同（32 个原始伪框里保留 2 个）。
-2. 机制：SARCLIP 在 chaff 上几乎总是和检测器标签不一致。400 张 chaff val 图上，veto_soft 只保留 teacher ≥ 0.7 框的 3–5%（翻转图 293 张：344 → 17，保留 4.9%；未翻转图 107 张：113 → 3，保留 2.7%）。翻转图和未翻转图的保留率差不多，所以 CGA 不还原翻转（§10.2 末段）不是主因。训练中伪标签降到约 0.01 个/图（D、F），只训分类的 DETR student 实际上只拿到"全是背景"的监督：所有 query 都被推向背景，teacher 分数随 EMA 一起下降，伪标签更少，循环下去（C/D/F 最后一个区间的总 loss 约 3e-4）。C 的 `legacy` 规则在不一致时同样把分数压到 0.7 以下（0.7·s + 0.3·p_label < 0.7），保留稍多（0.07 个/图）。
+1. 与 R-CNN 组的 CGA 行为一致：`sfod/cga.py` 和 `sarclip_adapter.py` 与 R-CNN 组 D/F 的部署代码（`/home/zechuan/IRAOD-New-strict-af`）逐字节相同（sha256 一致）。在 32 张 chaff val 图上，用真实 SARCLIP 比较 R-CNN 的调用方式（`refine_test` 作用于 teacher 全部输出，即 `OrientedRCNN_CGA.simple_test(with_cga=True)`）和本端口的调用方式（先按 0.7 过滤，再 `refine_test`），32/32 张图的准入伪标签逐框相同（31 个原始伪框里保留 2 个）。
+2. 机制：SARCLIP 在 chaff 上几乎总是和检测器标签不一致。400 张 chaff val 图上，veto_soft 只保留 teacher ≥ 0.7 框的 2–4%（翻转图 303 张：372 → 14，保留 3.8%；未翻转图 97 张：101 → 2，保留 2.0%）。未翻转图上 CGA 裁剪位置是对的，保留率同样很低，所以翻转缺陷不能解释塌缩；但翻转图上的数字本身来自错位的裁剪。训练中伪标签降到约 0.01 个/图（D、F），只训分类的 DETR student 实际上只拿到"全是背景"的监督：所有 query 都被推向背景，teacher 分数随 EMA 一起下降，伪标签更少，循环下去（C/D/F 最后一个区间的总 loss 约 3e-4）。C 的 `legacy` 规则在不一致时同样把分数压到 0.7 以下（0.7·s + 0.3·p_label < 0.7），保留稍多（0.07 个/图）。
+两个诊断（第 1、2 点）的脚本、输出和代码/`cga.py` 的 sha256 存在 `gpu-67:/mnt/shared/zechuan/iraod_artifacts/ars_detr/sfod/diag/`（`cga_equiv.log`、`cga_keep_rate.log`、`provenance.txt`，代码 `67e3c80`）。这是保存了输出的复跑；第一次运行没有保存输出，数字略有不同（保留 4.9% / 2.7%），因为共享翻转和图像抽样是随机的。
 3. 对照 R-CNN 组同一单元格（RSAR chaff seed 42，`/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/`）：SARCLIP 在那里同样只有约 8% 一致（D 训练日志 `diag_window`：2,842 个框里一致 236 个，argmax 大多是 harbor），但 R-CNN 的 D/F 没有塌缩（A 47.19 / D 45.93 / F 44.95）。区别在于 R-CNN 的 RoI 头每张图按固定比例采样正负样本（512 个 RoI、正样本 25%），伪 GT 很少时 RPN/RoI 的负样本损失也有上限；DETR 的一对一匹配加 focal loss 在零伪 GT 的图上把全部 300 个 query 当负样本，没有这层平衡。
 
 ### 10.4 第二批方法的最终判定
@@ -262,7 +265,7 @@ R-CNN 组与 DETR 组共有、本端口没有改的一点：CGA 按 `img_meta['f
 | LPLD | **适配（结构性），不移植** | 依赖共享 RPN proposal 上的低置信 teacher 预测和 softmax KL；DETR 是逐类 sigmoid focal、没有共享 proposal，KL 只能换成逐类 BCE、proposal 只能换成 query | 不移植 |
 | SFUT（SF-UT） | **忠实** | 机制与检测器无关：teacher 伪框（共享阈值 0.7）+ **保留**全部伪框损失（含回归）+ teacher 在前向中冻结、每次优化器 step 之后以 0.9996 做 EMA（R-CNN 端口 `AfterOptimizerTeacherHook`）。R-CNN 端口里的 `ProposalAlignedTeacher` 只是共用骨架，SFUT 不用它的辅助损失 | 已移植：`DETRSFUTTeacher` + `DETRAfterOptimizerTeacherHook`，配置 `detr_sfut_{rsar,dior}_strict.py` |
 | DRU | **适配（需重设计），不移植** | 重训 / 动态更新与检测器无关，但 Historical Student Loss 定义在 RoI 头 softmax 分类分数的均值上（`sfod/rotated_dru.py`）。DETR 只能改成最后一层 query 的 sigmoid 分数均值，分布和语义都变了 | 不移植；`_capture_student_cls` 在没有 RoI 头时报错 |
-| AASFOD | **适配（需重设计），不移植** | TSD 划分用 RoI 头共享 FC 上的 20 次 MC-dropout 方差（`sfod/extensions/aasfod_mechanisms.py`），在 DETR 上只能换成 decoder FFN 的 dropout，不是原定义；R-CNN 组自己的 AASFOD 协议（TSD 与否）也还未定 | 不移植 |
+| AASFOD | **适配（需重设计），不移植** | TSD 划分用 RoI 头 `shared_fcs` 上的 20 次 MC-dropout 方差（`sfod/extensions/aasfod_mechanisms.py`），在 DETR 上只能换成 decoder FFN 的 dropout，不是原定义 | 不移植 |
 | SFYOLO | **忠实** | TAM（图像层面的风格自编码器）+ Mean Teacher + 学生稳定化（SSM）都与检测器无关；R-CNN 端口（`SFYOLOOBB`，`84a1aeb`）建在 SFUT 之上：strong 视图先过该域的 TAM（seed 42 的完整拟合，对所有检测器 seed 共用），参数 EMA 0.999（优化器 step 后），第 2 个 epoch 开始时 student ← 0.5·student + 0.5·teacher，单独的 2 epoch 预算 | 已移植：`DETRSFYOLOTeacher`（TAM 增广、参数 EMA、SSM 直接复用 `SFYOLOOBB` 的函数），复用 R-CNN 组的 TAM 文件 `comparison/xaf_student_quant_20260908/tam_runs_84a1aeb/<数据集>/<域>/seed_42/tam.pth`；载入时只把 VGG 编码器路径换成本机副本（`third_party/vgg16_oxford/`，文件名需一致），其余校验与 `load_completed_tam` 相同。单 epoch 内不衰减的 lr 策略（step=[1]）在 2 epoch 下会在第 2 个 epoch 乘 0.1，与 R-CNN 端口继承到的配置相同 |
 | LODS | **适配（结构性），不移植** | SEM 和 backbone C4 全局 GW 与检测器无关，但 CE 与实例图 GW 用 teacher 的 RPN proposal `rois_t` 共享给 student RoI 头，问题同 IRG | 不移植 |
 
@@ -299,6 +302,6 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 
 ### 10.7 未决问题
 
-1. CGA 不还原翻转（§10.2 末段）。这是 R-CNN 组 C/D/F 也有的问题；修它会同时改变两组的 C/D/F，需要牵头方决定是否两组一起修、一起重跑。
+1. CGA 不还原翻转是真实缺陷（§10.2 末段），修复在 `fix/cga-flip`；合入后两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字届时作废。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
 3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里少数非方形图（抽样约 0.5%）会让 teacher 框的 y 坐标偏移；源评测也一样，保留原样。
