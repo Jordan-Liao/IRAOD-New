@@ -112,7 +112,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 |---|---|
 | checkpoint | `/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/arcsl_detr_r50_rsar_epoch_36.pth`（gpu-67），sha256 `1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185` |
 | 官方日志 | 同目录 `arcsl_detr_r50_rsar.json`，sha256 `cf023eff536f021c98af90e37bca5aee63b14a04400807fb5b7d342ca3cd6090` |
-| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` 加上当时本分支的 `tools/eval_ap50_95.py`（之后已删除，改用 PR #44 的 `tools/eval_map50_95.py`；reviewer 按代码比对确认，在这个配置下两者计算的是同一个量，未重算）。gpu-67 上的 `portcheck.sh` 和结果文件保持原样，作为实际运行的记录 |
+| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` 加上当时本分支的 `tools/eval_ap50_95.py`（之后已删除，改用 PR #44 的 `tools/eval_map50_95.py`；之后已用 `tools/eval_map50_95.py` 在端口检查的 `results.pkl` 上重算，得到 mAP50-95 0.3156439，与端口检查的结果和 README 的 31.56 一致，见 gpu-67 `/mnt/shared/zechuan/iraod_artifacts/comparison/map5095_backfill/eval_tool/ars_detr_portcheck_metrics.json`）。gpu-67 上的 `portcheck.sh` 和结果文件保持原样，作为实际运行的记录 |
 | AP50（本仓库 VOC 评测器） | **61.16** |
 | AP50:95 | **31.56**（AP55 57.96 / AP60 53.87 / AP65 48.29 / AP70 40.27 / AP75 28.96 / AP80 15.56 / AP85 7.00 / AP90 2.54 / AP95 0.04） |
 | 对照 | README 31.56；官方日志最后一个 epoch val AP50 0.640（最佳 ep33 0.650） |
@@ -215,7 +215,7 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 | 伪标签 | teacher 的 top-300 输出，分数阈值事先固定：UT 系方法（B–F）0.7；有官方阈值的端口沿用官方值（PETS 0.5；LODS 若移植则 0.8） | 与 R-CNN 组同规则 |
 | 伪标签上的损失 | 只训练分类：所有层（最后一层、`d0`–`d4.`、`enc_`）的 `loss_bbox`（L1）、`loss_iou` / `loss_piou`（GIoU）、`loss_angle`（AR-CSL）乘 0；保留 `loss_cls`、`d{i}.loss_cls`、`enc_loss_cls` 和 VLST 损失。例外：SFUT 和 SFYOLO 按论文（同 R-CNN 端口）保留全部伪框损失，包括回归 | `weight_pseudo_label_losses`；Hungarian 匹配仍用框代价，这是 DETR 的固有部分 |
 | 评测 | 最后一个 iter 的 EMA，在 corruption TEST 上用本仓库同一个旋转 VOC AP50 评测器（`test.py --eval mAP`），`--out predictions.pkl` | 与 R-CNN 组相同 |
-| seed | 42 / 43 / 44 | |
+| seed | 只跑 42；43 / 44 不跑 | 牵头方决定（经用户授权），DETR 组只用 seed 42 |
 | PETS 交换点 | 官方 10 个 epoch、warm-up 2、period 1，按比例映射到单 epoch：RSAR 在第 211/317/423/529/635/741/847/953 iter 之前交换，DIOR 在 146/219/293/366/439/513/586/659 之前 | 与 R-CNN 组 PETS 端口同一规则 |
 
 ### 10.2 与 R-CNN 组实现的差异（DETR 特有）
