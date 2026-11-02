@@ -228,7 +228,7 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 6. **`batch_input_shape`**：DETR head 读这个 meta 字段，而 teacher / student 视图绕过了 `BaseDetector.forward_*`，所以在 `forward_train_semi` 里补上。
 7. **DRU 守卫**：`DRUUnbiasedTeacher._capture_student_cls` 在没有 `roi_head.bbox_head` 时改为抛出 `NotImplementedError`，不再静默退化成 UT（测试覆盖）。
 
-R-CNN 组与 DETR 组共有、本端口没有改的一处**真实缺陷**：CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在另一个分支 `fix/cga-flip` 上进行；本分支的 `sfod/cga.py` 与 R-CNN 组逐字节相同，修复合入后同步打上，本分支不单独改。
+R-CNN 组与 DETR 组共有、本端口没有改的一处**真实缺陷**：CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，`sfod/cga.py` 现在与 R-CNN 组修复后的部署文件逐字节相同（sha256 `78413aa1…`），并带上其测试 `tools/cga_research/tests/test_cga_flip.py`。修复后的部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix`（与旧目录只差 `sfod/cga.py`）。
 
 ### 10.3 门控单元格（RSAR chaff，seed 42）
 
@@ -248,7 +248,7 @@ R-CNN 组与 DETR 组共有、本端口没有改的一处**真实缺陷**：CGA 
 
 代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
 
-**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段，修复在 `fix/cga-flip`），修复合入后需重跑。
+**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废，要用修复后的代码（`b447347`）重跑；其余方法不用 CGA，不受影响。
 
 **C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
 
@@ -302,6 +302,6 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 
 ### 10.7 未决问题
 
-1. CGA 不还原翻转是真实缺陷（§10.2 末段），修复在 `fix/cga-flip`；合入后两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字届时作废。
+1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`）；两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字作废。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
 3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里少数非方形图（抽样约 0.5%）会让 teacher 框的 y 坐标偏移；源评测也一样，保留原样。
