@@ -461,10 +461,17 @@ class CGA:
         for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
             x1, y1, x2, y2 = box
             h, w = y2 - y1, x2 - x1
-            x1 = max(0, x1 - w * expand_ratio)
-            y1 = max(0, y1 - h * expand_ratio)
+            x1 = x1 - w * expand_ratio
+            y1 = y1 - h * expand_ratio
             x2 = x2 + w * expand_ratio
             y2 = y2 + h * expand_ratio
+            # Clamp the near edge to 0 unless that inverts a box lying wholly
+            # left of / above the image (a flipped-back box from past the
+            # right/bottom edge); PIL then pads it black, as past right/bottom.
+            if int(max(0, x1)) <= int(x2):
+                x1 = max(0, x1)
+            if int(max(0, y1)) <= int(y2):
+                y1 = max(0, y1)
 
             sub_image = image.crop((int(x1), int(y1), int(x2), int(y2)))
             if save_img:

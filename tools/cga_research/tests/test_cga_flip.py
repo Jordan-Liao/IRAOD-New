@@ -290,3 +290,60 @@ def test_forward_views_crop_the_source_object_at_every_scale(
         right, bottom = int(x2 + w * ratio), int(y2 + h * ratio)
         want = np.asarray(Image.fromarray(image).crop((left, top, right, bottom)))
         np.testing.assert_array_equal(crops[0], want)
+
+
+# Source-frame centres of 10x6 boxes partly / wholly outside each image side.
+# DETR heads emit such boxes (e.g. y scaled by width on non-square images);
+# after a flip restore, a box past the bottom/right lands above/left.
+OUTSIDE = {
+    ("left", "partly"): (2.25, 24.25), ("left", "fully"): (-10.25, 24.25),
+    ("right", "partly"): (W - 2.25, 24.25), ("right", "fully"): (W + 10.25, 24.25),
+    ("top", "partly"): (30.25, 1.25), ("top", "fully"): (30.25, -10.25),
+    ("bottom", "partly"): (30.25, H - 1.25), ("bottom", "fully"): (30.25, H + 10.25),
+}
+
+
+def _pre_fix_crop(image, xyxy):
+    """The crop the pre-flip-fix code takes (raises where it raised)."""
+    x1, y1, x2, y2 = xyxy
+    return np.asarray(Image.fromarray(image).crop(
+        (int(max(0, x1)), int(max(0, y1)), int(x2), int(y2))))
+
+
+@pytest.mark.parametrize("side_extent", sorted(OUTSIDE),
+                         ids=["-".join(key) for key in sorted(OUTSIDE)])
+@pytest.mark.parametrize("direction", DIRECTIONS)
+def test_boxes_outside_the_image_keep_pre_fix_crops(
+        tmp_path, direction, side_extent):
+    xs, ys = np.meshgrid(np.arange(W), np.arange(H))
+    # Every pixel distinct and non-zero, so a misplaced crop cannot pass.
+    image = np.stack([xs * 4, ys * 5, np.full_like(xs, 100)], -1).astype(np.uint8)
+    path = str(tmp_path / "gradient.png")
+    Image.fromarray(image).save(path)
+    cx, cy = OUTSIDE[side_extent]
+    source = np.array([[cx, cy, 10.0, 6.0, 0.0]])
+    obb = source if direction is None else RRandomFlip(
+        version="le90").bbox_flip(source.copy(), (H, W), direction)
+    results = [[np.hstack([obb, [[0.9]]]).astype(np.float32),
+                np.empty((0, 6), dtype=np.float32)]]
+    cga = _RecordingCGA()
+
+    _Host(cga, "legacy").refine_test(results, [_meta(path, direction)])
+
+    assert len(cga.crops) == 1  # never dropped
+    crop = cga.crops[0]
+    xyxy = obb2xyxy(source)[0]
+    side, extent = side_extent
+    if extent == "fully" and side in ("left", "top"):
+        # Pre-fix code raised here; crop black padding like its mirror box
+        # past the right/bottom edge, which pre-fix code cropped.
+        assert crop.size and not crop.any()
+        mirror = {"left": "right", "top": "bottom"}[side]
+        mx, my = OUTSIDE[(mirror, "fully")]
+        twin = _pre_fix_crop(image, obb2xyxy(
+            np.array([[mx, my, 10.0, 6.0, 0.0]]))[0])
+        assert not twin.any()
+        assert abs(crop.shape[0] - twin.shape[0]) <= 1
+        assert abs(crop.shape[1] - twin.shape[1]) <= 1
+    else:
+        np.testing.assert_array_equal(crop, _pre_fix_crop(image, xyxy))
