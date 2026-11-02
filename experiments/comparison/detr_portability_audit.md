@@ -228,7 +228,7 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 6. **`batch_input_shape`**：DETR head 读这个 meta 字段，而 teacher / student 视图绕过了 `BaseDetector.forward_*`，所以在 `forward_train_semi` 里补上。
 7. **DRU 守卫**：`DRUUnbiasedTeacher._capture_student_cls` 在没有 `roi_head.bbox_head` 时改为抛出 `NotImplementedError`，不再静默退化成 UT（测试覆盖）。
 
-R-CNN 组与 DETR 组共有、本端口没有改的一处**真实缺陷**：CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，`sfod/cga.py` 现在与 R-CNN 组修复后的部署文件逐字节相同（sha256 `78413aa1…`），并带上其测试 `tools/cga_research/tests/test_cga_flip.py`。修复后的部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix`（与旧目录只差 `sfod/cga.py`）。
+R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，`sfod/cga.py` 现在与 R-CNN 组修复后的部署文件逐字节相同（sha256 `78413aa1…`），并带上其测试 `tools/cga_research/tests/test_cga_flip.py`。修复后的部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix`（与旧目录只差 `sfod/cga.py`）。
 
 ### 10.3 门控单元格（RSAR chaff，seed 42）
 
