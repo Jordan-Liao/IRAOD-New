@@ -183,3 +183,110 @@ def test_prototype_v2_crops_source_boxes_and_stashes_teacher_boxes(
     np.testing.assert_array_equal(pending["obb"], teacher_obb)
     np.testing.assert_allclose(
         pending["boxes"], obb2xyxy(teacher_obb), atol=1e-4)
+
+
+RED, GREEN = (220, 0, 0), (0, 220, 0)
+# (class, source obb, colour, detector score); axis-aligned so crops are pure.
+MULTI = [
+    (0, [10.5, 10.5, 8.0, 6.0, 0.0], RED, 0.9),
+    (0, [40.5, 12.5, 8.0, 6.0, 0.0], GREEN, 0.8),
+    (1, [25.5, 34.5, 10.0, 6.0, 0.0], GREEN, 0.7),
+]
+
+
+def _multi_image(tmp_path):
+    image = np.zeros((H, W, 3), dtype=np.uint8)
+    for _, (cx, cy, w, h, _), colour, _ in MULTI:
+        image[int(cy - h / 2):int(cy + h / 2) + 1,
+              int(cx - w / 2):int(cx + w / 2) + 1] = colour
+    path = tmp_path / "multi.png"
+    Image.fromarray(image).save(path)
+    return str(path)
+
+
+def _multi_results(direction):
+    flip = RRandomFlip(version="le90")
+    results = [[], []]
+    for label, obb, _, score in MULTI:
+        obb = np.asarray([obb])
+        if direction:
+            obb = flip.bbox_flip(obb, (H, W), direction)
+        results[label].append(np.hstack([obb, [[score]]])[0])
+    return [np.asarray(rows, dtype=np.float32) for rows in results]
+
+
+class _ColourCGA(_RecordingCGA):
+    """Red crop -> class 0, green crop -> class 1; records every crop."""
+
+    def __init__(self):
+        super().__init__()
+        self._first_call_logged = True
+        self.view_crops = []
+
+    @staticmethod
+    def _probs(crops):
+        return np.asarray([
+            [0.9, 0.1] if crop[..., 0].max() > crop[..., 1].max()
+            else [0.1, 0.9] for crop in crops])
+
+    def __call__(self, img_path, boxes, scores, labels):
+        _, crops = self._crop_patches(img_path, boxes, scores, labels)
+        crops = [np.asarray(crop) for crop in crops]
+        self.crops.extend(crops)
+        return self._probs(crops), crops
+
+    def _crop_patches(self, img_path, boxes, scores, labels,
+                      expand_ratio=None, image=None):
+        tensors, crops = super()._crop_patches(
+            img_path, boxes, scores, labels, expand_ratio, image)
+        if image is not None:  # forward_views passes the opened image
+            self.view_crops.append((expand_ratio, [np.asarray(c) for c in crops]))
+        return tensors, crops
+
+    def _score_images(self, images):
+        return self._probs(self.view_crops[-1][1])
+
+
+@pytest.mark.parametrize("direction", DIRECTIONS)
+def test_multi_class_multi_box_scores_follow_their_own_crop(
+        tmp_path, direction):
+    path = _multi_image(tmp_path)
+    results = [_multi_results(direction)]
+    teacher = [r.copy() for r in results[0]]
+    cga = _ColourCGA()
+
+    _Host(cga, "legacy").refine_test(results, [_meta(path, direction)])
+
+    # Flat order is class 0 boxes then class 1 boxes, matching MULTI.
+    colours = [crop.reshape(-1, 3).max(axis=0) for crop in cga.crops]
+    assert [tuple(c) for c in colours] == [m[2] for m in MULTI]
+    # Only the green box labelled class 0 disagrees and is blended.
+    np.testing.assert_allclose(
+        results[0][0][:, -1], [0.9, 0.7 * 0.8 + 0.3 * 0.1], rtol=1e-6)
+    np.testing.assert_allclose(results[0][1][:, -1], [0.7], rtol=1e-6)
+    for got, want in zip(results[0], teacher):
+        np.testing.assert_array_equal(got[:, :5], want[:, :5])
+
+
+@pytest.mark.parametrize("direction", DIRECTIONS)
+def test_forward_views_crop_the_source_object_at_every_scale(
+        tmp_path, direction):
+    path, image = _source_image(tmp_path)
+    expected = _expected_aabb_crop(image)
+    results = [_teacher_results(direction)]
+    cga = _ColourCGA()
+
+    _Host(cga, "reliability_gated_mv").refine_test(
+        results, [_meta(path, direction)])
+
+    ratios = [ratio for ratio, _ in cga.view_crops]
+    assert ratios == [0.0, 0.25, 0.5]
+    np.testing.assert_array_equal(cga.view_crops[0][1][0], expected)
+    x1, y1, x2, y2 = obb2xyxy(SOURCE_OBB)[0]
+    for ratio, crops in cga.view_crops[1:]:
+        w, h = x2 - x1, y2 - y1
+        left = int(max(0, x1 - w * ratio))
+        top = int(max(0, y1 - h * ratio))
+        right, bottom = int(x2 + w * ratio), int(y2 + h * ratio)
+        want = np.asarray(Image.fromarray(image).crop((left, top, right, bottom)))
+        np.testing.assert_array_equal(crops[0], want)
