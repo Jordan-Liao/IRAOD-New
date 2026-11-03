@@ -103,3 +103,10 @@ captured operand packet
 and a source packet copied from the installed mmdet/mmrotate
 (`losses/utils.py`, `delta_xywha_rbbox_coder.py`, `smooth_l1_loss.py`; angle
 source `mmrotate/core/bbox/transforms.py`).
+
+## DDP2x16 gate and matrix evidence
+
+- DDP2x16 topology gate (RSAR chaff seed 42, GPUs 0,1 on gpu-138, 2 x 16 = global 32, lr 0.02): eval json
+  `/home/zechuan/iraod_artifacts/comparison/pets_gate_ddp2x16/rsar/chaff/seed_42/pets_e1/methods/PETS/eval_full_chaff_ids_v1/eval_20261103_075135.json`,
+  mAP 0.48275867 against the 1x32 reference 0.47820738 (delta 0.00455, within 0.005); 8 exchanges, no NaN/inf loss. The gate is not a matrix cell.
+- Full matrix table with per-cell topology, host, and mAP50-95: `comparison/pets_matrix/pets_matrix_final.csv` on gpu-67, with 3-seed summaries in `pets_matrix_summary.csv` beside it.
