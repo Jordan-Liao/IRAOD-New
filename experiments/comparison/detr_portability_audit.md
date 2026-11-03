@@ -120,7 +120,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 
 **结论：移植正确。** AP50:95 与 README 的 31.56 一致到小数点后两位。test AP50 61.16 比官方日志 val AP50 64.0 低 2.9 个点，同一个 checkpoint，差别来自 val 和 test 两个 split 不同。训练时的 torch 1.13.1 换成本 env 的 2.0.1 没有带来可见偏差。checkpoint 的 `meta` 是 epoch 36、iter 354,780，即每 epoch 9,855 iter；乘以总 batch 8 约 78,840 张，正好是 RSAR train 的 78,837 张。这与"只用 train 训练"一致；如果 train+val 一起训练，会是 87,304 张。
 
-上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`_get_bboxes_single` 用图像宽度同时缩放 x 和 y（只对方形输入正确，RSAR / DIOR 的 800 输入都是方形）。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
+上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`ars_detr_head.py` 的 `_get_bboxes_single` 用图像宽度同时缩放 x 和 y（`bbox_pred[..., :4] * img_shape[1]`），只对方形输入正确。mmrotate 的 `RResize` 保持长宽比，所以非方形原图缩放后仍是非方形。实测 RSAR 非方形图像占 test 的 1.36%（占 test 实例的 1.73%）、val 的 1.37%、train 的 1.14%；DIOR-R 全部是 800×800。这一点记为上游限制，不修：官方的 31.56 就是在这种解码下复现的，DETR 组所有方法也都用同一个解码。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
 
 ## 6. 源训练成本（DIOR-R 实测）
 
