@@ -120,7 +120,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 
 **结论：移植正确。** AP50:95 与 README 的 31.56 一致到小数点后两位。test AP50 61.16 比官方日志 val AP50 64.0 低 2.9 个点，同一个 checkpoint，差别来自 val 和 test 两个 split 不同。训练时的 torch 1.13.1 换成本 env 的 2.0.1 没有带来可见偏差。checkpoint 的 `meta` 是 epoch 36、iter 354,780，即每 epoch 9,855 iter；乘以总 batch 8 约 78,840 张，正好是 RSAR train 的 78,837 张。这与"只用 train 训练"一致；如果 train+val 一起训练，会是 87,304 张。
 
-上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`ars_detr_head.py` 的 `_get_bboxes_single` 用图像宽度同时缩放 x 和 y（`bbox_pred[..., :4] * img_shape[1]`），只对方形输入正确。mmrotate 的 `RResize` 保持长宽比，所以非方形原图缩放后仍是非方形。实测 RSAR 非方形图像占 test 的 1.36%（占 test 实例的 1.73%）、val 的 1.37%、train 的 1.14%；DIOR-R 全部是 800×800。这一点记为上游限制，不修：官方的 31.56 就是在这种解码下复现的，DETR 组所有方法也都用同一个解码。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
+上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`_get_bboxes_single` 用图像宽度同时缩放 x 和 y（`ars_detr_head.py` 的 `bbox_pred[..., :4] * img_shape[1]`），只对方形输入正确。RResize 保持长宽比，所以非方形原图缩放后仍非方形：RSAR 实测有 1.36%（test）/ 1.37%（val）/ 1.14%（train）的图像不是方形，占 test 实例的 1.73%；DIOR-R 全部是 800×800。这一点作为上游限制记录，不修，理由：用它复现出了官方的 31.56；DETR 组每个方法都用同一个解码。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
 
 ## 6. 源训练成本（DIOR-R 实测）
 
@@ -228,7 +228,7 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 6. **`batch_input_shape`**：DETR head 读这个 meta 字段，而 teacher / student 视图绕过了 `BaseDetector.forward_*`，所以在 `forward_train_semi` 里补上。
 7. **DRU 守卫**：`DRUUnbiasedTeacher._capture_student_cls` 在没有 `roi_head.bbox_head` 时改为抛出 `NotImplementedError`，不再静默退化成 UT（测试覆盖）。
 
-R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，`sfod/cga.py` 现在与 R-CNN 组修复后的部署文件逐字节相同（sha256 `78413aa1…`），并带上其测试 `tools/cga_research/tests/test_cga_flip.py`。修复后的部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix`（与旧目录只差 `sfod/cga.py`）。
+R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，之后又打上了 `e4e9703` 的裁剪修复（翻转还原后完全落在图像左侧 / 上方的框，原来夹到 0 会得到反向的裁剪框而崩溃）。`sfod/cga.py` 现在与 R-CNN 组审过的部署文件逐字节相同（sha256 `5cd1ed64…`），测试 `tools/cga_research/tests/test_cga_flip.py` 与 `e4e9703` 同步。当前部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix2`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix2`（与 `*-cgafix` 只差 `sfod/cga.py` 和 `.deploy_commit`）。
 
 ### 10.3 门控单元格（RSAR chaff，seed 42）
 
@@ -248,7 +248,7 @@ R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_me
 
 代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
 
-**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废，要用修复后的代码（`b447347`）重跑；其余方法不用 CGA，不受影响。
+**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废，要用修复后的代码（翻转修复 `b447347` 加 `e4e9703` 的裁剪修复，部署在 `*-cgafix2`）重跑；其余方法不用 CGA，不受影响。
 
 **C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
 
@@ -302,6 +302,6 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 
 ### 10.7 未决问题
 
-1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`）；两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字作废。
+1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）；两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字作废。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
-3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里少数非方形图（抽样约 0.5%）会让 teacher 框的 y 坐标偏移；源评测也一样，保留原样。
+3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里的非方形图（test 1.36% / val 1.37% / train 1.14% 的图像，test 实例的 1.73%；DIOR-R 全部是方形）会让 teacher 框和评测框的 y 坐标偏移。作为上游限制保留，不修：官方的 31.56 就是在这个解码下复现的，且 DETR 组所有方法都用同一个解码。
