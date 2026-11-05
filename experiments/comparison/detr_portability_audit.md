@@ -329,13 +329,16 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 - 不计入的目录：`*.invalid_crop_bug`（24 个在 CGA 裁剪缺陷上崩溃的 C/D/F 原始运行）、`*.stopped_by_user_*`（用户停卡时中断的运行；F clean 和 F am_noise_horizontal 的原始运行也在其中，计入的是之后的重跑）、`*.KILLED_BY_REQUEUE*`、`*.failed_path_bug*`。
 - C/D/F（不是确认的缺陷）：C/D/F 远低于 A（7 个 corruption 的 AP50：C 0.228、D 0.145、F 0.146，A 0.368），而不用 CGA 的自训练基线都在 A 附近或更高（B 0.353、E 0.356、PETS 0.398、SFUT 0.421），所以差距来自 CGA 路径。C 保留全部伪标签（dropped = 0），但约 60% 的目标被混合；D、F 只保留 23–28%（约 75% 被否决）。DETR 输出上的 CGA 标签概率偏低（均值 0.04–0.36）；大多数 D/F 格子最后一次记录的无标签分类损失约 1e-4（F point_target 为 0.0373），C 为 0.10–0.20。读法：CGA 阈值与 DETR 输出的校准不匹配；y 按宽度解码（§5、§10.7 第 3 条）这条路径没有单独检查。用户 2026-11-03 决定按原样报告，不调参，加脚注。
 
-### 11.3 DIOR-R（189 格，seed 42）
+### 11.3 DIOR-R（189 格，全部完成）
 
-> 待 DETR DIOR 矩阵落地后，用 `build_final_tables.py --import-inputs <目录>` 导入 `detr_dior_matrix_{final,summary}.csv` 和 README，并按其 README 定稿本节。下面是运行方 README 草稿里已经确定的部分。
-
-- 源模型：ARS-DETR DIOR seed-42 源，`ImageSets/train.txt` 训练 72 个 epoch，取最后一个 epoch（`epoch_72.pth`，sha256 `7cb9dbe0…`，clean TEST AP50 0.5400）；中途停卡后从 `epoch_48.pth` 续训，丢失的 49–53 epoch 重新训练；每段都是 batch 8、每 epoch 734 iter、4 workers（batch 2 的尝试已作废）。
-- 队列：9 个方法 × 21 个域 = 189 格。SFYOLO 一开始只排了 6 个域，这是运行方的错误（协议要求 21 个域）；漏掉的 15 格于 2026-11-05（北京时间）作为新格子追加到队列末尾，不是重跑。21 个 seed-42 TAM 都已对照参考 sha 校验。SFYOLO 用自己的 2 epoch 预算。
-- 硬件：RTX 4090D 48GB（两台）、RTX A6000 48GB、A100 64GB；每个完成标记里写了 `gpu_type`。上面 RSAR 的 4090D 与 A6000 Δ = −0.0070 同样适用：不同卡上的格子不保证一致到 0.007 以内。
-- C/D/F 用修复后的 CGA（`code-cgafix2`，`cga.py` sha256 `5cd1ed64…`，每个 C/D/F 格子开跑前断言），阈值不变、不调参，与 RSAR 同一条脚注；每个 C/D/F 的 train.log 记录了 CGA 保留率和 mean_label_prob。
-- 基础设施失败：非零退出的格子从不计入，改名为 `*.infra_failed_oom_<时间>_a<n>`（名字写 OOM，但适用于任何非零退出），释放锁后重新排队；每格最多两次，之后标 `INFRA_FAILED_GIVEUP`（不计入、出队）。已知的两类（某台 4090D 上 E 格子的 SARCLIP 默认路径缺失、SFYOLO 的 VGG 编码器路径缺失）都是主机配置问题，重排队前已修好。
-- 认领：只有持有 `gpu:<host>:<idx>` 认领、该卡至少 36 GB 空闲且没有别的计算进程时才跑格子。
+- 源模型：ARS-DETR DIOR seed-42 源，`ImageSets/train.txt` 训练 72 个 epoch，取最后一个 epoch（`epoch_72.pth`，sha256 `7cb9dbe0…`，clean TEST AP50 0.5400）；中途停卡后从 `epoch_48.pth` 续训，丢失的 49–53 epoch 重新训练；每段都是 batch 8、每 epoch 734 iter。每台机器上都核对过 sha。
+- 范围：9 个方法 × 21 个域 = 189 格，全部 `status=ok`、`eval_exit=0`。SFYOLO 覆盖全部 21 个域：一开始只排了 6 个域是运行方的错误，漏掉的 15 格于 2026-11-05（北京时间）作为新格子补跑，不是重跑；前 174 行队列没有改动。SFYOLO 用自己的 2 epoch 预算。
+- 指标：每格的 AP50 和 mAP50-95 都由 `tools/eval_map50_95.py` 在产出 `predictions.pkl` 的机器上用 CPU 算出（每个 pkl 必须有 11,738 个结果）。AP50 与该格 `eval.log` 里 `test.py` 的全精度 mAP 在 189 格上完全相等（最大 |Δ| = 0）。`AP50_json` 列是 `test.py` 存的两位小数值，只因取整与 AP50 相差至多约 0.0005。
+- 硬件：RTX 4090D 48GB（两台，14 + 58 格）、RTX A6000 48GB（69 格）、A100 64GB（48 格）；每格的 `gpu_type` 都在 CSV 里，9 个方法的格子都跨了不止一种卡。§11.2 的 4090D 与 A6000 门控差 Δ = −0.0070（RSAR B clean）同样适用：不同卡上的格子可能相差约 0.007，而这不是方法本身的效果。DIOR 矩阵里的 B clean 只有 A6000 上的那一格。
+- C/D/F：用修复后的 CGA（`code-cgafix2`，`cga.py` sha256 `5cd1ed64…`），阈值不变、不调参。统计来自每个 train.log 的 `diag_window` 行（去掉重复行后，把各窗口加总；keep = 1 − dropped/total，blended_frac = blended/total，mean_label_prob 按 total 加权）。21 个域上的范围：
+  - C：keep 全部为 1.0000，agree 0.167–0.654，blended 0.333–0.833，mean_label_prob 0.175–0.588；
+  - D：keep 0.9899–1.0000，agree 0–0.033，blended 0.964–1.000，mean_label_prob 0.010–0.066；
+  - F：keep 0.9894–1.0000，agree 0–0.016，blended 0.979–1.000，mean_label_prob 0.009–0.041。
+  所以在 DIOR 上 CGA 几乎不丢候选（D 为 38,662 个里丢 204 个，F 为 41,985 个里丢 205 个），但 D/F 几乎对每个候选都做了混合，而且标签概率很低。这和 RSAR 上 D 只保留约 23% 的情形不同。两份 README 的 keep / agree 口径没有在 DIOR 上按 RSAR 的定义重新推导，所以两边的比例不能直接比较。结果上 C/D/F 仍明显低于 A（19 个腐蚀的 mPC：C 26.23、D 10.39、F 10.76，A 31.36；见 `main_table_detr_obb.tex`）。读法与 RSAR 相同：是 CGA 阈值与 DETR 输出的校准不匹配，不是确认的缺陷；按用户 2026-11-03 的决定原样报告。
+- 基础设施失败：非零退出的格子从不计入，改名为 `*.infra_failed_oom_<时间>_a<n>`（名字写 OOM，但适用于任何非零退出），释放锁后重新排队。已知两类都是主机配置问题，重排队前已修好：某台 4090D 上 E 格子缺 SARCLIP 默认路径（改为指向同一 checkpoint 的软链接），SFYOLO 缺 VGG 编码器的基础路径（在每台机器的 `third_party` 下放了校验过 sha 的编码器）。5 个 SFYOLO 格子在一台 4090D 上达到 `INFRA_FAILED_GIVEUP`，之后在其他机器上完成。每格重排队的记录在 `notes` 列。
+- 认领：每张卡在跑格子前都先在 agent-dispatch 上认领 `gpu:<host>:<idx>`；日志显示，没有任何格子是在其卡的认领释放之后开跑的。

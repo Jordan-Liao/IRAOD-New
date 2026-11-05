@@ -48,12 +48,12 @@ TEX_NAMES = {"A": "A Source Only", "B": "B ST / Mean Teacher", "C": "C CLIP-CGA"
              "DRU": "DRU-OBB", "AASFOD": "A$^2$SFOD-OBB", "SFYOLO": "SF-YOLO-OBB", "PETS": "PETS-OBB",
              "LODS": "LODS-OBB", "OURS": "本文方法"}
 
-# Reviewed inputs (sha256 prefixes from the lead's dispatch). DETR DIOR files get their sha recorded on import.
+# Reviewed inputs (sha256 prefixes from the lead's dispatch messages).
 KNOWN_SHA = {"lods_matrix.csv": "adad9f1d", "pets_matrix.csv": "1833421874", "pets_matrix_summary.csv": "9b30c2c5",
              "detr_rsar_matrix_final.csv": "c40c9a03", "detr_rsar_matrix_summary.csv": "8427dcad",
-             "detr_rsar_matrix_README.md": "0801509b"}
-IMPORT_NAMES = list(KNOWN_SHA) + ["detr_dior_matrix_final.csv", "detr_dior_matrix_summary.csv",
-                                  "detr_dior_matrix_README.md"]
+             "detr_rsar_matrix_README.md": "0801509b", "detr_dior_matrix_final.csv": "e63f6765b0d0",
+             "detr_dior_matrix_summary.csv": "84e55ddd9811", "detr_dior_matrix_README.md": "38fa0cc98ab3"}
+IMPORT_NAMES = list(KNOWN_SHA)
 # The public repo already names these hosts and disk roots; any other host or root is redacted on import.
 PUBLIC_HOSTS = {"gpu-67", "gpu-68", "gpu-138", "gpu-183"}
 PUBLIC_ROOTS = ("/mnt/shared/zechuan/", "/home/zechuan/iraod_artifacts", "/home/zechuan/iraod_jobs",
@@ -329,8 +329,13 @@ def write_tex(rows):
             k = "%s s%s" % (r["dataset"].upper(), r["seed"])
             topo[k] = topo.get(k, 0) + 1
     pets_mix = "; ".join("%s: %d" % kv for kv in sorted(topo.items()))
-    detr = {r["method"]: r for r in rows if (r["architecture"], r["dataset"]) == ("DETR", "RSAR")}
-    cga = "C %s, D %s, F %s vs A %s" % tuple(pp(detr[m]["AP50_mean_corruptions"]) for m in "CDFA")
+    cga = []
+    for ds in ("RSAR", "DIOR"):
+        detr = {r["method"]: r for r in rows if (r["architecture"], r["dataset"]) == ("DETR", ds)}
+        if detr["A"].get("AP50_mean_corruptions", "") != "":
+            cga.append("%s C %s, D %s, F %s vs A %s" % ((ds,) + tuple(pp(detr[m]["AP50_mean_corruptions"])
+                                                                     for m in "CDFA")))
+    cga = "; ".join(cga)
     rcnn_foot = (COMMON_FOOT +
                  r"mPC is the 3-seed (42/43/44) mean $\pm$ sample std over seeds. "
                  r"$^{\dagger}$Seeds = 1 (A is the eval-only source): $\pm$ is the std across domains. "
@@ -357,10 +362,14 @@ def write_tex(rows):
                  r"vs RTX A6000) differs by $\Delta$=0.0070 AP50 and is unresolved. Upstream decode limitation: "
                  r"ARS-DETR scales both x and y by the image width, which shifts y on non-square images (about "
                  r"1.4\% of RSAR images; DIOR-R is all square); kept as in the official 31.56 reproduction. "
-                 r"$^{b}$CGA calibration: on DETR, C/D/F fall far below source-only (RSAR 7-corruption AP50: "
-                 + cga + r"); CGA label probabilities on DETR outputs are low "
-                 r"(0.04--0.36) and D/F veto about 75\% of the pseudo-labels. Read as a calibration mismatch, "
-                 r"not a confirmed bug; reported as-is with no tuning; C/D/F ran on the CGA flip-fixed code. "
+                 r"$^{b}$CGA calibration: on DETR, C/D/F fall far below source-only (mPC: " + cga + r"). "
+                 r"From the train logs: on RSAR, D/F keep only 23--28\% of the pseudo-labels (about 75\% vetoed) "
+                 r"and CGA label probabilities are 0.04--0.36; on DIOR, C/D/F keep $\geq$98.9\% of the "
+                 r"candidates, but D/F blend 96--100\% of them at CGA label probabilities of 0.009--0.066 "
+                 r"(C: 0.17--0.59). The two matrices' log statistics are not defined identically, so the RSAR and "
+                 r"DIOR rates are not directly comparable. Read as a calibration mismatch between the CGA "
+                 r"thresholds and DETR outputs, not a confirmed bug; run as-is with no tuning, on the CGA "
+                 r"flip-fixed code. "
                  r"$^{c}$SF-YOLO has its own 2-epoch budget.")
     detr = tex_table(rows, "DETR", DETR_METHODS,
                      r"Detector-architecture generalization: the same strict source-free protocol on ARS-DETR "
