@@ -8,6 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools.cga_research.build_data_manifest import (
+    build_image_only_manifest,
+    build_manifest,
+)
 from tools.cga_research.run_experiment import (
     ComputeApp,
     ExperimentSpec,
@@ -95,12 +99,14 @@ class RunExperimentTests(unittest.TestCase):
                 "PATH": "/bin",
                 "CGA_FILTER_MODE": "stale",
                 "SARCLIP_LORA": "/stale.pth",
+                "VLST_BACKEND": "stale",
             },
-            {"CGA_SCORER": "none"},
+            {"CGA_SCORER": "none", "VLST_BACKEND": "sarclip"},
             gpu_index=3,
             python="/iraod/python",
         )
         self.assertEqual(environment["CGA_SCORER"], "none")
+        self.assertEqual(environment["VLST_BACKEND"], "sarclip")
         self.assertNotIn("CGA_FILTER_MODE", environment)
         self.assertNotIn("SARCLIP_LORA", environment)
         self.assertEqual(environment["CUDA_VISIBLE_DEVICES"], "3")
@@ -198,6 +204,9 @@ class RunExperimentTests(unittest.TestCase):
             first = runner_module.compute_experiment_fingerprint(spec)
             self.assertEqual(first, runner_module.compute_experiment_fingerprint(spec))
             self.assertIn("sfod/rotated_unbiased_teacher.py", first["code_files"])
+            self.assertNotIn("strict_source_free", first)
+            self.assertNotIn("adaptation_data_manifest", first)
+            self.assertNotIn("--no-validate", build_train_command(spec))
             changed_option = self.make_spec(
                 root,
                 cfg_options=["corrupt=chaff", "model.cfg.score_thr=0.8"],
@@ -238,6 +247,278 @@ class RunExperimentTests(unittest.TestCase):
                 first["sha256"],
                 runner_module.compute_experiment_fingerprint(spec)["sha256"],
             )
+
+    def _make_strict_spec(self, root: Path) -> ExperimentSpec:
+        image_root = root / "RSAR" / "corruptions" / "chaff" / "val" / "images"
+        image_root.mkdir(parents=True)
+        (image_root / "target.png").write_bytes(b"target image")
+        manifest = root / "strict_manifest.json"
+        build_image_only_manifest(
+            image_root=image_root,
+            split="val",
+            corruption="chaff",
+            class_order=runner_module.RSAR_CLASS_ORDER,
+            output=manifest,
+        )
+        config = root / runner_module.STRICT_SOURCE_FREE_CONFIG
+        config.parent.mkdir(parents=True)
+        config.write_text("strict = True\n", encoding="utf-8")
+        (root / "train.py").write_text("print('train')\n", encoding="utf-8")
+        checkpoint = root / "source_epoch_100.pth"
+        checkpoint.write_bytes(b"source checkpoint")
+        return self.make_spec(
+            root,
+            config=config,
+            method_env={"CGA_SCORER": "none"},
+            strict_source_free=True,
+            data_manifest=manifest,
+            cfg_options=[
+                "corrupt=chaff",
+                "model.cfg.strict_source_free=True",
+                "model.cfg.weight_l=0",
+                "model.cfg.weight_u=1",
+                "data.train.type=StrictSourceFreeDOTADataset",
+                f"data.train.img_prefix={image_root}",
+                f"load_from={checkpoint}",
+                f"model.ema_ckpt={checkpoint}",
+            ],
+        )
+
+    def test_strict_command_binds_image_manifest_and_disables_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            spec = self._make_strict_spec(Path(directory).resolve())
+            command = build_train_command(spec)
+            fingerprint = runner_module.compute_experiment_fingerprint(spec)
+            checkpoint = Path(
+                fingerprint["adaptation_data_manifest"][
+                    "source_checkpoint_path"])
+            checkpoint.write_bytes(b"changed source checkpoint")
+            spec.strict_manifest_binding = None
+            changed_fingerprint = (
+                runner_module.compute_experiment_fingerprint(spec))
+
+        self.assertIn("--no-validate", command)
+        self.assertLess(command.index("--no-validate"), command.index("--cfg-options"))
+        self.assertTrue(fingerprint["strict_source_free"])
+        self.assertEqual(
+            fingerprint["adaptation_data_manifest"]["path"],
+            str(spec.data_manifest),
+        )
+        self.assertEqual(
+            fingerprint["adaptation_data_manifest"]["image_root"],
+            str(Path(spec.cfg_options[-3].split("=", 1)[1])),
+        )
+        self.assertNotEqual(
+            fingerprint["sha256"], changed_fingerprint["sha256"])
+
+    def test_strict_protocol_rejects_annotations_and_implicit_weights(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            target_images = (
+                root / "RSAR" / "corruptions" / "chaff" / "val" / "images")
+            strict_options = [
+                "corrupt=chaff",
+                "model.cfg.strict_source_free=True",
+                "model.cfg.weight_l=0",
+                "model.cfg.weight_u=1",
+                "data.train.type=StrictSourceFreeDOTADataset",
+                f"data.train.img_prefix={target_images}",
+                f"load_from={root / 'source_epoch_100.pth'}",
+                f"model.ema_ckpt={root / 'source_epoch_100.pth'}",
+            ]
+            spec.cfg_options = [
+                *strict_options,
+                f"data.train.ann_file={root / 'annotations'}",
+            ]
+            with self.assertRaisesRegex(ValueError, "forbids annotation"):
+                build_train_command(spec)
+
+            spec.cfg_options = [
+                "corrupt=chaff",
+                "model.cfg.strict_source_free=True",
+                "model.cfg.weight_l=0",
+                "data.train.type=StrictSourceFreeDOTADataset",
+                f"data.train.img_prefix={target_images}",
+                f"load_from={root / 'source_epoch_100.pth'}",
+                f"model.ema_ckpt={root / 'source_epoch_100.pth'}",
+            ]
+            with self.assertRaisesRegex(
+                    ValueError, "requires explicit cfg option model.cfg.weight_u"):
+                build_train_command(spec)
+
+            ann_root = root / "annotations"
+            ann_root.mkdir()
+            (ann_root / "target.txt").write_text("ship", encoding="utf-8")
+            annotated_manifest = root / "annotated_manifest.json"
+            build_manifest(
+                ann_root=ann_root,
+                image_root=target_images,
+                split="val",
+                corruption="chaff",
+                class_order=runner_module.RSAR_CLASS_ORDER,
+                output=annotated_manifest,
+            )
+            spec.cfg_options = strict_options
+            spec.data_manifest = annotated_manifest
+            with self.assertRaisesRegex(ValueError, "image-only"):
+                build_train_command(spec)
+
+            spec.data_manifest = root / "strict_manifest.json"
+            spec.cfg_options = [
+                *strict_options,
+                f"resume_from={root / 'adapted_checkpoint.pth'}",
+            ]
+            with self.assertRaisesRegex(ValueError, "forbids annotation/resume"):
+                build_train_command(spec)
+
+            spec.cfg_options = strict_options
+            spec.method_env = {
+                "CGA_SCORER": "sarclip",
+                "SARCLIP_LORA": str(root / "label_derived_lora.pth"),
+            }
+            with self.assertRaisesRegex(ValueError, "forbids SARCLIP_LORA"):
+                build_train_command(spec)
+
+    def test_strict_protocol_rejects_legacy_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            legacy_config = root / "legacy.py"
+            legacy_config.write_text("legacy = True\n", encoding="utf-8")
+            spec.config = legacy_config
+            with self.assertRaisesRegex(ValueError, "requires config"):
+                build_train_command(spec)
+
+    def test_strict_protocol_rejects_source_image_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            source_images = root / "RSAR" / "train" / "images"
+            source_images.mkdir(parents=True)
+            (source_images / "source.png").write_bytes(b"source image")
+            source_manifest = root / "source_manifest.json"
+            build_image_only_manifest(
+                image_root=source_images,
+                split="train",
+                corruption="clean",
+                class_order=runner_module.RSAR_CLASS_ORDER,
+                output=source_manifest,
+            )
+            checkpoint = root / "source_epoch_100.pth"
+            spec.data_manifest = source_manifest
+            spec.strict_manifest_binding = None
+            spec.cfg_options = [
+                "corrupt=clean",
+                "model.cfg.strict_source_free=True",
+                "model.cfg.weight_l=0",
+                "model.cfg.weight_u=1",
+                "data.train.type=StrictSourceFreeDOTADataset",
+                f"data.train.img_prefix={source_images}",
+                f"load_from={checkpoint}",
+                f"model.ema_ckpt={checkpoint}",
+            ]
+            with self.assertRaisesRegex(
+                    ValueError, "target image root must end"):
+                build_train_command(spec)
+
+    def test_strict_run_completes_without_target_gt_evaluation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            process = FakeProcess([None, 0])
+            expected_environment = build_environment(
+                {}, spec.method_env, spec.gpu_index, spec.python
+            )
+
+            def factory(command, **kwargs):
+                self.assertIn("--no-validate", command)
+                kwargs["stdout"].write(
+                    "Set random seed to 41, deterministic: True\n"
+                    "Epoch [1][2/2] loss: 0.1\n"
+                )
+                kwargs["stdout"].flush()
+                (spec.work_dir / "iter_2.pth").write_bytes(b"checkpoint")
+                return process
+
+            outcome = run_experiment(
+                spec,
+                popen_factory=factory,
+                environment_reader=lambda pid: expected_environment,
+                compute_apps_probe=lambda: [
+                    ComputeApp(process.pid, spec.gpu_uuid, 6400)
+                ],
+                snapshotter=lambda *_: None,
+                sleeper=lambda _: None,
+            )
+        self.assertTrue(outcome.success)
+        self.assertIsNone(outcome.final_map)
+        self.assertEqual(
+            outcome.checkpoint_artifact["relative_path"], "iter_2.pth")
+        self.assertEqual(outcome.progress, {
+            "epoch": 1, "iteration": 2, "total": 2})
+
+    def test_strict_run_rejects_preexisting_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            spec.work_dir.mkdir(parents=True)
+            (spec.work_dir / "stale.pth").write_bytes(b"stale")
+            process = FakeProcess([None, 0])
+            expected_environment = build_environment(
+                {}, spec.method_env, spec.gpu_index, spec.python)
+
+            def factory(command, **kwargs):
+                kwargs["stdout"].write(
+                    "Set random seed to 41, deterministic: True\n"
+                    "Epoch [1][2/2] loss: 0.1\n")
+                kwargs["stdout"].flush()
+                return process
+
+            outcome = run_experiment(
+                spec,
+                popen_factory=factory,
+                environment_reader=lambda pid: expected_environment,
+                compute_apps_probe=lambda: [
+                    ComputeApp(process.pid, spec.gpu_uuid, 6400)],
+                snapshotter=lambda *_: None,
+                sleeper=lambda _: None,
+            )
+        self.assertFalse(outcome.success)
+        self.assertEqual(outcome.failure_kind, "missing_checkpoint")
+        self.assertIsNone(outcome.checkpoint_artifact)
+
+    def test_strict_run_reverifies_manifest_immediately_before_spawn(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            spec = self._make_strict_spec(root)
+            spawn = mock.Mock(side_effect=AssertionError("must not spawn"))
+            real_verify = (
+                runner_module.data_manifest_tool.verify_manifest_payload)
+            calls = 0
+
+            def mutate_before_second_verify(path):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    (
+                        root / "RSAR" / "corruptions" / "chaff"
+                        / "val" / "images" / "target.png"
+                    ).write_bytes(
+                        b"changed after fingerprint")
+                return real_verify(path)
+
+            with mock.patch.object(
+                    runner_module.data_manifest_tool,
+                    "verify_manifest_payload",
+                    side_effect=mutate_before_second_verify):
+                outcome = run_experiment(spec, popen_factory=spawn)
+
+        self.assertFalse(outcome.success)
+        self.assertEqual(
+            outcome.failure_kind, "strict_input_verification_failed")
+        self.assertEqual(calls, 2)
+        spawn.assert_not_called()
 
     def test_successful_fake_process_requires_gpu_seed_and_final_eval(self):
         with tempfile.TemporaryDirectory() as directory:
