@@ -1,5 +1,7 @@
 # RSAR + DIOR 严格 Source-Free OBB 对比汇总（final-EMA TEST mAP50）
 
+> 已被 `main_table_rcnn_obb.tex`（`build_final_tables.py` 生成）取代：那里是 3-seed 均值、含 PETS/LODS、mAP50-95 和全部脚注。本文件保留作历史记录。
+
 由 `experiments/comparison/build_summary.py` 从 `raw_results.csv`（逐格状态）生成；不要手改。
 
 mPC：RSAR 取 7 种 corruption，DIOR 取 19 种官方 DIOR-C（cloudy 只列在逐格表里）；rPC = mPC / A_clean；Δada = mPC − A 的 mPC。主表只用 seed 42；3-seed 均值只有三个 seed 全部通过协议检查时才给。

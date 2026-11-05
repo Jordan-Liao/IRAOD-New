@@ -109,7 +109,7 @@ def classify(scan_dir):
                     v = by_cell.get((ds, dom, me, s))
                     row = dict(dataset=ds, domain=dom, method=me, seed=s, status="missing", mAP50="",
                                ema_iter="", ref_iter=ref.get((ds, me), ""), host="", path="",
-                               mAP50_95="", mAP50_95_AP50="", mAP50_95_path="")
+                               mAP50_95="", mAP50_95_AP50="", mAP50_95_path="", notes="")
                     if v:
                         want = ref.get((ds, me))
                         if me == "AASFOD":  # only per-seed TSD + two-stage runs are the standard recipe
@@ -133,6 +133,9 @@ def classify(scan_dir):
         w.writerows(out)
 
 
+REINFER_FLAG, REINFER_TOL = 1e-4, 0.0011  # AP50 gap that marks a re-inferred pkl / largest gap accepted
+
+
 def map5095_for(m5095, cell, domain):
     """The mAP50-95 eval of this cell: same host, same method dir, same domain; prefer the one whose
     results pkl is the cell's own predictions.pkl."""
@@ -143,7 +146,10 @@ def map5095_for(m5095, cell, domain):
         return dict(mAP50_95="not_inferred")
     cands.sort(key=lambda r: os.path.dirname(r["results"]) != cell["path"])
     r = cands[0]
-    return dict(mAP50_95=r["mAP50_95"], mAP50_95_AP50=r["AP50"], mAP50_95_path=r["path"])
+    d = float(r["AP50"]) - cell["mAP50"]
+    assert abs(d) <= REINFER_TOL, (cell["path"], d)
+    note = "mAP50-95 from eval-only re-inference pkl; AP50 Δ=%+.6f" % d if abs(d) > REINFER_FLAG else ""
+    return dict(mAP50_95=r["mAP50_95"], mAP50_95_AP50=r["AP50"], mAP50_95_path=r["path"], notes=note)
 
 
 def build():
@@ -202,7 +208,9 @@ def build():
     for ds in DOMAINS:
         rows = [r for r in summary if r["dataset"] == ds]
         best = max(float(r["mPC_s42"]) for r in rows if r["mPC_s42"] != "N/A")
-        tex += ["%% %s seed=42 final-EMA TEST mAP50. mPC over %d corruptions; rPC = mPC / A_clean. Bold = best mPC."
+        tex += (["% SUPERSEDED by main_table_rcnn_obb.tex (build_final_tables.py): 3-seed means, PETS/LODS, "
+                 "mAP50-95 and footnotes. Kept for history."] if ds == "RSAR" else []) + [
+                "%% %s seed=42 final-EMA TEST mAP50. mPC over %d corruptions; rPC = mPC / A_clean. Bold = best mPC."
                 % (ds, len(MPC[ds])),
                 r"\begin{tabular}{llcccc" + ("c" if ds == "RSAR" else "") + "}", r"\toprule",
                 r"Method & & clean & mPC & rPC (\%) & $\Delta$ada" + (r" & mPC 3-seed" if ds == "RSAR" else "")
@@ -225,6 +233,8 @@ def build():
 
     status = collections.Counter((c["dataset"], c["status"]) for c in cells)
     md = ["# RSAR + DIOR 严格 Source-Free OBB 对比汇总（final-EMA TEST mAP50）", "",
+          "> 已被 `main_table_rcnn_obb.tex`（`build_final_tables.py` 生成）取代：那里是 3-seed 均值、含 PETS/LODS、"
+          "mAP50-95 和全部脚注。本文件保留作历史记录。", "",
           "由 `experiments/comparison/build_summary.py` 从 `raw_results.csv`（逐格状态）生成；不要手改。", "",
           "mPC：RSAR 取 7 种 corruption，DIOR 取 19 种官方 DIOR-C（cloudy 只列在逐格表里）；rPC = mPC / A_clean；"
           "Δada = mPC − A 的 mPC。主表只用 seed 42；3-seed 均值只有三个 seed 全部通过协议检查时才给。", ""]

@@ -18,6 +18,9 @@ Conventions: AP50 and mAP50-95 are fractions in the CSVs (full precision) and pe
 (round half up, never truncated) in the tables. mPC = mean over the corruptions (RSAR 7; DIOR the 19 official
 DIOR-C names, cloudy excluded); "all domains" adds clean (RSAR 8; DIOR clean + 19 + cloudy = 21).
 Mean +- std is over seeds where a method has 3 seeds; where seeds = 1 the std is across domains.
+architecture_generalization.csv status columns: ok = every needed cell present; "not_inferred (k/n missing)" =
+AP50 complete but k of the n needed (seed x domain) cells have no mAP50-95 (no saved pkl), so no mean is given;
+"pending (k/n missing)" = k of n AP50 cells not run yet; not_ported / user_reported as stated in the row.
 """
 import argparse
 import csv
@@ -210,8 +213,8 @@ def aggregate(cells, arch, ds, me):
             else:  # AP50 gaps are runs still pending; mAP50-95 gaps behind complete AP50 are cells without a pkl
                 ap_done = idx == 1 and row["AP50_status_%s" % tag] == "ok"
                 row.update({"%s_mean_%s" % (k, tag): "", "%s_std_%s" % (k, tag): "",
-                            "%s_status_%s" % (k, tag): "%s (%d/%d cells)"
-                            % ("not_inferred" if ap_done else "pending", have, need)})
+                            "%s_status_%s" % (k, tag): "%s (%d/%d missing)"
+                            % ("not_inferred" if ap_done else "pending", need - have, need)})
         row["n_corruptions"], row["n_all_domains"] = len(MPC[ds]), len(ALL[ds])
     return row
 
@@ -223,7 +226,7 @@ def build_rows(cells):
             for me in methods:
                 r = aggregate(cells, arch, ds, me)
                 rows.append(r or dict(method=me, method_name=NAMES[me], architecture=arch, dataset=ds,
-                                      seeds="", n_seeds=0, AP50_status_corruptions="pending (0 cells)"
+                                      seeds="", n_seeds=0, AP50_status_corruptions="pending (all missing)"
                                       if arch == "DETR" else "missing"))
             a = next(r for r in rows if (r["architecture"], r["dataset"], r["method"]) == (arch, ds, "A"))
             for r in rows:
@@ -296,7 +299,8 @@ def tex_table(rows, arch, methods, caption, label, foot, groups):
         vals = [idx[(ds, m)]["AP50_mean_corruptions"] for m in methods if m != "OURS" and (ds, m) in idx
                 and idx[(ds, m)].get("AP50_mean_corruptions", "") != ""]
         best[ds] = max(vals) if vals else None
-    lines = [r"\begin{table*}[t]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{3.2pt}",
+    lines = ([XELATEX] if "OURS" in methods else []) + [
+             r"\begin{table*}[t]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{3.2pt}",
              r"\renewcommand{\arraystretch}{1.1}", r"\caption{%s}" % caption, r"\label{%s}" % label,
              r"\begin{tabular}{@{}l ccccc c ccccc@{}}", r"\toprule",
              r" & \multicolumn{5}{c}{\textbf{RSAR} (7 corruptions)} && \multicolumn{5}{c}{\textbf{DIOR-C} "
@@ -316,6 +320,7 @@ def tex_table(rows, arch, methods, caption, label, foot, groups):
     return "\n".join(lines)
 
 
+XELATEX = "% Contains Chinese text: compile with XeLaTeX plus xeCJK (or ctex). Not compiled in this repo."
 COMMON_FOOT = (r"AP50 and mAP50-95 in \%; Clean = clean TEST; mPC = mean over the corruptions (DIOR: the 19 "
                r"official DIOR-C names, cloudy excluded); rPC = mPC / A$_{\mathrm{clean}}$ $\times$ 100; "
                r"$\Delta$ada = mPC $-$ mPC of A; mPC$_{50:95}$ = mean mAP50-95 over the same corruptions, "
@@ -426,45 +431,53 @@ def write_user_table(cells):
             why = "格子订正带动" if any(f[0] == me for f in fixes) else \
                 "原表均值由两位小数的格子再平均（%.2f），全精度均值为 %.4f" % (naive, statistics.mean(out[me]))
             md.append("| %s | %.2f | %.2f | %s |" % (USER_ROW_NAMES[me], vals[-1], new, why))
-    open(os.path.join(OUT, "dior_c_table_corrected.md"), "w").write("\n".join(md) + "\n")
 
-    # underline = best adapted baseline per column (not Direct test, not 本文方法), as in the user's table
+    # bold = best, underline = second best (次优) per column over all rows, as in the user's table
+    col = {d: {m: r2(out[m][i]) for m in out} for i, d in enumerate(USER_COLS)}
+    col["mAP"] = {m: r2(statistics.mean(out[m])) for m in out}
+    rank = {d: sorted(set(v.values()), reverse=True) for d, v in col.items()}
+    # the user's rule: a Direct-test value above every adapted baseline is likely mis-measured -> flag it
     base = [m for m in out if m not in ("A", "OURS")]
-    best2 = {d: max(r2(out[m][i]) for m in base) for i, d in enumerate(USER_COLS)}
-    best2["mAP"] = max(r2(statistics.mean(out[m])) for m in base)
-    tex = [r"\begin{table*}[t]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{2pt}",
+    flagged = [d for d in USER_COLS if col[d]["A"] > max(col[d][m] for m in base)]
+    tex = [XELATEX, r"\begin{table*}[t]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{2pt}",
            r"\caption{DIOR-C (AP50, \%). Direct test = source only (seed 42); baselines = 3-seed mean; "
            r"mAP = mean over the 20 domains. 本文方法 is as reported (DIOR trainval source + weight\_l=1, "
-           r"not the strict train-only source of the other rows). Bold = best, underline = best adapted baseline.}",
+           r"not the strict train-only source of the other rows). Bold = best, underline = second best. "
+           + "".join(r"$^{\ddagger}$Direct test %s = %s is above all six adapted baselines; it equals the raw "
+                     r"seed-42 cell (%s, no pkl kept) and is flagged for a re-check by the rule that a "
+                     r"source-only value above every baseline is likely mis-measured. "
+                     % (d.replace("_", r"\_"), "%.2f" % col[d]["A"], repr(cells[("R-CNN", "DIOR", "A", 42)][d][0]))
+                     for d in flagged) + "}",
            r"\label{tab:dior-c}", r"\begin{tabular}{@{}l" + "c" * 21 + r"@{}}", r"\toprule",
            "Method & " + " & ".join(USER_COLS_CN) + r" & mAP \\", r"\midrule",
            r"clean & " + " & ".join(["--"] * 20) + r" & %.2f \\" % OURS_CLEAN]
-    for me, row in out.items():
-        vals = []
-        for d, v in zip(USER_COLS, row):
-            s = "%.2f" % r2(v)
-            if me == "OURS":
-                s = r"\textbf{%s}" % s
-            elif me != "A" and r2(v) == best2[d]:
-                s = r"\underline{%s}" % s
-            vals.append(s)
-        m = "%.2f" % r2(statistics.mean(row))
-        m = r"\textbf{%s}" % m if me == "OURS" else r"\underline{%s}" % m if me != "A" and float(m) == best2["mAP"] else m
-        tex.append(USER_ROW_NAMES[me].replace("²", "$^2$") + " & " + " & ".join(vals) + " & %s \\\\" % m)
+    def mark(d, me):
+        s = "%.2f" % col[d][me]
+        s = r"\textbf{%s}" % s if col[d][me] == rank[d][0] else r"\underline{%s}" % s \
+            if col[d][me] == rank[d][1] else s
+        return s + (r"$^{\ddagger}$" if me == "A" and d in flagged else "")
+
+    for me in out:
+        tex.append(USER_ROW_NAMES[me].replace("²", "$^2$") + " & "
+                   + " & ".join(mark(d, me) for d in USER_COLS + ["mAP"]) + r" \\")
     tex += [r"\bottomrule", r"\end{tabular}", r"\end{table*}", ""]
     open(os.path.join(OUT, "dior_c_table_corrected.tex"), "w").write("\n".join(tex))
-    return out, fixes
+    md += [""] + ["- Direct test %s = %.2f 高于全部 6 个适应后的基线。它与 raw 里 seed 42 的格子一致（%s，没有保留 pkl）；"
+                  "按用户自己的规则（source-only 某格高于所有基线，多半是测错了）标记为待复查。"
+                  % (d, col[d]["A"], repr(cells[("R-CNN", "DIOR", "A", 42)][d][0])) for d in flagged]
+    open(os.path.join(OUT, "dior_c_table_corrected.md"), "w").write("\n".join(md) + "\n")
+    return out, fixes, flagged
 
 
 def self_check(cells, rows, rcnn_tex, detr_tex, user_out, fixes):
     idx = {(r["architecture"], r["dataset"], r["method"]): r for r in rows}
-    # 1. Cell counts: PETS / LODS 87 each, 12 original R-CNN methods complete, DETR RSAR 72.
+    # 1. Cell counts: PETS / LODS 87 each, DETR RSAR 72 and DIOR 189.
     for me in ("PETS", "LODS"):
         n = sum(len(v) for (a, d, m, s), v in cells.items() if (a, m) == ("R-CNN", me))
         assert n == 87, (me, n)
     for ds, want in (("RSAR", 72), ("DIOR", 189)):  # 9 methods x 8 / 21 domains, seed 42
         n = sum(len(v) for (a, d, m, s), v in cells.items() if (a, d) == ("DETR", ds))
-        assert n in (want, 0 if ds == "DIOR" else want), (ds, n)  # DIOR may still be absent (pending merge)
+        assert n == want, (ds, n)
     for (a, d, m, s), v in cells.items():
         assert set(v) <= set(ALL[d]), (a, d, m, s)
     # 2. Recomputed means equal the producers' own summaries.
@@ -529,7 +542,13 @@ def self_check(cells, rows, rcnn_tex, detr_tex, user_out, fixes):
                     assert float(part[4]) == float(pp(statistics.mean(mps))), (m, ds, part)
                 else:
                     assert part[4] == "n/i", (m, ds, part)
-    # 5. The user's DIOR-C table: the fixes the lead listed, and nothing else.
+    # 5. Re-inferred mAP50-95 pkls: every AP50 gap > 1e-4 is flagged in raw_results.csv, and none exceeds 0.0011.
+    for r in csv.DictReader(open(RAW)):
+        if r["mAP50_95_AP50"]:
+            d = abs(float(r["mAP50_95_AP50"]) - float(r["mAP50"]))
+            assert d <= 0.0011, r
+            assert (d > 1e-4) == r["notes"].startswith("mAP50-95 from eval-only re-inference pkl"), r
+    # 6. The user's DIOR-C table: the fixes the lead listed, and nothing else.
     assert user_out["IRG"][USER_COLS.index("motion_blur")] and r2(user_out["IRG"][12]) == 13.27
     assert r2(statistics.mean(user_out["IRG"])) == 16.37
     a = user_out["A"]
@@ -555,7 +574,9 @@ def main():
     rows = build_rows(cells)
     write_csv(rows)
     rcnn, detr = write_tex(rows)
-    user_out, fixes = write_user_table(cells)
+    user_out, fixes, flagged = write_user_table(cells)
+    assert flagged == ["speckle_noise"], flagged  # the one known case; anything new needs a look
+    assert cells[("R-CNN", "DIOR", "A", 42)]["speckle_noise"] == (0.106221, None)
     self_check(cells, rows, rcnn, detr, user_out, fixes)
 
 
