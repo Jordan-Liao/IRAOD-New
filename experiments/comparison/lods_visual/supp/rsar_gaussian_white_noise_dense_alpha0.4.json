@@ -1,29 +1,29 @@
 [
  {
-  "image": "0089925.png",
+  "image": "0065776.png",
   "mode": "dense",
-  "n_targets": 50,
-  "n_focus": 42,
-  "grad_corr_in_targets": 0.41193148701765553,
-  "contrast_orig": 0.887229809189601,
-  "contrast_enh": 0.9158551160211408
+  "n_targets": 47,
+  "n_focus": 24,
+  "grad_corr_in_targets": 0.4003841515249522,
+  "contrast_orig": 0.0938799620426171,
+  "contrast_enh": 0.1525455884783471
  },
  {
   "image": "0029624.png",
   "mode": "dense",
   "n_targets": 62,
-  "n_focus": 40,
-  "grad_corr_in_targets": 0.41581247367896534,
-  "contrast_orig": 0.030329134928269778,
-  "contrast_enh": 0.005205031650285982
+  "n_focus": 20,
+  "grad_corr_in_targets": 0.39952900887389586,
+  "contrast_orig": 0.006561492374561683,
+  "contrast_enh": 0.018898283318802847
  },
  {
-  "image": "0112914.png",
+  "image": "0024255.jpg",
   "mode": "dense",
-  "n_targets": 36,
-  "n_focus": 33,
-  "grad_corr_in_targets": 0.5202419555374365,
-  "contrast_orig": 0.02595039946055437,
-  "contrast_enh": 0.11624930629477612
+  "n_targets": 87,
+  "n_focus": 18,
+  "grad_corr_in_targets": 0.45184240687959404,
+  "contrast_orig": 1.5659543296757485,
+  "contrast_enh": 2.3889880834893695
  }
 ]

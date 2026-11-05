@@ -309,7 +309,7 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）。**已定**：DETR 组最终矩阵的 C/D/F 全部用修复后的 `cga.py`（sha256 `5cd1ed64…`）跑，§10.3 里 C/D/F 的门控数字作废；R-CNN 组的 C/D/F 按用户 2026-11-02 的决定（"之前跑过了的就不用跑了"）不重跑，主表保留原格子并加脚注（门控 Δ≈0.002）。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
 3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里的非方形图（test 1.36% / val 1.37% / train 1.14% 的图像，test 实例的 1.73%；DIOR-R 全部是方形）会让 teacher 框和评测框的 y 坐标偏移。作为上游限制保留，不修：官方的 31.56 就是在这个解码下复现的，且 DETR 组所有方法都用同一个解码。
-4. PETS（不重跑，只加脚注）：交换沿用 R-CNN 端口的双向互换（论文 Eq. 2），官方代码是单向拷贝（Static := Student），见 `pets_obb_port.md` 第 1 条。EMA 保留率用官方的每步值（首次交换前 0.9996，之后 0.999），没有按缩短的单 epoch 预算重新标定，所以评测用的 Dynamic Teacher 在结束时仍保留约 39%（RSAR，1,059 iter，0.9996^211 × 0.999^848）/ 52%（DIOR，733 iter，0.9996^146 × 0.999^587）的源权重；官方 10 epoch 配置下约 4%。`main_table_detr_obb.tex` 的脚注 d 和 `architecture_generalization.csv` 的 `notes` 列写了同样的说明。
+4. PETS（不重跑，只加脚注）：交换沿用 R-CNN 端口的双向互换（论文 Eq. 2），官方代码是单向拷贝（Static := Student），见 `pets_obb_port.md` 第 1 条。EMA 保留率用官方的每步值（首次交换前 0.9996，之后 0.999），没有按缩短的单 epoch 预算重新标定，所以评测用的 Dynamic Teacher 在结束时仍保留约 39%（RSAR，1,059 iter，0.9996^211 × 0.999^848）/ 52%（DIOR，733 iter，0.9996^146 × 0.999^587）的源权重；官方 10 epoch C2F 配置（EMA 每 2 步更新一次）下约 19%。`main_table_detr_obb.tex` 的脚注 d 和 `architecture_generalization.csv` 的 `notes` 列写了同样的说明。
 5. C/D/F 是本文方法的变体（CGA ± VLST：C = CLIP-CGA，D = SARCLIP-CGA，F = CGA+VLST）；主表用 `$^{\star}$` 标出，CSV 的 `notes` 列同样标注。
 
 ## 11. 最终 seed-42 矩阵（2026-11-04）

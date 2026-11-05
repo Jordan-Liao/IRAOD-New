@@ -4,7 +4,7 @@
   "mode": "slender",
   "n_targets": 4,
   "n_focus": 1,
-  "grad_corr_in_targets": 0.5780056195575483,
+  "grad_corr_in_targets": 0.5780056195311096,
   "contrast_orig": 1.3822901963602594,
   "contrast_enh": 1.6940956852937725
  },
@@ -22,7 +22,7 @@
   "mode": "slender",
   "n_targets": 1,
   "n_focus": 1,
-  "grad_corr_in_targets": 0.4633552050090225,
+  "grad_corr_in_targets": 0.4633552050234954,
   "contrast_orig": 1.2502178493643397,
   "contrast_enh": 2.0377343188353185
  }

@@ -37,8 +37,25 @@ class SelectTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def pick(self, mode, exclude=()):
-        return select(self.img, self.ann, 'rsar', {'ship'}, mode, 1, 0, exclude=set(exclude))[0]
+    def pick(self, mode, exclude=(), ratio=1.0):
+        return select(self.img, self.ann, 'rsar', {'ship'}, mode, 1, 0, exclude=set(exclude),
+                      ratio=lambda _: ratio)[0]
+
+    def test_degenerate_box_is_not_slender(self):
+        with open(os.path.join(self.ann, 'd.txt'), 'w') as f:  # zero-width "ship": aspect would be huge
+            f.write(' '.join(f'{v:.1f}' for v in box(200, 200, 0.5, 300)) + ' ship 0\n')
+        open(os.path.join(self.img, 'd.jpg'), 'w').close()
+        self.assertEqual(self.pick('slender')[1], 'b.jpg')
+
+    def test_window_is_sized_at_detector_scale(self):
+        # at ratio 4 (a small image upsampled), 160 px at detector scale is 40 px in the original,
+        # so only part of image c's 12-ship block (90 px wide) fits one window
+        only_c = ['a.jpg', 'b.jpg']
+        _, f, objs, focus1 = self.pick('dense', exclude=only_c, ratio=1.0)
+        _, _, _, focus4 = self.pick('dense', exclude=only_c, ratio=4.0)
+        self.assertEqual(f, 'c.jpg')
+        self.assertEqual(len(focus1), len(objs))  # 90 px block fits a 160 px window
+        self.assertEqual(len(focus4), 1)  # ships 30 px apart, window half-width 20 px
 
     def test_small_focuses_on_small_cluster(self):
         _, f, objs, focus = self.pick('small')

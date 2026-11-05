@@ -14,6 +14,8 @@ RSAR=${RSAR:-/home/zechuan/iraod_data/RSAR}  # val/{images,annfiles}, corruption
 DIOR_VAL=${DIOR_VAL:-/mnt/SSD_4TB/zechuan/dior_splits}   # <domain>/val
 DIOR_ANN=${DIOR_ANN:-"/home/zechuan/iraod_data/DIOR/Annotations/Oriented Bounding Boxes"}
 mkdir -p "$OUT"
+# modes exclude images shown by earlier modes in $OUT, so a rerun needs an empty $OUT to reproduce
+if compgen -G "$OUT/*_alpha0.4.json" > /dev/null; then echo "OUT=$OUT already has grids; use an empty OUT" >&2; exit 1; fi
 run() {  # dataset domain mode classes...   (modes of one domain must run in order small, slender, dense)
   local ds=$1 dom=$2 mode=$3; shift 3
   local sem=$SEM_ROOT/${ds}_${dom}/sem_iter_160000.pth img ann used=()

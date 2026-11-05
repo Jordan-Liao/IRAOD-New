@@ -18,12 +18,12 @@
   "contrast_enh": 1.9205313087697928
  },
  {
-  "image": "0045386.jpg",
+  "image": "0027718.jpg",
   "mode": "small",
-  "n_targets": 27,
-  "n_focus": 20,
-  "grad_corr_in_targets": 0.4236894066521406,
-  "contrast_orig": 1.1783043308787162,
-  "contrast_enh": 1.4002419336594232
+  "n_targets": 77,
+  "n_focus": 19,
+  "grad_corr_in_targets": 0.41535008864226114,
+  "contrast_orig": 1.3399883958684253,
+  "contrast_enh": 1.8976413929862912
  }
 ]

@@ -15,16 +15,23 @@ and why that is a disclosed gap).
   image. Driver: `experiments/comparison/lods_visual_supp.sh` (`--alpha 0.4 --seed 0 --n 3`).
   Test: `tools/cga_research/tests/test_lods_vis_select.py`.
 - Crop selection (fixed 2026-11-05; the first render of this check had the
-  `small` and `dense` grids pick identical DIOR images, so it was redone):
-  - `small`: images with the tightest 160×160 px cluster of GT objects under
-    20×20 px; the zoom centres on that cluster. RSAR: ship. DIOR: vehicle.
+  `small` and `dense` grids pick identical DIOR images, and a second pass still
+  let a degenerate 1×0 px GT box count as "most elongated", so it was redone):
+  - Degenerate GT boxes (a side under 2 px) are ignored by every mode.
+  - `small`: images with the tightest cluster of GT objects under 20×20 px;
+    RSAR: ship, DIOR: vehicle.
   - `slender`: images whose most elongated GT object has aspect ≥ 3 (ship,
-    bridge, harbor); the zoom centres on that one object.
-  - `dense`: images with the most GT objects inside one 160×160 px window
-    (RSAR ship/car/tank; DIOR vehicle/ship/storagetank); the zoom centres there.
-  - Modes of one domain never reuse an image (`--exclude`), so each grid shows
-    different scenes. All 21 grids have distinct content (no duplicate md5).
-  - The per-image metrics (`*.json`) are computed on the zoom's focus targets:
+    bridge, harbor); the focus is that one object.
+  - `dense`: images with the most GT objects inside one window (RSAR
+    ship/car/tank; DIOR vehicle/ship/storagetank).
+  - The cluster/density window is 160 px **at detector scale**, the scale the
+    160 px zoom is cut at, so the focus targets fit inside the zoom (RSAR images
+    are upsampled about 3×, so the window is about 53 px in the original). The
+    zoom centres on the focus set's bounding-box midpoint.
+  - Modes of one domain never reuse an image (`--exclude`); a rerun needs an
+    empty output dir (the driver refuses otherwise). All 21 grids have distinct
+    content (no duplicate md5).
+  - The per-image metrics (`*.json`) are computed on the focus targets:
     Sobel-gradient correlation inside those GT boxes (`grad_corr_in_targets`) and
     target-vs-ring contrast before/after the SEM.
 - Run on gpu-138, 2026-11-05, CPU only (`CUDA_VISIBLE_DEVICES=`, `nice -n 19`,
@@ -52,8 +59,8 @@ and why that is a disclosed gap).
 
 ## What the images show
 
-Inspected by eye: DIOR clean small/dense, DIOR snow small, RSAR clean slender,
-RSAR point_target small/dense; the rest by metrics only.
+Inspected by eye: DIOR clean small/dense, DIOR snow small/slender, RSAR clean
+slender, RSAR point_target dense; the rest by metrics only.
 
 - **Fake texture.** On RSAR the SEM overlays land and water with a
   worm/checkerboard texture and turns dark water mid-grey or brown; around bright
@@ -63,28 +70,34 @@ RSAR point_target small/dense; the rest by metrics only.
   from the style image; DIOR colour is mostly lost.
 - **Small targets.** DIOR small vehicles (parking lots, roads) keep their
   position as dark blobs, but the smallest cars on bright roads are reduced to
-  faint dots or vanish in the zoom (DIOR snow, row 3). RSAR small ships survive
-  as blobs; hull shape and wakes are gone.
-- **Slender targets.** Bridges, piers and long ships keep their line at full
-  scale; zoomed edges are smeared into the texture. Target contrast collapses on
-  some crops (RSAR clean 0094000.png 0.31 → 0.05; DIOR snow 07007.jpg 0.95 → 0.29;
-  DIOR pixelate 07007.jpg 0.82 → 0.15).
-- **Dense targets.** Dense marinas and storage-tank fields keep the layout, but
-  neighbouring objects merge into continuous bands. On RSAR point_target dense
-  scenes the fake texture partly masks the packed point targets. The densest DIOR
-  image (10243.jpg) loses about half its target contrast (0.71–0.93 → 0.30–0.45).
+  faint dots or vanish in the zoom (DIOR snow small, row 3). RSAR small ships
+  survive as blobs; hull shape and wakes are gone.
+- **Slender targets.** Piers, harbors and moored-ship rows keep their line;
+  individual boats along a pier merge into a continuous band (DIOR snow slender,
+  row 1), while well-separated boats keep their outline (row 2). Target contrast
+  drops on some crops (RSAR clean 0094000.png 0.31 → 0.05; DIOR 10572.jpg
+  2.6–2.7 → 1.4–1.5 on snow and gaussian_noise) and rises on others.
+- **Dense targets.** On RSAR dense urban scenes (cars/tanks on bright speckle,
+  point_target rows 1–2) the zoom shows the packed targets **masked by the fake
+  texture**: they are no longer distinguishable, although the gradient
+  correlation stays 0.24–0.46. Ships on dark river (row 3) survive as blobs.
+  On DIOR, dense marinas and storage-tank fields keep their layout but neighbours
+  merge into bands; the densest DIOR image (10243.jpg) loses about half its target
+  contrast on clean, snow and pixelate (0.71–0.93 → 0.30–0.45) and about a quarter
+  on gaussian_noise (0.79 → 0.58).
 - **Corruption partly removed, not undone.** DIOR snow streaks are fainter but
   still visible; DIOR gaussian_noise colour noise becomes uniform grey-brown;
   RSAR gaussian_white_noise looks much like RSAR clean before and after.
 - **Metrics.** Gradient correlation inside the focus targets: RSAR small
-  0.18–0.49, slender 0.38–0.78, dense 0.31–0.52; DIOR small 0.09–0.51, slender
-  0.10–0.50, dense 0.09–0.31. Single thin slender targets with a mask of ≤ 4 px
-  give NaN and are left as NaN.
+  0.18–0.44, slender 0.38–0.78, dense 0.24–0.46; DIOR small 0.09–0.51, slender
+  −0.24–0.48, dense 0.09–0.31. RSAR target-vs-ring contrast mostly rises after
+  the SEM (the texture darkens the ring), so it is not evidence that RSAR targets
+  are preserved.
 
 Conclusion, consistent with the earlier RSAR chaff and DIOR fog check in
 `experiments/comparison/lods_obb_port.md`: at alpha 0.4 the SEM keeps the layout
 and most objects, but adds fake texture and a sepia tint, removes fine structure,
-merges dense neighbours and loses some of the smallest targets. It is a style
+merges dense neighbours, masks packed RSAR targets in bright clutter and loses some of the smallest targets. It is a style
 perturbation, not a structure-preserving enhancement. The requirement that small,
 slender and dense targets stay intact is therefore **not fully met**; this is
 reported, not rerun (no-rerun rule).

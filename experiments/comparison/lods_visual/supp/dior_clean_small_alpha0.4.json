@@ -22,7 +22,7 @@
   "mode": "small",
   "n_targets": 21,
   "n_focus": 18,
-  "grad_corr_in_targets": 0.23780903323226044,
+  "grad_corr_in_targets": 0.23780903324081523,
   "contrast_orig": 0.22299381832758536,
   "contrast_enh": 0.2926398640035374
  }

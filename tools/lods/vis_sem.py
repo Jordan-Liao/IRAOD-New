@@ -54,12 +54,21 @@ def window_members(centers, i, half):
     return [j for j, c in enumerate(centers) if abs(c[0] - centers[i][0]) <= half and abs(c[1] - centers[i][1]) <= half]
 
 
-def select(img_dir, ann_dir, fmt, classes, mode, n, seed, exclude=(), win=160):
+def det_ratio(path, scale=(800, 800)):
+    """Resize ratio detector_scale() will apply, from the image header only."""
+    from PIL import Image
+    w, h = Image.open(path).size
+    return min(max(scale) / max(h, w), min(scale) / min(h, w))
+
+
+def select(img_dir, ann_dir, fmt, classes, mode, n, seed, exclude=(), win=160, ratio=det_ratio):
     """Rank images for one mode and return (score, file, objs, focus).
 
     focus is the subset of objs the zoom crop centres on, so each mode shows its
     own kind of target: the tightest cluster of small (<20x20 px) targets, the
-    single most elongated target (aspect >= 3), or the densest win x win window.
+    single most elongated target (aspect >= 3), or the densest window. The window
+    is win px at detector scale (the scale the zoom is cut at), so the focus set
+    fits inside the zoom. Degenerate GT boxes (a side under 2 px) are ignored.
     Images already used by another mode (exclude) are skipped so modes don't repeat.
     """
     rng = random.Random(seed)
@@ -72,18 +81,19 @@ def select(img_dir, ann_dir, fmt, classes, mode, n, seed, exclude=(), win=160):
         ap = osp.join(ann_dir, osp.splitext(f)[0] + ext)
         if not osp.exists(ap):
             continue
-        objs = [(c, p) for c, p in read_ann(ap, fmt) if c in classes]
+        objs = [(c, p) for c, p in read_ann(ap, fmt) if c in classes and min(cv2.minAreaRect(p)[1]) >= 2]
         if not objs:
             continue
         stats = [poly_stats(p) for _, p in objs]
         centers = [p.mean(0) for _, p in objs]
+        half = win / 2 / ratio(osp.join(img_dir, f))  # in original-image pixels
         if mode == 'small':
             idx = [i for i, (a, _) in enumerate(stats) if a < 20 * 20]
             if not idx:
                 continue
             small_c = [centers[i] for i in idx]
-            best = max(range(len(idx)), key=lambda k: len(window_members(small_c, k, win / 2)))
-            focus = [objs[idx[j]] for j in window_members(small_c, best, win / 2)]
+            best = max(range(len(idx)), key=lambda k: len(window_members(small_c, k, half)))
+            focus = [objs[idx[j]] for j in window_members(small_c, best, half)]
             score = len(focus)
         elif mode == 'slender':
             i = max(range(len(stats)), key=lambda k: stats[k][1])
@@ -91,8 +101,8 @@ def select(img_dir, ann_dir, fmt, classes, mode, n, seed, exclude=(), win=160):
                 continue
             focus, score = [objs[i]], stats[i][1]
         else:  # dense
-            best = max(range(len(centers)), key=lambda k: len(window_members(centers, k, win / 2)))
-            focus = [objs[j] for j in window_members(centers, best, win / 2)]
+            best = max(range(len(centers)), key=lambda k: len(window_members(centers, k, half)))
+            focus = [objs[j] for j in window_members(centers, best, half)]
             score = len(focus)
         scored.append((score + rng.random() * 1e-3, f, objs, focus))
     scored.sort(key=lambda t: t[0], reverse=True)
@@ -130,7 +140,8 @@ def target_metrics(orig, enh, polys):
 
 
 def zoom_box(polys, shape, size=160):
-    c = np.concatenate(polys).mean(0)
+    pts = np.concatenate(polys)
+    c = (pts.min(0) + pts.max(0)) / 2  # bbox midpoint keeps a window-sized focus set inside the crop
     x0 = int(np.clip(c[0] - size / 2, 0, max(shape[1] - size, 0)))
     y0 = int(np.clip(c[1] - size / 2, 0, max(shape[0] - size, 0)))
     return x0, y0, size

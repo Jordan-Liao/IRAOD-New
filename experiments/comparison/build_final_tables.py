@@ -280,7 +280,7 @@ NOTES = {"C": "本文方法 variant (CGA ± VLST)", "D": "本文方法 variant (
          "SFYOLO": "2-epoch budget (others 1 epoch)",
          "PETS": "two-way exchange per paper Eq. 2 (official code copies one way); official per-step EMA keep rates "
                  "not recalibrated for the 1-epoch budget: Dynamic Teacher keeps ~%s source weight at the end "
-                 "(official config ~4%%)",
+                 "(official C2F config, EMA every 2 steps: ~19%%)",
          "LODS": "alpha 0.4 set after a GT-box visual check on target val (no AP computed): not strictly label-free; "
                  "SEM output has fake texture and loses fine structure"}
 PETS_KEEP = {("R-CNN", "RSAR"): "79%", ("R-CNN", "DIOR"): "85%", ("DETR", "RSAR"): "39%", ("DETR", "DIOR"): "52%"}
@@ -350,11 +350,11 @@ COMMON_FOOT = (r"AP50 and mAP50-95 in \%; Clean = clean TEST; mPC = mean over th
 VARIANT_FOOT = (r"$^{\star}$C/D/F: 本文方法 variants (CGA $\pm$ VLST; method\_matrix.csv: C CLIP-CGA, D SARCLIP-CGA, "
                 r"F CGA+VLST), run under this table's strict protocol. ")
 # The shortened 1-epoch budget with the official per-step EMA keep rates (0.9996 to the first exchange, then 0.999):
-# 0.9996^w * 0.999^(N-w), w = 2N//10; R-CNN N = 265 / 184, DETR N = 1059 / 733; official C2F 10 x 373 iters -> 3.7%.
+# 0.9996^w * 0.999^(N-w), w = 2N//10; R-CNN N = 265 / 184, DETR N = 1059 / 733; official C2F 10 x 373 iters, EMA every 2 steps -> ~19% (3.7% if every step).
 PETS_FOOT = (r"PETS exchanges Static Teacher and Student two-way (paper Eq.~2), whereas the official code copies one "
              r"way (Static := Student); its EMA keep rates keep the official per-step values and were not "
              r"recalibrated for the 1-epoch budget, so the evaluated Dynamic Teacher still holds about %s of the "
-             r"source weights at the end, vs.\ about 4\%% under the official 10-epoch config. ")
+             r"source weights at the end, vs.\ about 19\%% under the official 10-epoch C2F config (EMA every 2 steps). ")
 
 
 def write_tex(rows):
