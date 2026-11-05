@@ -8,6 +8,8 @@ iteration equals the seed-42 iteration of the same (dataset, method); anything e
 `protocol_mismatch` (e.g. DIOR s43/44 trained 2 epochs) and stays out of every mean.
 mAP50 == 0 is a collapsed run (`collapsed`); a non-zero copy of the same cell always wins. AASFOD counts
 only runs of the standard recipe (per-seed tsd.json + work/stages.json, flagged by scan_eval_cells.py).
+mAP50_95 comes from a tools/eval_map50_95.py output (`*map5095*` dir) in the same method dir as the counted
+eval; a cell with none is `not_inferred` (no pkl was saved, and nothing is backfilled).
 """
 import argparse
 import collections
@@ -38,17 +40,21 @@ NAMES = {"A": "Source Only", "B": "ST / Mean Teacher", "C": "CLIP-CGA", "D": "SA
          "LODS": "LODS (our reimplementation)", "OURS": "本文方法 (strict)"}
 SEEDS = [42, 43, 44]
 EXCLUDE = ("oracle", "b_reg", "f_deletion", "roi_", "LoRA", "B_REG", "F_text", "F_veto", "probe", "smoke",
-           "qualitative", "vis_subset", "collector", "report-readiness", "tsne", "clean_val", "/val", "noop_runs")
+           "qualitative", "vis_subset", "collector", "report-readiness", "tsne", "clean_val", "/val", "noop_runs",
+           "ars_detr", "map5095")  # ars_detr = the separate DETR group; map5095 = mAP50-95 re-evals, joined below
 SHARED_HOST = "gpu-67"  # holds /mnt/shared, the relay target every worker pushes to
 
 
 def classify(scan_dir):
     all_domains = sorted(set(RSAR + DOMAINS["DIOR"]), key=len, reverse=True)
-    rows = []
+    rows, m5095 = [], collections.defaultdict(list)
     for f in glob.glob(os.path.join(scan_dir, "scan_*.tsv")):
         host = os.path.basename(f)[5:-4]
         for line in open(f):
-            path, status, m, std = (line.rstrip("\n").split("\t") + ["", "", ""])[:4]
+            path, status, m, std, m95, res = (line.rstrip("\n").split("\t") + [""] * 5)[:6]
+            if m95 and "map5095" in path and not any(x in path for x in EXCLUDE[:-1]):
+                m5095[(host, os.path.dirname(path))].append(dict(path=path, mAP50_95=float(m95), AP50=m, results=res))
+                continue
             if not m or any(x in path for x in EXCLUDE):
                 continue
             if "eval_exit=" in status and "eval_exit=0" not in status:
@@ -102,7 +108,8 @@ def classify(scan_dir):
                 for s in ([42] if me == "A" else SEEDS):
                     v = by_cell.get((ds, dom, me, s))
                     row = dict(dataset=ds, domain=dom, method=me, seed=s, status="missing", mAP50="",
-                               ema_iter="", ref_iter=ref.get((ds, me), ""), host="", path="")
+                               ema_iter="", ref_iter=ref.get((ds, me), ""), host="", path="",
+                               mAP50_95="", mAP50_95_AP50="", mAP50_95_path="", notes="")
                     if v:
                         want = ref.get((ds, me))
                         if me == "AASFOD":  # only per-seed TSD + two-stage runs are the standard recipe
@@ -118,11 +125,31 @@ def classify(scan_dir):
                             st = "done" if ok else "protocol_mismatch"
                         row.update(status=st, mAP50=round(best["mAP50"], 6),
                                    ema_iter=best["ema_iter"] or "", host=best["host"], path=best["path"])
+                        row.update(map5095_for(m5095, best, dom))
                     out.append(row)
     with open(CELLS, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out[0]))
         w.writeheader()
         w.writerows(out)
+
+
+REINFER_FLAG, REINFER_TOL = 1e-4, 0.0011  # AP50 gap that marks a re-inferred pkl / largest gap accepted
+
+
+def map5095_for(m5095, cell, domain):
+    """The mAP50-95 eval of this cell: same host, same method dir, same domain; prefer the one whose
+    results pkl is the cell's own predictions.pkl."""
+    cands = [r for r in m5095.get((cell["host"], os.path.dirname(cell["path"])), [])
+             if re.search(r"(^|[_/])eval_(full_)?%s(_ids_v1)?_map5095$" % domain, r["path"])
+             or os.path.dirname(r["results"]) == cell["path"]]
+    if not cands:
+        return dict(mAP50_95="not_inferred")
+    cands.sort(key=lambda r: os.path.dirname(r["results"]) != cell["path"])
+    r = cands[0]
+    d = float(r["AP50"]) - cell["mAP50"]
+    assert abs(d) <= REINFER_TOL, (cell["path"], d)
+    note = "mAP50-95 from eval-only re-inference pkl; AP50 Δ=%+.6f" % d if abs(d) > REINFER_FLAG else ""
+    return dict(mAP50_95=r["mAP50_95"], mAP50_95_AP50=r["AP50"], mAP50_95_path=r["path"], notes=note)
 
 
 def build():
@@ -181,7 +208,9 @@ def build():
     for ds in DOMAINS:
         rows = [r for r in summary if r["dataset"] == ds]
         best = max(float(r["mPC_s42"]) for r in rows if r["mPC_s42"] != "N/A")
-        tex += ["%% %s seed=42 final-EMA TEST mAP50. mPC over %d corruptions; rPC = mPC / A_clean. Bold = best mPC."
+        tex += (["% SUPERSEDED by main_table_rcnn_obb.tex (build_final_tables.py): 3-seed means, PETS/LODS, "
+                 "mAP50-95 and footnotes. Kept for history."] if ds == "RSAR" else []) + [
+                "%% %s seed=42 final-EMA TEST mAP50. mPC over %d corruptions; rPC = mPC / A_clean. Bold = best mPC."
                 % (ds, len(MPC[ds])),
                 r"\begin{tabular}{llcccc" + ("c" if ds == "RSAR" else "") + "}", r"\toprule",
                 r"Method & & clean & mPC & rPC (\%) & $\Delta$ada" + (r" & mPC 3-seed" if ds == "RSAR" else "")
@@ -204,6 +233,8 @@ def build():
 
     status = collections.Counter((c["dataset"], c["status"]) for c in cells)
     md = ["# RSAR + DIOR 严格 Source-Free OBB 对比汇总（final-EMA TEST mAP50）", "",
+          "> 已被 `main_table_rcnn_obb.tex`（`build_final_tables.py` 生成）取代：那里是 3-seed 均值、含 PETS/LODS、"
+          "mAP50-95 和全部脚注。本文件保留作历史记录。", "",
           "由 `experiments/comparison/build_summary.py` 从 `raw_results.csv`（逐格状态）生成；不要手改。", "",
           "mPC：RSAR 取 7 种 corruption，DIOR 取 19 种官方 DIOR-C（cloudy 只列在逐格表里）；rPC = mPC / A_clean；"
           "Δada = mPC − A 的 mPC。主表只用 seed 42；3-seed 均值只有三个 seed 全部通过协议检查时才给。", ""]

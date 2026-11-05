@@ -1,7 +1,9 @@
 # 第二检测器选型审计：原生 OBB 的 DETR 系检测器（DIOR-R / RSAR，严格 SFOD）
 
-日期：2026-11-01。数字都来自下面列出的 README、论文、配置、训练日志和本分支的实测；推断出来的部分标 `未验证`。
-本文件由选型审计（只读调研）加上第一阶段移植的实测（§5、§6）组成。
+日期：2026-11-01；最终版 2026-11-04（在 PR #48 `917774b` 的版本上更新，新增 §11）。数字都来自下面列出的 README、论文、配置、训练日志和本分支的实测；推断出来的部分标 `未验证`。
+本文件由选型审计（只读调研）、第一阶段移植的实测（§5、§6）、方法移植（§10）和最终 seed-42 矩阵的说明（§11）组成。
+
+**DETR 组只跑 seed 42**（牵头方决定，经用户授权）：§10.1 的协议、§11 的 RSAR / DIOR 矩阵、`main_table_detr_obb.tex` 和 `architecture_generalization.csv` 里的 DETR 行都只有 seed 42，没有 seed 43 / 44。所以 DETR 组的 ± 是跨域的标准差，不是跨 seed 的。
 
 ## 0. 结论与已定决策
 
@@ -248,7 +250,7 @@ R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_me
 
 代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
 
-**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废，要用修复后的代码（翻转修复 `b447347` 加 `e4e9703` 的裁剪修复，部署在 `*-cgafix2`）重跑；其余方法不用 CGA，不受影响。
+**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废；最终矩阵的 C/D/F 已用修复后的代码（翻转修复 `b447347` 加 `e4e9703` 的裁剪修复，部署在 `*-cgafix2`）重跑，见 §11。其余方法不用 CGA，不受影响。
 
 **C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
 
@@ -298,10 +300,46 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
     data.test.ann_file=<test ann> data.test.img_prefix=<corruption test images>
 ```
 
+评测的实际 batch 是 1：`test.py`（`917774b`）读的是 `data.test.samples_per_gpu` / `test_dataloader`，这个配置两者都没设，所以上面的 `data.samples_per_gpu=8` 没有生效（端口检查也是 batch 1）。
+
 输出：`/mnt/shared/zechuan/iraod_artifacts/ars_detr/sfod/<dataset>/<METHOD>_s<SEED>/<DOMAIN>/`（`train.log`、`work/`、`train_done`、`eval_test/{eval.log,eval_status,predictions.pkl}`）。DIOR-R 的单元格要等源模型 `dior_source/seed42-r50-1gpu-spg8/epoch_72.pth` 训练完成。
 
 ### 10.7 未决问题
 
-1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）；两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字作废。
+1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）。**已定**：DETR 组最终矩阵的 C/D/F 全部用修复后的 `cga.py`（sha256 `5cd1ed64…`）跑，§10.3 里 C/D/F 的门控数字作废；R-CNN 组的 C/D/F 按用户 2026-11-02 的决定（"之前跑过了的就不用跑了"）不重跑，主表保留原格子并加脚注（门控 Δ≈0.002）。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
 3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里的非方形图（test 1.36% / val 1.37% / train 1.14% 的图像，test 实例的 1.73%；DIOR-R 全部是方形）会让 teacher 框和评测框的 y 坐标偏移。作为上游限制保留，不修：官方的 31.56 就是在这个解码下复现的，且 DETR 组所有方法都用同一个解码。
+
+## 11. 最终 seed-42 矩阵（2026-11-04）
+
+结果表：`results/paper_comparison/main_table_detr_obb.tex`；逐方法汇总：`results/paper_comparison/architecture_generalization.csv`（DETR 行）；逐格数据：`experiments/comparison/final_inputs/detr_{rsar,dior}_matrix_final.csv`。表和 CSV 都由 `experiments/comparison/build_final_tables.py` 从逐格 CSV 重算，并用断言核对生产方自己的汇总。下面是两份矩阵 README 的要点（原文件同在 `final_inputs/`）。
+
+### 11.1 共同约定
+
+- 方法：A、B、E、PETS、SFUT、SFYOLO、C、D、F（§10.4 判为不移植的 IRG、LPLD、DRU、AASFOD、LODS 没有 DETR 格子，CSV 里标 `not_ported`）。只跑 seed 42。
+- 指标：VOC AP50（`test.py --eval mAP`）；mAP50-95 由 `tools/eval_map50_95.py` 在产出 `predictions.pkl` 的同一台机器上算，因为 RSAR 的标注文件顺序依赖文件系统（mmrotate `dota.py:65` 不排序）。
+- 汇总：mPC 是各 corruption 的均值（RSAR 7 个；DIOR 取 19 个官方 DIOR-C，cloudy 不计入 mPC，与 R-CNN 组一致）；"全部域"再加上 clean（RSAR 8 个，DIOR 21 个）。只有一个 seed，所以 std 是跨域的样本标准差（n−1）。
+- 不与 R-CNN 组合并排名：backbone、初始化和源模型都不同（§0、§7 第 4 条）。
+
+### 11.2 RSAR（72 格，全部完成）
+
+- 硬件按格记录在 `host` / `gpu_type` 列：RTX A6000 48GB 跑了 clean 和 6 个非 chaff corruption 上的 A、B、E、PETS、SFUT、SFYOLO，以及 C、D 的全部 8 个域、F 的 7 个域（gaussian_white_noise 除外）；A100-SXM 64GB 跑了 chaff 上的 6 个基线和 gaussian_white_noise 上的 F。所以 chaff 上基线与 C/D/F、gaussian_white_noise 上 F 与 C/D 不在同一种卡上。
+- 跨硬件核对，**未解决**：B clean 在 RTX 4090D 48GB 上训练得 AP50 0.561453，在 RTX A6000 上是 0.568461，Δ = −0.0070。4090D 上的两次重复在用户停卡时被中断，差异原因不明，作为脚注保留。A clean 是纯评测（公开 checkpoint），三种卡上的差异 ≤ 1.3e-4（端口检查 0.6115977，矩阵 0.6114685）；表里用矩阵值 0.6115，§5 的 61.16 是端口检查的值。
+- 提交号：`code_commit` 是每次训练日志里记录的提交。rebase 之后 `6ebd39c` = `cf1e474`、`a79aa92` = `728364b`、`67e3c80` = `09174b1`；它们之间对 B、PETS 的计算没有改动（§10.3），所以 chaff 上用 `a79aa92` 的 B 和用 `6ebd39c` 的 PETS 计入矩阵。用有缺陷的 CGA 跑的旧 C/D/F chaff 门控（`superseded_buggy_cga`）不计入。
+- 不计入的目录：`*.invalid_crop_bug`（24 个在 CGA 裁剪缺陷上崩溃的 C/D/F 原始运行）、`*.stopped_by_user_*`（用户停卡时中断的运行；F clean 和 F am_noise_horizontal 的原始运行也在其中，计入的是之后的重跑）、`*.KILLED_BY_REQUEUE*`、`*.failed_path_bug*`。
+- C/D/F（不是确认的缺陷）：C/D/F 远低于 A（7 个 corruption 的 AP50：C 0.228、D 0.145、F 0.146，A 0.368），而不用 CGA 的自训练基线都在 A 附近或更高（B 0.353、E 0.356、PETS 0.398、SFUT 0.421），所以差距来自 CGA 路径。按整次运行统计（与 DIOR 同一定义：`diag_window` 各窗口去重后加总，keep = 1 − dropped/total，blended_frac = blended/total，mean_label_prob 按 total 加权），8 个域上：C keep 全部为 1.0（dropped = 0），blended 0.416–0.752，mean_label_prob 0.274–0.358；D keep 0.361–0.671，blended 0.325–0.563，mean_label_prob 0.014–0.120；F keep 0.365–0.675，blended 0.330–0.567，mean_label_prob 0.016–0.118（D、F 在 8 格上共丢 6,171 和 6,159 个候选）。之前只取最后一个窗口得到的保留率已撤回，以这里的整次运行统计为准。大多数 D/F 格子最后一次记录的无标签分类损失约 1e-4（F point_target 为 0.0373），C 为 0.10–0.20。读法：CGA 阈值与 DETR 输出的校准不匹配；y 按宽度解码（§5、§10.7 第 3 条）这条路径没有单独检查。用户 2026-11-03 决定按原样报告，不调参，加脚注。
+
+### 11.3 DIOR-R（189 格，全部完成）
+
+- 源模型：ARS-DETR DIOR seed-42 源，`ImageSets/train.txt` 训练 72 个 epoch，取最后一个 epoch（`epoch_72.pth`，sha256 `7cb9dbe0…`，clean TEST AP50 0.5400）；中途停卡后从 `epoch_48.pth` 续训，丢失的 49–53 epoch 重新训练；每段都是 batch 8、每 epoch 734 iter。每台机器上都核对过 sha。
+- 范围：9 个方法 × 21 个域 = 189 格，全部 `status=ok`、`eval_exit=0`。SFYOLO 覆盖全部 21 个域：一开始只排了 6 个域是运行方的错误，漏掉的 15 格于 2026-11-05（北京时间）作为新格子补跑，不是重跑；前 174 行队列没有改动。SFYOLO 用自己的 2 epoch 预算。
+- 指标：每格的 AP50 和 mAP50-95 都由 `tools/eval_map50_95.py` 在产出 `predictions.pkl` 的机器上用 CPU 算出（每个 pkl 必须有 11,738 个结果）。AP50 与该格 `eval.log` 里 `test.py` 的全精度 mAP 在 189 格上完全相等（最大 |Δ| = 0）。`AP50_json` 列是 `test.py` 存的两位小数值，只因取整与 AP50 相差至多约 0.0005。
+- 硬件：RTX 4090D 48GB（两台，14 + 58 格）、RTX A6000 48GB（69 格）、A100 64GB（48 格）；每格的 `gpu_type` 都在 CSV 里，9 个方法的格子都跨了不止一种卡。DIOR 没有跨硬件的重复运行，所以 DIOR 上不同卡之间的一致性**没有测过**；Δ = −0.0070 是 RSAR B clean 的一对重复（§11.2），不是 DIOR 的结果。DIOR 矩阵里的 B clean 只有 A6000 上的那一格（AP50 0.526575）。`gpu_type` 列是审计记录。
+- C/D/F：用修复后的 CGA（`code-cgafix2`，`cga.py` sha256 `5cd1ed64…`），阈值不变、不调参。统计来自每个 train.log 的 `diag_window` 行（去掉重复行后，把各窗口加总；keep = 1 − dropped/total，blended_frac = blended/total，mean_label_prob 按 total 加权）。21 个域上的范围：
+  - C：keep 全部为 1.0000，agree 0.167–0.654，blended 0.333–0.833，mean_label_prob 0.175–0.588；
+  - D：keep 0.9899–1.0000，agree 0–0.033，blended 0.964–1.000，mean_label_prob 0.010–0.066；
+  - F：keep 0.9894–1.0000，agree 0–0.016，blended 0.979–1.000，mean_label_prob 0.009–0.041。
+  所以在 DIOR 上 CGA 几乎不丢候选（D 为 38,662 个里丢 204 个，F 为 41,985 个里丢 205 个），但 D/F 几乎对每个候选都做了混合，而且标签概率很低。DIOR 与 RSAR 用同一个 `cga.py`、同一套 D/F 环境变量（`veto_soft`，VETO_PRED_THR 0.7、VETO_LABEL_THR 0.1、PROTECT_DET_SCORE 0.9、BLEND_DET_WEIGHT 0.7）和同一组 `diag_window` 计数，所以两边的统计口径相同、可以直接比较：RSAR 上 D/F 保留 0.36–0.68（§11.2），DIOR 上 ≥ 0.989。DIOR 丢弃率低得多这一点是观测到的，原因**未验证**：一种可能是 SARCLIP 在 DIOR 光学图像上的 top-1 概率很少达到 VETO_PRED_THR 0.7，但日志里没有记录 pred_prob，无法确认。结果上 C/D/F 仍明显低于 A（19 个腐蚀的 mPC：C 26.23、D 10.39、F 10.76，A 31.36；见 `main_table_detr_obb.tex`）。读法与 RSAR 相同：是 CGA 阈值与 DETR 输出的校准不匹配，不是确认的缺陷；按用户 2026-11-03 的决定原样报告。
+- SFYOLO 的 TAM：21 个 DIOR 域的 seed-42 `tam.pth` 都记录 training_code_sha `84a1aeb`，只用目标域 VAL 图像拟合（不读标注，也不按是否有 GT 过滤）；与 R-CNN 组重叠的 6 个域与其 `tam_runs_84a1aeb` 文件 sha256 相同。每个 `tam.pth` 记录的 image_manifest 在查过的机器上都不存在，所以拟合时用的图像清单没有存档。
+- 基础设施失败：非零退出的格子从不计入，改名为 `*.infra_failed_oom_<时间>_a<n>`（名字写 OOM，但适用于任何非零退出），释放锁后重新排队。已知两类都是主机配置问题，重排队前已修好：某台 4090D 上 E 格子缺 SARCLIP 默认路径（改为指向同一 checkpoint 的软链接），SFYOLO 缺 VGG 编码器的基础路径（在每台机器的 `third_party` 下放了校验过 sha 的编码器）。5 个 SFYOLO 格子在一台 4090D 上达到 `INFRA_FAILED_GIVEUP`，之后在其他机器上完成。每格重排队的记录在 `notes` 列。
+- 认领：每张卡在跑格子前都先在 agent-dispatch 上认领 `gpu:<host>:<idx>`；日志显示，没有任何格子是在其卡的认领释放之后开跑的。

@@ -42,6 +42,10 @@ Official DIOR-C (19, severity 3). Already compared: brightness, contrast. Extra 
 - Δada = mAP_method − mAP_A (same corruption)
 - mPC = mean over official completed corruptions; DIOR mPC uses the 19 DIOR-C names
 - rPC = mPC / A_clean × 100%
+- mAP50-95 (`tools/eval_map50_95.py`, PR #44) only from saved `predictions.pkl`; a cell without one is `not_inferred` and is never backfilled (user decision 2026-11-02)
+- Final tables: `build_final_tables.py` (R-CNN and DETR main tables, `architecture_generalization.csv`, corrected DIOR-C table), recomputed from `raw_results.csv` and the reviewed CSVs in `final_inputs/`, with an assert-based self-check
+- `architecture_generalization.csv` status: `not_inferred (k/n missing)` = AP50 complete but k of the n needed cells have no mAP50-95; `pending (k/n missing)` = k AP50 cells not run yet
+- Tables with Chinese text (`main_table_rcnn_obb.tex`, `dior_c_table_corrected.tex`) need XeLaTeX with xeCJK or ctex; they are not compiled in this repo
 
 ## DETR group (separate fairness group)
 Not ranked together with the Oriented R-CNN group above: backbone, initialization and source models differ (the R-CNN sources are random-init OrthoNet-50). Details and evidence: [`detr_portability_audit.md`](detr_portability_audit.md).
