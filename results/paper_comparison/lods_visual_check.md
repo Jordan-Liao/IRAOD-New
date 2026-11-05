@@ -25,7 +25,7 @@ and why that is a disclosed gap).
   - `dense`: images with the most GT objects inside one window (RSAR
     ship/car/tank; DIOR vehicle/ship/storagetank).
   - The cluster/density window is 160 px **at detector scale**, the scale the
-    160 px zoom is cut at, so the focus targets fit inside the zoom (RSAR images
+    160 px zoom is cut at, so the focus targets mostly fit inside the zoom (92–100% of their polygon corners; target size and image borders push a few out) (RSAR images
     are upsampled about 3×, so the window is about 53 px in the original). The
     zoom centres on the focus set's bounding-box midpoint.
   - Modes of one domain never reuse an image (`--exclude`); a rerun needs an
@@ -81,7 +81,7 @@ slender, RSAR point_target dense; the rest by metrics only.
   point_target rows 1–2) the zoom shows the packed targets **masked by the fake
   texture**: they are no longer distinguishable, although the gradient
   correlation stays 0.24–0.46. Ships on dark river (row 3) survive as blobs.
-  On DIOR, dense marinas and storage-tank fields keep their layout but neighbours
+  On DIOR, the dense scenes (all marinas) keep their layout but neighbours
   merge into bands; the densest DIOR image (10243.jpg) loses about half its target
   contrast on clean, snow and pixelate (0.71–0.93 → 0.30–0.45) and about a quarter
   on gaussian_noise (0.79 → 0.58).
