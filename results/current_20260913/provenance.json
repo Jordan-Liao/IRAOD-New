@@ -1,0 +1,73 @@
+{
+  "schema": "iraod-current-performance-lineage-v1",
+  "cutoff_utc": "2026-09-13T16:59:00Z",
+  "canonical_key_fields": ["dataset", "domain", "seed", "method", "role"],
+  "frozen_base": {
+    "path": "../completed_snapshot_20260912T014556Z/raw_metrics.csv",
+    "native_records_preserved": 676,
+    "eligible_records_preserved": 671,
+    "invalid_native_records_preserved": 5,
+    "selection": "accepted frozen native final evaluations unchanged, not refreshed by score or mtime",
+    "validation": "../completed_snapshot_20260912T014556Z/validation_evidence.json",
+    "protocol": "../completed_snapshot_20260912T014556Z/provenance.json"
+  },
+  "current_status": {
+    "commit": "1217bf1d05fb91c754403e39a29f9bffe2736171",
+    "path": "test_completion_status.csv",
+    "role": "canonical completion and evidence-backed hold/invalid classification only; never metric evidence"
+  },
+  "new_native_evidence": {
+    "path": "native_metadata.json",
+    "records": 229,
+    "AASFOD_ema": {
+      "host": 221,
+      "new_keys": 27,
+      "root": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/aasfod_runs_36c2053",
+      "binding": "canonical case / methods/AASFOD/eval_full_{domain}_ids_v1"
+    },
+    "AASFOD_student_SFYOLO": {
+      "host": 183,
+      "new_keys": 97,
+      "accepted_binding_manifests": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/qualitative_manifests_b87f34e/qualitative_seed{42,43,44}.host183.json",
+      "binding": "native_prediction.eval_dir, fixed role; 27 AASFOD Student + 70 SFYOLO",
+      "route_correction": "student_report_84a1aeb/report.json contains B-F Student, not AASFOD Student. Host67 SFYOLO training roots are not the accepted Host183 native metric source."
+    },
+    "B_REG_F_variants": {
+      "host": 183,
+      "new_keys": 33,
+      "B_REG_manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/b_reg_manifests_0e5f8f7/runtime.json",
+      "F_manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/f_deletion_manifests_daa3992/runtime.json",
+      "binding": "24 B_REG EMA; 5 F_text_only + 4 F_veto_only EMA at accepted ddp2 eval paths"
+    },
+    "Oracle": {
+      "host": 183,
+      "new_keys": 72,
+      "RSAR_manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_rsar48_manifests_20260909/runtime.json",
+      "DIOR_manifest": "/home/zechuan/iraod_artifacts/comparison/xaf_student_quant_20260908/oracle_dior24_manifests_20260909/runtime.json",
+      "binding": "native execution metadata; LoRA-CGA+VLST uses manifest-bound ddp2 eval/checkpoint paths, not the method root; filesystem /home alias retained"
+    },
+    "metric_admission": "exact native execution role/case/source; prescribed final checkpoint name; eval_exit=0 sentinel matching checkpoint, role, method, domain and seed; expected full TEST count; finite native metric; class names; cutoff",
+    "time_basis": "raw evaluated_at uses terminal sentinel UTC; metadata also retains metric/status filesystem UTC mtimes; filename wall-clock strings are not interpreted as UTC",
+    "code_revision_basis": "native execution metadata as recorded, not independent verification of live process code",
+    "payload_scope": "small result/metadata only; no model or prediction loads, no new inference, no ROI NPZ scan",
+    "not_revalidated": "historical producer prediction image ordering/finiteness admission is inherited; newly transcribed total post-NMS detections are not recollected"
+  },
+  "accepted_receipts": [
+    "current_native_report_paths.json (operator map, with route corrections above)",
+    "test_unique_accounting_20260912T2136Z.json (historical lineage, not latest completion total)",
+    "current_hold_sets_20260912T2252Z.json (holds and invalid states)",
+    "training_completion_audit_20260912T2330Z.json",
+    "oracle_rsar48_complete_20260913T0220Z.json",
+    "experiment_remaining_snapshot_20260913T1651Z.json",
+    "bypy_batch7_complete_20260913T1659Z.json",
+    "roi221_one_image_capture_analysis_result_20260913.json"
+  ],
+  "scientific_boundary": {
+    "framework": "disclosed Oriented R-CNN OBB ports, not upstream detector reproductions",
+    "SFUT": "distinct paper-defined method, not B/ST",
+    "SFYOLO": "EXTENDED two detector epochs plus actual TAM160k; not equal-cost ranking",
+    "Oracle": "target TRAIN supervised LoRA appendix; not strict image-only comparison",
+    "DRU": "not compared; no authorized matrix/runs; frozen Sept8 exclusion: source head lacks source-trained decoder-depth outputs",
+    "selection": "no best TEST checkpoint, zero filling, repeated-copy counting or hidden incomplete-seed means"
+  }
+}
