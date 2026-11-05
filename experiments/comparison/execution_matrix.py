@@ -1,6 +1,6 @@
 """Parseable execution matrix for the approved Source-Free OBB comparison.
 
-Main table: A–F plus eight external SFOD ports. DRU and PETS are required and are not B.
+Main table: A–F, OURS (本文方法 strict, DIOR only) plus eight external SFOD ports. DRU and PETS are required and are not B.
 Defensive extras are listed so tests can assert they are out of the queue.
 """
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 from tools.dataset.generate_dior_corruptions import remaining_dior_c_corruptions
 
 # Own methods (reuse hash-matched valid cells).
-OWN_METHODS: tuple[str, ...] = ("A", "B", "C", "D", "E", "F")
+OWN_METHODS: tuple[str, ...] = ("A", "B", "C", "D", "E", "F", "OURS")
 
 # External SFOD ports. DRU and PETS are required; neither is Mean Teacher / method B.
 EXTERNAL_METHODS: tuple[str, ...] = (
