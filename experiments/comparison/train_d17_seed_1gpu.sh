@@ -46,6 +46,14 @@ case "$METHOD" in
     CFG=configs/unbiased_teacher/sfod/unbiased_teacher_oriented_rcnn_selftraining_dru_dior_orthonet_strict.py
     EXTRA+=(data.train.type=StrictSourceFreeDOTADataset)
     ;;
+  LODS)
+    # = /home/zechuan/IRAOD-New-dru-20260919 + feat/lods-obb files (see lods_obb_port.md)
+    CODE=/home/zechuan/IRAOD-New-lods-20261101
+    CFG=configs/unbiased_teacher/sfod/lods_oriented_rcnn_dior_orthonet_strict.py
+    # canonical seed-42 SEM for this domain, copied here by `lods_sem.sh push dior DOMAIN HOST $LOCAL/LODS_sem_s42/DOMAIN`
+    SEM=$LOCAL/LODS_sem_s42/$DOMAIN/sem_iter_160000.pth
+    EXTRA+=(data.train.type=StrictSourceFreeDOTADataset model.cfg.sem_ckpt=$SEM)
+    ;;
   IRG|LPLD|SFUT)
     CODE=/home/zechuan/iraod_jobs/ext/repo_code_a39c832
     CFG=configs/unbiased_teacher/sfod/extensions/${METHOD,,}_dior.py
@@ -81,6 +89,12 @@ work=$root/work
 logd=$root/logs
 done_file=$root/train_done
 mkdir -p "$logd"
+
+# LODS: the domain's canonical SEM must already be here with a matching sha256; never retrained per host/seed.
+if [[ "$METHOD" == LODS ]]; then
+  ( cd "$(dirname "$SEM")" 2>/dev/null && sha256sum -c --quiet sem_iter_160000.pth.sha256 ) \
+    || { echo "SEM_MISSING_OR_BAD $DOMAIN: lods_sem.sh train dior $DOMAIN (gpu-67) then push to $(hostname)"; exit 1; }
+fi
 
 # Skip only a run that finished; a partial work dir is discarded, never evaluated.
 if [[ -f "$done_file" ]]; then
@@ -127,7 +141,7 @@ if ! grep -q eval_exit=0 "$out/eval_status" 2>/dev/null; then
   echo "eval_start $METHOD $DOMAIN seed=$SEED gpu=${GPUS%%,*} $(date --iso-8601=seconds)" | tee "$out/eval.log"
   cd "$EVAL"
   set +e
-  CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$EVAL:$CODE "$PY" "$EVAL/test.py" "$RESOLVED" "$ema" --eval mAP --out "$out/pred_new.pkl" --work-dir "$out" \
+  CUDA_VISIBLE_DEVICES=${GPUS%%,*} PYTHONPATH=$EVAL:$CODE "$PY" "$EVAL/test.py" "$RESOLVED" "$ema" --eval mAP --out "$out/predictions.pkl" --work-dir "$out" \
     --cfg-options data.samples_per_gpu=16 data.workers_per_gpu=4 \
       data.test.ann_file="$DIOR/ImageSets/test.txt" \
       data.test.img_prefix="$SPLITS/$DOMAIN/test/" \
@@ -137,6 +151,11 @@ if ! grep -q eval_exit=0 "$out/eval_status" 2>/dev/null; then
   echo "eval_exit=$rec name=$METHOD corrupt=$DOMAIN seed=$SEED $(date --iso-8601=seconds) ema=$ema" | tee -a "$out/eval_status" "$out/eval.log"
   set -u
   [[ "$rec" -eq 0 ]] || { echo "EVAL_FAIL $METHOD $DOMAIN seed=$SEED"; exit 1; }
+fi
+if [[ "$METHOD" == LODS && ! -f "$out/map50_95.json" ]]; then
+  ( cd "$CODE" && PYTHONPATH=$CODE "$PY" tools/eval_map50_95.py "$RESOLVED" "$out/predictions.pkl" --out "$out/map50_95.json" \
+      --cfg-options data.test.ann_file="$DIOR/ImageSets/test.txt" data.test.img_prefix="$SPLITS/$DOMAIN/test/" \
+        data.test.ann_subdir="$DIOR/Annotations/Oriented Bounding Boxes/" >> "$out/eval.log" 2>&1 )
 fi
 echo "CELL_DONE $METHOD $DOMAIN seed=$SEED"
 exit 0

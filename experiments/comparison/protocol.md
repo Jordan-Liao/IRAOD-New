@@ -1,7 +1,7 @@
 # IRAOD strict Source-Free comparison protocol (revised)
 
 ## Claim
-Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, and SFYOLO on RSAR corruptions and DIOR-C. Shared OrthoNet-50 + Oriented R-CNN source, final-EMA Teacher TEST, no target GT in adaptation/selection. **DRU is required** (DRUUnbiasedTeacher; not B / Mean Teacher).
+Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, SFYOLO, and LODS on RSAR corruptions and DIOR-C. Shared OrthoNet-50 + Oriented R-CNN source, final-EMA Teacher TEST, no target GT in adaptation/selection. **DRU is required** (DRUUnbiasedTeacher; not B / Mean Teacher).
 
 ## Frozen scientific identity
 - RSAR source: `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
@@ -26,6 +26,7 @@ Fair OBB Source-Free comparison of A–F plus IRG, LPLD, SFUT, **DRU**, AASFOD, 
 | DRU | DRU-OBB | yes | required; Dynamic Retraining-Updating + Historical Student Loss; RSAR 1×32, 1 epoch (iter_266) for every seed |
 | AASFOD | AASFOD-OBB | yes | required; standard recipe: per-seed TSD + alignment/FNS two stages (`train_aasfod`), valid only with tsd.json + stages.json |
 | SFYOLO | SFYOLO-OBB | yes | required; fill TAM/TEST then DIOR-17 |
+| LODS | LODS (our reimplementation) | yes | LODSTeacher: one seed-42 SEM per domain (160k iters, target images only, canonical copy via `lods_sem.sh`) shared by seeds 42/43/44, then 1×32, 1 epoch; deviations in `lods_obb_port.md` |
 
 ## Out of queue (defensive)
 Student-as-required-TEST, LoRA-CGA oracle, B_REG, F_text_only, F_veto_only, ROI expansion, 3-seed on new DIOR-17.
@@ -35,6 +36,7 @@ Official DIOR-C (19, severity 3). Already compared: brightness, contrast. Extra 
 
 ## Metrics
 - mAP = VOC-style AP50
+- mAP50-95 (optional, reported next to AP50): rotated AP averaged over IoU 0.50:0.05:0.95 from the same `dataset.evaluate`; `test.py --map50-95`, or offline from a `--out` pickle with `tools/eval_map50_95.py` (AP50 from that call must reproduce the stored mAP)
 - Δada = mAP_method − mAP_A (same corruption)
 - mPC = mean over official completed corruptions; DIOR mPC uses the 19 DIOR-C names
 - rPC = mPC / A_clean × 100%
