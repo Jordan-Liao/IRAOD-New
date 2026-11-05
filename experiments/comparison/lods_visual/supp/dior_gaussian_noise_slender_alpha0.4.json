@@ -1,0 +1,23 @@
+[
+ {
+  "image": "07007.jpg",
+  "n_targets": 107,
+  "grad_corr_in_targets": 0.2703113851621142,
+  "contrast_orig": 0.7921084796245899,
+  "contrast_enh": 0.6407199550576219
+ },
+ {
+  "image": "08348.jpg",
+  "n_targets": 29,
+  "grad_corr_in_targets": 0.1386239822514845,
+  "contrast_orig": 2.189591560303177,
+  "contrast_enh": 1.5670594965298106
+ },
+ {
+  "image": "07517.jpg",
+  "n_targets": 65,
+  "grad_corr_in_targets": 0.22048745004242948,
+  "contrast_orig": 1.6184784544160422,
+  "contrast_enh": 1.2999347964250043
+ }
+]
