@@ -36,7 +36,7 @@ for dom in clean gaussian_white_noise point_target; do
   run rsar $dom dense ship car tank
 done
 for dom in clean snow gaussian_noise pixelate; do
-  run dior $dom small vehicle ship
+  run dior $dom small vehicle
   run dior $dom slender ship bridge harbor
   run dior $dom dense vehicle ship storagetank
 done

@@ -1,23 +1,29 @@
 [
  {
-  "image": "0024255.jpg",
-  "n_targets": 87,
-  "grad_corr_in_targets": 0.3353858026688157,
-  "contrast_orig": 1.4646387295524201,
-  "contrast_enh": 1.504255225567464
+  "image": "0051852.jpg",
+  "mode": "small",
+  "n_targets": 54,
+  "n_focus": 21,
+  "grad_corr_in_targets": 0.34156184151146085,
+  "contrast_orig": 1.3690489621212483,
+  "contrast_enh": 1.3557798095047517
  },
  {
-  "image": "0027718.jpg",
-  "n_targets": 77,
-  "grad_corr_in_targets": 0.3058072721440777,
-  "contrast_orig": 1.2661440913189432,
-  "contrast_enh": 1.6364920586012557
+  "image": "0021261.jpg",
+  "mode": "small",
+  "n_targets": 55,
+  "n_focus": 20,
+  "grad_corr_in_targets": 0.24839056570230225,
+  "contrast_orig": 1.7514619250808603,
+  "contrast_enh": 1.699350420043909
  },
  {
-  "image": "0110071.jpg",
-  "n_targets": 58,
-  "grad_corr_in_targets": 0.3029507086680469,
-  "contrast_orig": 1.4504485585812086,
-  "contrast_enh": 2.1922369814652773
+  "image": "0045386.jpg",
+  "mode": "small",
+  "n_targets": 27,
+  "n_focus": 20,
+  "grad_corr_in_targets": 0.45050049550794646,
+  "contrast_orig": 1.1287817705944612,
+  "contrast_enh": 1.3947148767436923
  }
 ]

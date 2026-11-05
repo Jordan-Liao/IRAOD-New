@@ -1,23 +1,29 @@
 [
  {
   "image": "07007.jpg",
+  "mode": "slender",
   "n_targets": 107,
-  "grad_corr_in_targets": 0.3959495903477163,
-  "contrast_orig": 0.7552803331719278,
-  "contrast_enh": 0.6267365633049898
+  "n_focus": 1,
+  "grad_corr_in_targets": NaN,
+  "contrast_orig": 0.947036507945727,
+  "contrast_enh": 0.28740656726710956
  },
  {
   "image": "08348.jpg",
+  "mode": "slender",
   "n_targets": 29,
-  "grad_corr_in_targets": 0.3502472726807163,
-  "contrast_orig": 1.9940748453646144,
-  "contrast_enh": 1.5428749332966925
+  "n_focus": 1,
+  "grad_corr_in_targets": 0.2530686056128573,
+  "contrast_orig": 0.39900602827367443,
+  "contrast_enh": 0.7083774830412145
  },
  {
   "image": "07517.jpg",
+  "mode": "slender",
   "n_targets": 65,
-  "grad_corr_in_targets": 0.3940866470478495,
-  "contrast_orig": 1.520424308296101,
-  "contrast_enh": 1.3047009839673414
+  "n_focus": 1,
+  "grad_corr_in_targets": 0.5012895684266746,
+  "contrast_orig": 1.6942023817841714,
+  "contrast_enh": 1.6090768761638272
  }
 ]
