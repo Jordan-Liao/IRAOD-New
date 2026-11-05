@@ -35,7 +35,7 @@ from decimal import ROUND_HALF_UP, Decimal
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
-from build_summary import DIOR_C19, METHODS as RCNN_ORIG, NAMES as RCNN_NAMES, RSAR  # noqa: E402
+from build_summary import DIOR_C19, METHODS, NAMES as RCNN_NAMES, RSAR  # noqa: E402
 
 INP = os.path.join(HERE, "final_inputs")
 OUT = os.path.join(ROOT, "results", "paper_comparison")
@@ -43,6 +43,7 @@ RAW = os.path.join(OUT, "raw_results.csv")
 
 MPC = {"RSAR": RSAR[1:], "DIOR": DIOR_C19}
 ALL = {"RSAR": RSAR, "DIOR": ["clean"] + DIOR_C19 + ["cloudy"]}
+RCNN_ORIG = [m for m in METHODS if m not in ("PETS", "LODS", "OURS")]  # the 12 original methods
 RCNN_METHODS = RCNN_ORIG + ["PETS", "LODS"]
 DETR_METHODS = ["A", "B", "E", "PETS", "SFUT", "SFYOLO", "C", "D", "F"]
 NAMES = dict(RCNN_NAMES, PETS="PETS-OBB", LODS="LODS-OBB", OURS="本文方法")
