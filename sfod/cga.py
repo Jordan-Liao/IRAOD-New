@@ -346,9 +346,11 @@ class CGA:
         expand_ratio=0.4,
         force_grayscale=False,
         backend="auto",
+        strict=False,
     ):
         super().__init__()
         self.backend = _normalize_backend(backend, model)
+        self.strict = bool(strict)
         self.class_names = list(class_names)
         self.device = (
             torch.device("cuda", torch.cuda.current_device())
@@ -370,6 +372,29 @@ class CGA:
             raise ValueError(f"Unsupported CGA backend: {self.backend}")
 
     def _init_sarclip(self, model, pretrained, cache_dir, precision, templates):
+        pretrained = str(pretrained or "").strip()
+        lora_path = os.environ.get("SARCLIP_LORA", "").strip()
+        if self.strict:
+            if not pretrained:
+                raise ValueError(
+                    "Strict SARCLIP requires an explicit base checkpoint via "
+                    "pretrained (SARCLIP_PRETRAINED for CGA or "
+                    "vlst_pretrained for VLST)."
+                )
+            if lora_path:
+                raise RuntimeError(
+                    "Strict SARCLIP forbids SARCLIP_LORA; use the verified "
+                    "base checkpoint without an adapter."
+                )
+            pretrained_path = Path(pretrained).expanduser()
+            if not pretrained_path.is_file():
+                raise FileNotFoundError(
+                    "Strict SARCLIP base checkpoint does not exist: "
+                    f"{pretrained_path}. Set SARCLIP_PRETRAINED or "
+                    "vlst_pretrained to an existing base checkpoint."
+                )
+            pretrained = str(pretrained_path)
+
         sar_clip = _ensure_sarclip_importable()
         print(
             f"[CGA/SARCLIP] building model={model}, "
@@ -383,7 +408,6 @@ class CGA:
             cache_dir=cache_dir,
             output_dict=True,
         )
-        lora_path = os.environ.get("SARCLIP_LORA")
         if lora_path:
             lora_path = os.path.expanduser(lora_path)
             if not os.path.exists(lora_path):
@@ -399,7 +423,11 @@ class CGA:
                 "[CGA/SARCLIP] loaded SARCLIP_LORA "
                 f"adapter_type={adapter_info.get('adapter_type')}"
             )
-        self.clip.eval()
+        from sarclip_adapter import (
+            assert_frozen_for_inference,
+            freeze_for_inference,
+        )
+        freeze_for_inference(self.clip)
 
         self.tokenizer = sar_clip.get_tokenizer(model, cache_dir=cache_dir)
         self.classifier = sar_clip.build_zero_shot_classifier(
@@ -423,6 +451,9 @@ class CGA:
             resize_mode=preprocess_cfg.get("resize_mode"),
             fill_color=preprocess_cfg.get("fill_color", 0),
         )
+        freeze_for_inference(self.clip)
+        if self.strict:
+            assert_frozen_for_inference(self.clip, "Strict SARCLIP encoder")
         print(f"[CGA/SARCLIP] init OK, classes={self.class_names}")
 
     def _init_optical_clip(self, model, templates):
@@ -431,6 +462,19 @@ class CGA:
         print(f"[CGA/CLIP] building model={model}")
         self.clip, self.preprocess = clip.load(model, device=self.device)
         self.clip.eval()
+        self.clip.requires_grad_(False)
+        if self.strict:
+            trainable = [
+                name for name, param in self.clip.named_parameters()
+                if param.requires_grad
+            ]
+            if self.clip.training or trainable:
+                raise RuntimeError(
+                    "Strict CLIP encoder must be in eval mode with zero "
+                    "trainable parameters; "
+                    f"training={self.clip.training}, "
+                    f"trainable_parameters={trainable}"
+                )
 
         texts = [
             template.format(class_name)
@@ -461,10 +505,17 @@ class CGA:
         for i, (box, score, label) in enumerate(zip(boxes, scores, labels)):
             x1, y1, x2, y2 = box
             h, w = y2 - y1, x2 - x1
-            x1 = max(0, x1 - w * expand_ratio)
-            y1 = max(0, y1 - h * expand_ratio)
+            x1 = x1 - w * expand_ratio
+            y1 = y1 - h * expand_ratio
             x2 = x2 + w * expand_ratio
             y2 = y2 + h * expand_ratio
+            # Clamp the near edge to 0 unless that inverts a box lying wholly
+            # left of / above the image (a flipped-back box from past the
+            # right/bottom edge); PIL then pads it black, as past right/bottom.
+            if int(max(0, x1)) <= int(x2):
+                x1 = max(0, x1)
+            if int(max(0, y1)) <= int(y2):
+                y1 = max(0, y1)
 
             sub_image = image.crop((int(x1), int(y1), int(x2), int(y2)))
             if save_img:
@@ -758,6 +809,11 @@ class TestMixins:
         self._build_veto_groups(class_names)
         self.cga_filter_log_every = _env_int("CGA_FILTER_LOG_EVERY", 500)
         lora_path = os.environ.get("SARCLIP_LORA", "").strip()
+        if self.cga_strict and backend == "sarclip" and lora_path:
+            raise RuntimeError(
+                "CGA_STRICT forbids SARCLIP_LORA; strict CGA must use the "
+                "explicit SARCLIP_PRETRAINED base checkpoint."
+            )
         _log_cga_info(
             "[CGA] init "
             f"scorer={scorer or '<unset>'}, "
@@ -789,17 +845,25 @@ class TestMixins:
                 expand_ratio=expand_ratio,
                 force_grayscale=force_grayscale,
                 backend="clip",
+                strict=self.cga_strict,
             )
         elif backend == "sarclip":
             model = os.environ.get("SARCLIP_MODEL", "ViT-B-32")
-            pretrained = os.environ.get(
-                "SARCLIP_PRETRAINED",
-                "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32/vit_b_32_model.safetensors",
-            )
-            cache_dir = os.environ.get(
-                "SARCLIP_CACHE_DIR",
-                "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32",
-            )
+            if self.cga_strict:
+                pretrained = os.environ.get("SARCLIP_PRETRAINED", "")
+                cache_dir = os.environ.get("SARCLIP_CACHE_DIR")
+                if not cache_dir and pretrained:
+                    cache_dir = str(Path(pretrained).expanduser().parent)
+            else:
+                pretrained = os.environ.get(
+                    "SARCLIP_PRETRAINED",
+                    "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32/"
+                    "vit_b_32_model.safetensors",
+                )
+                cache_dir = os.environ.get(
+                    "SARCLIP_CACHE_DIR",
+                    "/home/storageSDA1/Dataset/SARCLIP/ViT-B-32",
+                )
             precision = os.environ.get("SARCLIP_PRECISION", "fp32")
             templates = (templates_env or
                          "A SAR image of a {};This SAR patch shows a {}").split(";")
@@ -814,6 +878,7 @@ class TestMixins:
                 expand_ratio=expand_ratio,
                 force_grayscale=force_grayscale,
                 backend="sarclip",
+                strict=self.cga_strict,
             )
         else:
             raise ValueError(f"Unsupported CGA backend: {backend}")
@@ -822,6 +887,32 @@ class TestMixins:
         if exclude_ids is None:
             exclude_ids = [7, 8, 11] if backend == "clip" and num_classes == len(DIOR_CLASSES) else []
         return cga, exclude_ids
+
+    @staticmethod
+    def _source_frame_results(image_results, img_meta):
+        """Copy of ``image_results`` with boxes in the unflipped source frame.
+
+        ``simple_test(rescale=True)`` removes resize scaling, but mmrotate's
+        bbox-head post-processing does not undo ``RRandomFlip``. CGA crops
+        ``img_meta['filename']``, the unflipped source image, so it must crop
+        restored boxes. The flip is an involution: re-applying it with the
+        source shape restores the boxes. Callers keep ``image_results`` (the
+        teacher frame) for every output; only crops use the restored copy.
+        """
+        if not img_meta.get("flip", False):
+            return image_results
+        from mmrotate.datasets.pipelines import RRandomFlip
+
+        flip = RRandomFlip(version="le90")  # every RRandomFlip in configs/ is le90
+        shape = img_meta["ori_shape"][:2]
+        restored = []
+        for result in image_results:
+            result = np.array(result, copy=True)
+            if len(result):
+                result[:, :5] = flip.bbox_flip(
+                    result[:, :5], shape, img_meta["flip_direction"])
+            restored.append(result)
+        return restored
 
     @staticmethod
     def _flatten_cga_inputs(image_results):
@@ -930,9 +1021,11 @@ class TestMixins:
         strict = self._proto_strict()
 
         filename = img_meta["filename"]
+        source_obb = self._flatten_cga_obb(
+            self._source_frame_results(image_results, img_meta))[0]
         try:
             embed, text_sim, text_prob = self.cga.forward_rotated_embed(
-                filename, obb_list, context_ratio=ctx)
+                filename, source_obb, context_ratio=ctx)
         except Exception as e:
             diag["alignment_error_count"] += 1
             if strict:
@@ -1058,8 +1151,10 @@ class TestMixins:
                 raise RuntimeError(
                     "prototype_v2: AABB/OBB proposal alignment mismatch")
 
+            source_boxes = self._flatten_cga_inputs(
+                self._source_frame_results(image_results, img_meta))[0]
             embedding, text_sim, text_prob = self.cga.forward_aabb_embed(
-                img_meta["filename"], boxes, raw_scores, labels)
+                img_meta["filename"], source_boxes, raw_scores, labels)
             expected_prob_shape = (len(boxes), num_classes)
             if (embedding.ndim != 2 or embedding.shape[0] != len(boxes)
                     or text_sim.shape != expected_prob_shape
@@ -1242,7 +1337,8 @@ class TestMixins:
         contexts = []
         all_scores, all_labels, all_probabilities, all_identities = [], [], [], []
         for image_results, img_meta in zip(results, img_metas):
-            inputs = self._flatten_cga_inputs(image_results)
+            inputs = self._flatten_cga_inputs(
+                self._source_frame_results(image_results, img_meta))
             if inputs is None:
                 continue
             boxes, scores, labels = inputs
@@ -1347,7 +1443,9 @@ class TestMixins:
                 return out, self._empty_cga_meta(num_classes)
             return out
 
-        inputs = precomputed_inputs or self._flatten_cga_inputs(image_results)
+        # These boxes only feed crops; scores are written back by flat index.
+        inputs = precomputed_inputs or self._flatten_cga_inputs(
+            self._source_frame_results(image_results, img_meta))
         if inputs is None:
             if collect_meta:
                 return image_results, self._empty_cga_meta(num_classes)

@@ -57,7 +57,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 
 ## 3. 各方法移植到 ARS-DETR 的忠实度
 
-覆盖 `experiments/comparison/protocol.md` 的全部必需方法（A–F、IRG、LPLD、SFUT、DRU、AASFOD、SFYOLO），外加 PETS 和 LODS。SFOD 方法的 DETR 移植属于后续阶段，本阶段只给判定。
+覆盖 `experiments/comparison/protocol.md` 的全部必需方法（A–F、IRG、LPLD、SFUT、DRU、AASFOD、SFYOLO），外加 PETS 和 LODS。第一批（A–F、PETS）已移植并过门控，第二批的最终判定和移植状态见 §10。
 
 三条对所有方法都成立的约束：
 
@@ -77,12 +77,12 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 | LPLD | 同上；在共享 proposal 上取低置信 teacher 预测，对 student 做 KL 蒸馏 | **适配（结构性）** | 同 IRG 的 query 对齐改造；"低置信 proposal"改成 teacher 低于阈值、且不与高置信伪框重叠的 query；sigmoid focal 分数与 softmax 分布不同，KL 要换成逐类 BCE，忠实度下降 |
 | SFUT（SF-UT，arXiv 2407.07586） | `SFUTOBB`：UT + 完整伪框回归 + 逐步 EMA，无辅助损失 | **适配（包装层）** | 方法本身与检测器无关；用 B 的单阶段包装即可。注意 SF-UT 按论文**保留**伪框回归，不受上面"清零回归损失"约束（与 R-CNN 组端口一致） |
 | DRU | `DRUUnbiasedTeacher`：Dynamic Retraining-Updating + Historical Student Loss；HSL 通过 `roi_head.bbox_head.forward` 抓分类分数（`sfod/rotated_dru.py:53-56,75`） | **不可直接移植，需重设计** | 在 DETR 上 `roi_head` 不存在，`_capture_student_cls` 返回 `(fn(), None)`，HSL 被静默跳过，DRU 退化成普通 UT。DETR 端口必须改为抓 `cls_branches[-1]` 的 sigmoid 输出并重写 HSL，或在挂接点缺失时直接报错；绝不能静默退化。DRU 的重训/更新调度与检测器无关 |
-| AASFOD | 标准做法：每个 seed 先按 teacher 检测把目标图分成 source-similar / dissimilar（TSD），再做对齐 + FNS 两阶段（`train_aasfod`） | **适配** | 划分只消费 teacher 检测（需先按阈值过滤 top-300），对齐作用在 backbone / neck 特征上，都与检测器无关；具体挂接点以远端端口为准（`未验证`） |
+| AASFOD | 标准做法：每个 seed 先做 TSD 划分（source-similar / dissimilar），再做对齐 + FNS 两阶段（`train_aasfod`） | **不移植（需重设计）** | TSD 用 RoI 头 `shared_fcs` 上的 20 次 MC-dropout 方差（`sfod/extensions/aasfod_mechanisms.py`），DETR 没有这个结构；详见 §10.4 |
 | SFYOLO | TAM（图像层面的目标域增强）+ 两轮 teacher-student | **适配** | TAM 是图像层面，与检测器无关；teacher-student 部分用 B 的单阶段包装；挂接点以远端端口为准（`未验证`） |
 | PETS | `PETSUnbiasedTeacher`：静态/动态 teacher 周期交换 + 两个 teacher 检测框的 WBF 共识（分数 > 0.5，IoU 0.55） | **适配** | 交换是 state_dict 互换，与架构无关；共识在检测框层面做，DETR 的 top-k 重复框会被 WBF 合并；阈值沿用 R-CNN 组端口的官方值 |
 | LODS | teacher 的 RPN proposal `rois_t` 共享给 student RoI head，做 CE + 实例图 GW；另有图像风格增强 SEM 和 backbone C4 全局 GW（远端 `sfod/rotated_lods.py:174-183`） | **适配（结构性）** | SEM 和全局 GW 与检测器无关；共享 proposal 的 CE 和实例 GW 需要与 IRG 相同的 query 对齐改造 |
 
-代码移植量：vendor 了 STAR-MMRotate 15 个 Python 文件（§5），全部注册到 mmrotate 0.3.4 的 registry。DETR 版 teacher-student 包装、VLST query 钩子、query 对齐（IRG/LPLD/LODS）和 DRU 的 HSL 重写属于后续阶段。
+代码移植量：vendor 了 STAR-MMRotate 15 个 Python 文件（§5），全部注册到 mmrotate 0.3.4 的 registry。DETR 版 teacher-student 包装和 VLST query 钩子见 §10；本表是选型阶段的初判，第二批以 §10.4 为准。
 
 ## 4. 为什么不选 1.x 系（O2-RTDETR / RHINO / OrientedFormer）
 
@@ -112,7 +112,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 |---|---|
 | checkpoint | `/mnt/shared/zechuan/iraod_artifacts/ars_detr/official_rsar/arcsl_detr_r50_rsar_epoch_36.pth`（gpu-67），sha256 `1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185` |
 | 官方日志 | 同目录 `arcsl_detr_r50_rsar.json`，sha256 `cf023eff536f021c98af90e37bca5aee63b14a04400807fb5b7d342ca3cd6090` |
-| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` 加上当时本分支的 `tools/eval_ap50_95.py`（之后已删除，改用 PR #44 的 `tools/eval_map50_95.py`；reviewer 按代码比对确认，在这个配置下两者计算的是同一个量，未重算）。gpu-67 上的 `portcheck.sh` 和结果文件保持原样，作为实际运行的记录 |
+| 评测 | iraod env（torch 2.0.1），RSAR clean test 8,538 张，`test.py --eval mAP` 加上当时本分支的 `tools/eval_ap50_95.py`（之后已删除，改用 PR #44 的 `tools/eval_map50_95.py`；之后已用 `tools/eval_map50_95.py` 在端口检查的 `results.pkl` 上重算，得到 mAP50-95 0.3156439，与端口检查的结果和 README 的 31.56 一致，见 gpu-67 `/mnt/shared/zechuan/iraod_artifacts/comparison/map5095_backfill/eval_tool/ars_detr_portcheck_metrics.json`）。gpu-67 上的 `portcheck.sh` 和结果文件保持原样，作为实际运行的记录 |
 | AP50（本仓库 VOC 评测器） | **61.16** |
 | AP50:95 | **31.56**（AP55 57.96 / AP60 53.87 / AP65 48.29 / AP70 40.27 / AP75 28.96 / AP80 15.56 / AP85 7.00 / AP90 2.54 / AP95 0.04） |
 | 对照 | README 31.56；官方日志最后一个 epoch val AP50 0.640（最佳 ep33 0.650） |
@@ -120,7 +120,7 @@ DIOR-R 的 AP50 是 VOC 口径；RSAR README 的 "mAP" 是 AP50:95（见 §0、�
 
 **结论：移植正确。** AP50:95 与 README 的 31.56 一致到小数点后两位。test AP50 61.16 比官方日志 val AP50 64.0 低 2.9 个点，同一个 checkpoint，差别来自 val 和 test 两个 split 不同。训练时的 torch 1.13.1 换成本 env 的 2.0.1 没有带来可见偏差。checkpoint 的 `meta` 是 epoch 36、iter 354,780，即每 epoch 9,855 iter；乘以总 batch 8 约 78,840 张，正好是 RSAR train 的 78,837 张。这与"只用 train 训练"一致；如果 train+val 一起训练，会是 87,304 张。
 
-上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`ars_detr_head.py` 的 `_get_bboxes_single` 用图像宽度同时缩放 x 和 y（`bbox_pred[..., :4] * img_shape[1]`），只对方形输入正确。mmrotate 的 `RResize` 保持长宽比，所以非方形原图缩放后仍是非方形。实测 RSAR 非方形图像占 test 的 1.36%（占 test 实例的 1.73%）、val 的 1.37%、train 的 1.14%；DIOR-R 全部是 800×800。这一点记为上游限制，不修：官方的 31.56 就是在这种解码下复现的，DETR 组所有方法也都用同一个解码。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
+上游实现中两处与常规写法不同，均保持原样（官方 checkpoint 就是这样训出来的）：`ARS_HungarianAssigner` 用 `BBoxL1Cost(box_format='xywh')` 时，预测框以 xyxy 传入、gt 被转成 cxcywh 后再比较；`_get_bboxes_single` 用图像宽度同时缩放 x 和 y（`ars_detr_head.py` 的 `bbox_pred[..., :4] * img_shape[1]`），只对方形输入正确。RResize 保持长宽比，所以非方形原图缩放后仍非方形：RSAR 实测有 1.36%（test）/ 1.37%（val）/ 1.14%（train）的图像不是方形，占 test 实例的 1.73%；DIOR-R 全部是 800×800。这一点作为上游限制记录，不修，理由：用它复现出了官方的 31.56；DETR 组每个方法都用同一个解码。另外 `RotatedDETR.forward_train` 每一步都把 C3 特征拷到 CPU 做 NaN 检查，会拖慢训练，下面的实测已经包含这部分开销。
 
 ## 6. 源训练成本（DIOR-R 实测）
 
@@ -196,3 +196,112 @@ DETR 的 SFOD 自适应阶段要跑 teacher 前向和 student 前后向，现 ST
 - Oriented-DETR（point-axis）：https://github.com/zhaozeyang108/Oriented-DETR
 - RiO-DETR：https://github.com/RicePasteM/RiO-DETR ；https://github.com/RicePasteM/RiO-DETRv2 ；https://arxiv.org/abs/2603.09411
 - EMO2-DETR：https://pure.bit.edu.cn/en/publications/emo2-detr-efficient-matching-oriented-object-detection-with-trans ；D2Q-DETR：https://www.arxiv.org/pdf/2303.00542 ；O²DETR：https://arxiv.org/pdf/2106.03146
+
+## 10. 第二阶段：严格 SFOD 方法移植到 ARS-DETR（分支 `feat/detr-sfod`）
+
+代码：`sfod/detr_sfod.py`（`DETRMeanTeacher` = B，`DETRPETSTeacher` = PETS，`DETRVLSTTeacher` = E/F，`ARSDETR_CGA` = 所有臂的 EMA/静态 teacher 类型），配置 `configs/ars_detr/sfod/detr_{st,clip_cga,sarclip_cga,vlst,vlst_cga,pets}_{rsar,dior}_strict.py`，单元格脚本 `experiments/comparison/detr_sfod_cell.sh`，CPU 测试 `ars_detr/tests/test_detr_sfod.py`。
+从别的分支原样带入、未改动的文件：`sfod/pets_dynamics.py`、`sfod/rotated_pets.py`（`feat/pets-obb`），`sfod/semantic_teacher/`、`sfod/cga.py` 与 `sarclip_adapter.py` 的 strict 版本（R-CNN 组 D/F 部署代码 `IRAOD-New-strict-af` = `0f98a48`）。
+
+### 10.1 DETR 组共享自适应协议（启动任何目标域运行之前固定，未在目标 GT 上调）
+
+| 项 | 值 | 依据 |
+|---|---|---|
+| 数据流 | R-CNN 组的 strict 数据流：只用 corruption val 图像（`StrictSourceFreeDOTADataset`，目标 GT 一律为空，非空即报错），同一组 weak / strong 视图（共享 RRandomFlip；weak = RResize 800；strong = 原分辨率 + ColorJitter / 灰度 / 高斯模糊），`weight_l = 0` | R-CNN 组 `*_st_baseline_rsar_orthonet_strict.py` |
+| 拓扑 / batch | 1 GPU × 每卡 8 张，总 batch 8（= 源模型训练的总 batch） | 实测 B 在 RSAR 上 teacher + student 峰值 33.1 GB（源 spg8 20.8 GB 的 1.6×），A100-64GB 放得下；同一 GPU 放不下两份训练 |
+| 预算 | 1 个 epoch 目标图像：RSAR 8,467 张 → 1,059 iter；DIOR-R 5,863 张 → 733 iter。例外：SFYOLO 用单独的 2 epoch 预算（RSAR 2,118 iter） | 与 R-CNN 组相同的图像数；SFYOLO 同 R-CNN 端口 |
+| 优化器 | 源模型的 AdamW lr 1e-4、wd 1e-5、backbone / sampling_offsets / reference_points lr_mult 0.1、grad clip 35，所有方法相同 | 源配置 |
+| lr 策略 | R-CNN 组自适应用的策略：线性 warm-up 100 iter（ratio 0.001），step=[1]，即第 1 个 epoch 内不衰减。例外：SFYOLO 第 2 个 epoch lr ×0.1（同一 step=[1] 在 2 epoch 下的结果，与 R-CNN 端口相同） | R-CNN 组 UT 配置 |
+| EMA | B / C / D / E / F：每步动量 0.998（UT 官方值，在 student 前向之前更新）；PETS：0.9996，首次交换后 0.999；SFUT：优化器 step 之后 0.9996；SFYOLO：优化器 step 之后 0.999（只更新参数），外加第 2 个 epoch 开始时的 SSM。都以最后一个 iter 的 EMA 作为结果 | UT / PETS 官方值；SFUT / SFYOLO 同 R-CNN 端口 |
+| 伪标签 | teacher 的 top-300 输出，分数阈值事先固定：UT 系方法（B–F）0.7；有官方阈值的端口沿用官方值（PETS 0.5；LODS 若移植则 0.8） | 与 R-CNN 组同规则 |
+| 伪标签上的损失 | 只训练分类：所有层（最后一层、`d0`–`d4.`、`enc_`）的 `loss_bbox`（L1）、`loss_iou` / `loss_piou`（GIoU）、`loss_angle`（AR-CSL）乘 0；保留 `loss_cls`、`d{i}.loss_cls`、`enc_loss_cls` 和 VLST 损失。例外：SFUT 和 SFYOLO 按论文（同 R-CNN 端口）保留全部伪框损失，包括回归 | `weight_pseudo_label_losses`；Hungarian 匹配仍用框代价，这是 DETR 的固有部分 |
+| 评测 | 最后一个 iter 的 EMA，在 corruption TEST 上用本仓库同一个旋转 VOC AP50 评测器（`test.py --eval mAP`），`--out predictions.pkl` | 与 R-CNN 组相同 |
+| seed | 只跑 42；43 / 44 不跑 | 牵头方决定（经用户授权），DETR 组只用 seed 42 |
+| PETS 交换点 | 官方 10 个 epoch、warm-up 2、period 1，按比例映射到单 epoch：RSAR 在第 211/317/423/529/635/741/847/953 iter 之前交换，DIOR 在 146/219/293/366/439/513/586/659 之前 | 与 R-CNN 组 PETS 端口同一规则 |
+
+### 10.2 与 R-CNN 组实现的差异（DETR 特有）
+
+1. **回归损失清零**：现有 `use_bbox_reg=False` 只清零名字带 `bbox` 的键（`sfod/rotated_unbiased_teacher.py:296-301`）。DETR 端口按后缀清零上表全部回归项，测试逐键检查值为 0、且这些项反传到任何参数的梯度都为 0。
+2. **CGA（C/D/F）**：标签层面的仲裁不变，`refine_test` 直接作用在 teacher 的 OBB 检测上，环境变量与 R-CNN 组 C、D/F 完全一致（C：CLIP RN50x64、`an aerial image of a {}`、`legacy`；D/F：冻结的 base SARCLIP、`veto_soft`、0.7 / 0.1 / 0.9 / 0.7）。唯一的改动是先丢掉分数 < 0.7 的 top-300 框再送 CGA，这对伪标签集合是**精确等价**的：`veto_soft` 只会把分数乘以 ≤ 1 的系数或置 0；`legacy` 只在 CLIP top-1 ≠ 检测标签时混合，此时检测标签的概率 ≤ 0.5，混合后 ≤ 0.7·s + 0.15 < 0.7（s < 0.7）。代码对其他模式直接报错。测试用确定性的假打分器对两种模式比较"全量 CGA 后阈值"与"先过滤再 CGA"的伪标签，逐框相等。CGA 失败一律报错，没有回退到原始 teacher。
+3. **VLST（E/F）**：学生特征从 1024-d RoI fc 特征换成 decoder 最后一层的 query 特征（`inter_states[-1]`，256-d，取最后一层分类分支的输入）；正样本是最后一层 Hungarian 匹配到伪 GT 的 query（与该层分类损失用同一次匹配：用相同输入重跑一次 `get_targets`），不带 DN（no-DN 变体）。投影头 256 → 256 → 512，其余超参与 R-CNN 组 E/F 相同（权重 0.1、温度 0.07、原型动量 0.9、文本/视觉 α 0.5、正样本分数 = 准入阈值 0.7）。一对一匹配下每个伪 GT 只有一个正样本（R-CNN 组每个伪 GT 可有多个 IoU ≥ 0.5 的 RoI），所以损失的样本数比 R-CNN 组少。测试检查：特征 256-d、正样本数 = 伪 GT 数且标签一致、梯度到达投影头、decoder 和 backbone、不经过最后一层分类分支、冻结的 VLM（文本原型）没有梯度、投影头不进入 EMA。视觉原型更新前先丢掉分数 < 0.7 的框再裁剪（`update_visual_prototypes` 本来就只用 ≥ 0.7 的框，结果相同，只少做裁剪）。原型更新出错时报错，不像 R-CNN 组那样打印后跳过。
+4. **PETS**：交换、两个 teacher 的旋转 WBF 共识和推理与 R-CNN 端口共用同一份代码（`PETSUnbiasedTeacher` 的 `set_pets_schedule` / `_pets_before_iter` / `inference_unlabeled` 直接复用），只换检测器。DETR 的 top-300 里重复框较多，由 WBF 合并（测试检查共识输出非空且不多于输入）。
+5. **空伪标签**：上游 `_get_target_single` 在一张图没有 GT 时崩溃（mmdet 把空的 `pos_gt_bboxes` reshape 成 (0, 4)，再取 `[:, :-1]` 得到 (0, 3)）。已在 `ars_detr/models/dense_heads/ars_detr_head.py` 改为直接索引 `gt_bboxes`，对非空 GT 结果不变。这是 vendor 代码的第二处本地改动。
+6. **`batch_input_shape`**：DETR head 读这个 meta 字段，而 teacher / student 视图绕过了 `BaseDetector.forward_*`，所以在 `forward_train_semi` 里补上。
+7. **DRU 守卫**：`DRUUnbiasedTeacher._capture_student_cls` 在没有 `roi_head.bbox_head` 时改为抛出 `NotImplementedError`，不再静默退化成 UT（测试覆盖）。
+
+R-CNN 组与 DETR 组共有、**已修复的缺陷**：修复前 CGA 按 `img_meta['filename']` 裁剪未翻转的原图，但 teacher 框处于共享 RRandomFlip 之后的坐标系，`sfod/cga.py` 的 `_crop_patches` 不做翻转还原（VLST 会还原）。翻转概率 0.75，所以约 75% 的训练图上 CGA 裁到的位置不对。修复在 `fix/cga-flip`（PR #49，`8756d7e`）；本分支在 `b447347` 打上了同一改动，之后又打上了 `e4e9703` 的裁剪修复（翻转还原后完全落在图像左侧 / 上方的框，原来夹到 0 会得到反向的裁剪框而崩溃）。`sfod/cga.py` 现在与 R-CNN 组审过的部署文件逐字节相同（sha256 `5cd1ed64…`），测试 `tools/cga_research/tests/test_cga_flip.py` 与 `e4e9703` 同步。当前部署目录：`gpu-67:/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-cgafix2`、`gpu-138:/mnt/HDD_14TB/zechuan/iraod_detr_rsar_s42/code-cgafix2`（与 `*-cgafix` 只差 `sfod/cga.py` 和 `.deploy_commit`）。
+
+### 10.3 门控单元格（RSAR chaff，seed 42）
+
+单卡 A100（gpu-67 GPU 6，agent-dispatch 认领 `gpu:gpu-67:6`），RSAR train → chaff，seed 42，1,059 iter（SFYOLO 为 2 epoch），结果为最后一个 iter 的 EMA（`iter_1060_ema.pth`，mmcv 的文件名是最终 iter + 1）在 chaff TEST（8,538 张）上的 VOC AP50。所有记录到的 loss 都是有限值（逐个检查了每个 log 区间）。输出根目录 `gpu-67:/mnt/shared/zechuan/iraod_artifacts/ars_detr/sfod/rsar/<方法>_s42/chaff/`。
+
+| 方法 | AP50 | 相对 A | 最终 pseudo/图（累计） | EMA | 代码 |
+|---|---|---|---|---|---|
+| A Source Only | **42.12** | — | — | 源模型 `arcsl_detr_r50_rsar_epoch_36.pth` | — |
+| B ST / Mean Teacher | 45.36 | +3.24 | 0.73 | `B_s42/chaff/work/iter_1060_ema.pth` | `a79aa92` |
+| C CLIP-CGA | 23.61 | −18.51 | 0.073 | `C_s42/.../iter_1060_ema.pth` | `6ebd39c` |
+| D SARCLIP-CGA | 15.94 | −26.18 | 0.011 | `D_s42/.../iter_1060_ema.pth` | `6ebd39c` |
+| E VLST | 45.96 | +3.84 | 0.76 | `E_s42/.../iter_1060_ema.pth` | `67e3c80` |
+| F CGA + VLST | 20.88 | −21.24 | 0.011 | `F_s42/.../iter_1060_ema.pth` | `a79aa92` 代码 + `6ebd39c` 配置 |
+| PETS | **55.58** | +13.46 | 0.82 | `PETS_s42/.../iter_1060_ema.pth` | `6ebd39c` |
+| SFUT（第二批） | 49.97 | +7.85 | 1.04 | `SFUT_s42/.../iter_1060_ema.pth` | `67e3c80` |
+| SFYOLO（第二批，2 epoch） | 37.71 | −4.41 | 0.60 | `SFYOLO_s42/.../iter_2119_ema.pth` | `67e3c80` |
+
+代码列是运行时部署目录 `.deploy_commit` 记录的提交；分支 rebase 到 `03f92d4` 之后它们分别对应 `728364b`、`cf1e474`、`09174b1`（rebase 只改了文档，代码相同）。`a79aa92` → `6ebd39c` → `67e3c80` 之间对 A–F、PETS 的计算没有任何改动（只修了配置加载顺序的问题，并加了 SFUT/SFYOLO 和一处行为不变的重构）。F 的第一次运行（`F_s42.invalid_cga_env_off/`）因为下面的配置问题实际没有开 CGA，已作废，没有进入上表；这里的 F 是修复后重跑的结果，日志里有 `[CGA] filter mode=veto_soft`。配置问题：mmcv 先执行子配置、后执行 `_base_`，原来基配置里的环境变量重置会把 C/D/F 的 CGA 关掉；现在基配置只做 `setdefault`，并有逐方法的配置测试。
+
+**注意：上表 C/D/F 的数字是用有翻转缺陷的 CGA 测得的**（§10.2 末段），已作废，要用修复后的代码（翻转修复 `b447347` 加 `e4e9703` 的裁剪修复，部署在 `*-cgafix2`）重跑；其余方法不用 CGA，不受影响。
+
+**C/D/F 的塌缩是 DETR 组里发现的架构交互，不是移植缺陷**（牵头方决定按原样保留，不做事后修改：看过目标 TEST 结果后再选修法就等于在目标 GT 上做选择）。证据：
+
+1. 与 R-CNN 组的 CGA 行为一致：`sfod/cga.py` 和 `sarclip_adapter.py` 与 R-CNN 组 D/F 的部署代码（`/home/zechuan/IRAOD-New-strict-af`）逐字节相同（sha256 一致）。在 32 张 chaff val 图上，用真实 SARCLIP 比较 R-CNN 的调用方式（`refine_test` 作用于 teacher 全部输出，即 `OrientedRCNN_CGA.simple_test(with_cga=True)`）和本端口的调用方式（先按 0.7 过滤，再 `refine_test`），32/32 张图的准入伪标签逐框相同（31 个原始伪框里保留 2 个）。
+2. 机制：SARCLIP 在 chaff 上几乎总是和检测器标签不一致。400 张 chaff val 图上，veto_soft 只保留 teacher ≥ 0.7 框的 2–4%（翻转图 303 张：372 → 14，保留 3.8%；未翻转图 97 张：101 → 2，保留 2.0%）。未翻转图上 CGA 裁剪位置是对的，保留率同样很低，所以翻转缺陷不能解释塌缩；但翻转图上的数字本身来自错位的裁剪。训练中伪标签降到约 0.01 个/图（D、F），只训分类的 DETR student 实际上只拿到"全是背景"的监督：所有 query 都被推向背景，teacher 分数随 EMA 一起下降，伪标签更少，循环下去（C/D/F 最后一个区间的总 loss 约 3e-4）。C 的 `legacy` 规则在不一致时同样把分数压到 0.7 以下（0.7·s + 0.3·p_label < 0.7），保留稍多（0.07 个/图）。
+两个诊断（第 1、2 点）的脚本、输出和代码/`cga.py` 的 sha256 存在 `gpu-67:/mnt/shared/zechuan/iraod_artifacts/ars_detr/sfod/diag/`（`cga_equiv.log`、`cga_keep_rate.log`、`provenance.txt`，代码 `67e3c80`）。这是保存了输出的复跑；第一次运行没有保存输出，数字略有不同（保留 4.9% / 2.7%），因为共享翻转和图像抽样是随机的。
+3. 对照 R-CNN 组同一单元格（RSAR chaff seed 42，`/mnt/shared/zechuan/iraod_artifacts/comparison/rsar/chaff/seed_42/f2145b4/methods/`）：SARCLIP 在那里同样只有约 8% 一致（D 训练日志 `diag_window`：2,842 个框里一致 236 个，argmax 大多是 harbor），但 R-CNN 的 D/F 没有塌缩（A 47.19 / D 45.93 / F 44.95）。区别在于 R-CNN 的 RoI 头每张图按固定比例采样正负样本（512 个 RoI、正样本 25%），伪 GT 很少时 RPN/RoI 的负样本损失也有上限；DETR 的一对一匹配加 focal loss 在零伪 GT 的图上把全部 300 个 query 当负样本，没有这层平衡。
+
+### 10.4 第二批方法的最终判定
+
+| 方法 | 判定 | 理由 | 动作 |
+|---|---|---|---|
+| IRG | **适配（结构性），不移植** | 原方法的实例关系图建在 teacher 与 student **同一批 RPN proposal** 的 RoI 特征上，并用两边的 `fc_cls`（`ProposalAlignedTeacher`）。DETR 没有共享 proposal；要对齐只能把 teacher 的 query / reference point 塞进 student decoder，这改变了 student 的前向，不再是原机制 | 不移植 |
+| LPLD | **适配（结构性），不移植** | 依赖共享 RPN proposal 上的低置信 teacher 预测和 softmax KL；DETR 是逐类 sigmoid focal、没有共享 proposal，KL 只能换成逐类 BCE、proposal 只能换成 query | 不移植 |
+| SFUT（SF-UT） | **忠实** | 机制与检测器无关：teacher 伪框（共享阈值 0.7）+ **保留**全部伪框损失（含回归）+ teacher 在前向中冻结、每次优化器 step 之后以 0.9996 做 EMA（R-CNN 端口 `AfterOptimizerTeacherHook`）。R-CNN 端口里的 `ProposalAlignedTeacher` 只是共用骨架，SFUT 不用它的辅助损失 | 已移植：`DETRSFUTTeacher` + `DETRAfterOptimizerTeacherHook`，配置 `detr_sfut_{rsar,dior}_strict.py` |
+| DRU | **适配（需重设计），不移植** | 重训 / 动态更新与检测器无关，但 Historical Student Loss 定义在 RoI 头 softmax 分类分数的均值上（`sfod/rotated_dru.py`）。DETR 只能改成最后一层 query 的 sigmoid 分数均值，分布和语义都变了 | 不移植；`_capture_student_cls` 在没有 RoI 头时报错 |
+| AASFOD | **适配（需重设计），不移植** | TSD 划分用 RoI 头 `shared_fcs` 上的 20 次 MC-dropout 方差（`sfod/extensions/aasfod_mechanisms.py`），在 DETR 上只能换成 decoder FFN 的 dropout，不是原定义 | 不移植 |
+| SFYOLO | **忠实** | TAM（图像层面的风格自编码器）+ Mean Teacher + 学生稳定化（SSM）都与检测器无关；R-CNN 端口（`SFYOLOOBB`，`84a1aeb`）建在 SFUT 之上：strong 视图先过该域的 TAM（seed 42 的完整拟合，对所有检测器 seed 共用），参数 EMA 0.999（优化器 step 后），第 2 个 epoch 开始时 student ← 0.5·student + 0.5·teacher，单独的 2 epoch 预算 | 已移植：`DETRSFYOLOTeacher`（TAM 增广、参数 EMA、SSM 直接复用 `SFYOLOOBB` 的函数），复用 R-CNN 组的 TAM 文件 `comparison/xaf_student_quant_20260908/tam_runs_84a1aeb/<数据集>/<域>/seed_42/tam.pth`；载入时只把 VGG 编码器路径换成本机副本（`third_party/vgg16_oxford/`，文件名需一致），其余校验与 `load_completed_tam` 相同。单 epoch 内不衰减的 lr 策略（step=[1]）在 2 epoch 下会在第 2 个 epoch 乘 0.1，与 R-CNN 端口继承到的配置相同 |
+| LODS | **适配（结构性），不移植** | SEM 和 backbone C4 全局 GW 与检测器无关，但 CE 与实例图 GW 用 teacher 的 RPN proposal `rois_t` 共享给 student RoI 头，问题同 IRG | 不移植 |
+
+### 10.5 CPU 测试
+
+```
+cd <deploy dir> && PYTHONPATH=$PWD IRAOD_RUNTIME_READY=1 CUDA_VISIBLE_DEVICES= \
+  python -W ignore -m unittest ars_detr.tests.test_detr_sfod ars_detr.tests.test_port
+Ran 16 tests in 20.654s
+OK
+```
+
+覆盖：伪标签上回归损失清零（值与梯度）、strict 前向 + EMA 更新 + 拒绝目标 GT、空伪标签、PETS 交换 / EMA / 共识跑在 DETR 输出上、CGA 预过滤的精确等价（`legacy`、`veto_soft`）与非法模式报错、VLST 维度 / 正样本 / 梯度路径 / 翻转还原、SFUT 保留回归且 teacher 只在优化器 step 后移动、SFYOLO 的 TAM 视图 / 有限损失 / SSM（用真实的 chaff TAM）、每个方法配置加载后的 CGA 环境变量、DRU 守卫。
+
+### 10.6 命令模板
+
+部署：新目录 `/mnt/SSD2_8TB/zechuan/IRAOD-New-detr-sfod-20261101`（gpu-67），从本分支 rsync，并从 `gpu-67:/home/zechuan/IRAOD-New-dru-20260919` 拷入被 gitignore 的 `mmdet_extension/models/backbones/orthonet.py` 和 `mmdet_extension/models/utils/`；`.deploy_commit` 记录提交号。先在 agent-dispatch 上认领 GPU。
+
+```bash
+# METHOD = A | B | C | D | E | F | PETS；DATASET = rsar | dior；GPU = 认领到的单卡
+bash experiments/comparison/detr_sfod_cell.sh METHOD DATASET DOMAIN SEED GPU
+# 训练（脚本内部）：
+python train.py configs/ars_detr/sfod/detr_<name>_<dataset>_strict.py --work-dir <root>/work \
+  --seed SEED --deterministic --no-validate \
+  --cfg-options corrupt=DOMAIN load_from=SRC model.ema_ckpt=SRC checkpoint_config.max_keep_ckpts=1 \
+    data.train.img_prefix=<corruption val images>
+# 评测（A 用源 ckpt，其余用最大 iter 的 iter_*_ema.pth）：
+python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --out <root>/eval_test/predictions.pkl \
+  --work-dir <root>/eval_test --cfg-options data.samples_per_gpu=8 data.workers_per_gpu=4 \
+    data.test.ann_file=<test ann> data.test.img_prefix=<corruption test images>
+```
+
+输出：`/mnt/shared/zechuan/iraod_artifacts/ars_detr/sfod/<dataset>/<METHOD>_s<SEED>/<DOMAIN>/`（`train.log`、`work/`、`train_done`、`eval_test/{eval.log,eval_status,predictions.pkl}`）。DIOR-R 的单元格要等源模型 `dior_source/seed42-r50-1gpu-spg8/epoch_72.pth` 训练完成。
+
+### 10.7 未决问题
+
+1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）；两组的 C/D/F 都要用修复后的 `cga.py` 重跑，§10.3 里 C/D/F 的数字作废。
+2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
+3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里的非方形图（test 1.36% / val 1.37% / train 1.14% 的图像，test 实例的 1.73%；DIOR-R 全部是方形）会让 teacher 框和评测框的 y 坐标偏移。作为上游限制保留，不修：官方的 31.56 就是在这个解码下复现的，且 DETR 组所有方法都用同一个解码。
