@@ -11,6 +11,12 @@ configs `configs/unbiased_teacher/sfod/lods_oriented_rcnn_{rsar,dior}_orthonet_s
 launchers `experiments/comparison/rsar_lods_seed.sh` and the `LODS` case of
 `train_d17_seed_1gpu.sh`. Tests: `tools/cga_research/tests/test_lods_obb.py`.
 
+Sources (teacher and student init, sha256 re-checked with `sha256sum` on gpu-67, 2026-11-05):
+RSAR `epoch_100.pth` `e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c`;
+DIOR `epoch_100.pth` (train-only, OrthoNet) `74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a`,
+both the canonical `/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`
+and the `/home/zechuan/iraod_artifacts/dior_source/...` copy `train_d17_seed_1gpu.sh` loads.
+
 ## What is ported as in the official code
 
 | Mechanism | Official | Port |
@@ -116,6 +122,14 @@ unevaluated, and marked `invalid_alpha1`
 No AP exists for it, by design: having both results would turn the alpha choice
 into selection on target GT.
 
+Known gap, not rerun (user's no-rerun rule): the switch to 0.4 came right after
+a visual check that used GT boxes on target **val** images. No AP was computed,
+but the choice is not strictly label-free hyperparameter selection. At 0.4 the
+SEM output still shows fake texture and loses fine structure (below and
+`results/paper_comparison/lods_visual_check.md`). Footnote e of
+`main_table_rcnn_obb.tex` and the `notes` column of
+`architecture_generalization.csv` say the same.
+
 ## Visual check
 
 `tools/lods/vis_sem.py` grids (columns: original | SEM | original zoom with GT
@@ -145,6 +159,10 @@ Used setting, alpha 0.4:
 | `rsar_chaff_slender_alpha1.0` | Bridges/wakes mostly lost (corr 0.16–0.34). |
 | `dior_fog_dense_alpha1.0` | Layout kept, small vehicles faint or gone, embossed fake texture (corr 0.01–0.30). |
 | `dior_fog_slender_alpha1.0` | Shapes kept, detail lost (corr 0.00–0.39). |
+
+Seven more domains at alpha 0.4 (RSAR clean, gaussian_white_noise,
+point_target; DIOR clean, snow, gaussian_noise, pixelate): see
+`results/paper_comparison/lods_visual_check.md`.
 
 `diag_rsar_chaff_small_ships_alpha0_reconstruction`: decoder(encoder(x)) without
 style keeps every ship in place (corr 0.53–0.57). The damage therefore comes from
