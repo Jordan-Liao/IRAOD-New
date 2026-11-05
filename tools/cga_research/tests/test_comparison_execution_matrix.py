@@ -127,8 +127,8 @@ class ComparisonExecutionMatrixTests(unittest.TestCase):
         self.assertNotIn("cloudy", DIOR_C_CORRUPTIONS)
 
     def test_external_seven_including_dru_and_pets_are_required(self):
-        self.assertEqual(len(EXTERNAL_METHODS), 7)
-        for method_id in ("IRG", "LPLD", "SFUT", "DRU", "PETS", "AASFOD", "SFYOLO"):
+        self.assertEqual(len(EXTERNAL_METHODS), 8)
+        for method_id in ("IRG", "LPLD", "SFUT", "DRU", "PETS", "AASFOD", "SFYOLO", "LODS"):
             self.assertIn(method_id, EXTERNAL_METHODS)
             self.assertIn(method_id, MAIN_TABLE_METHODS)
             self.assertTrue(method_is_required(method_id))
