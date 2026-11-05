@@ -51,8 +51,8 @@ TEX_NAMES = {"A": "A Source Only", "B": "B ST / Mean Teacher", "C": "C CLIP-CGA"
 # Reviewed inputs (sha256 prefixes from the lead's dispatch messages).
 KNOWN_SHA = {"lods_matrix.csv": "adad9f1d", "pets_matrix.csv": "1833421874", "pets_matrix_summary.csv": "9b30c2c5",
              "detr_rsar_matrix_final.csv": "c40c9a03", "detr_rsar_matrix_summary.csv": "8427dcad",
-             "detr_rsar_matrix_README.md": "0801509b", "detr_dior_matrix_final.csv": "e63f6765b0d0",
-             "detr_dior_matrix_summary.csv": "84e55ddd9811", "detr_dior_matrix_README.md": "38fa0cc98ab3"}
+             "detr_rsar_matrix_README.md": "bd51f12c5e56", "detr_dior_matrix_final.csv": "79217836eda0",
+             "detr_dior_matrix_summary.csv": "84e55ddd9811", "detr_dior_matrix_README.md": "32ee09dacd25"}
 IMPORT_NAMES = list(KNOWN_SHA)
 # The public repo already names these hosts and disk roots; any other host or root is redacted on import.
 PUBLIC_HOSTS = {"gpu-67", "gpu-68", "gpu-138", "gpu-183"}
@@ -359,15 +359,17 @@ def write_tex(rows):
                  r"together with the Oriented R-CNN table. Seed 42 only, so $\pm$ is the std across domains "
                  r"(seeds = 1). Bold = best mPC in this group. Mixed hardware per cell (RTX A6000 / RTX 4090D / "
                  r"A100; per-cell gpu\_type in the matrix CSVs); a cross-hardware gate (B clean, RSAR, RTX 4090D "
-                 r"vs RTX A6000) differs by $\Delta$=0.0070 AP50 and is unresolved. Upstream decode limitation: "
+                 r"vs RTX A6000) differs by $\Delta$=0.0070 AP50 and is unresolved; DIOR has no cross-hardware "
+                 r"replicate, so its cross-hardware agreement is unmeasured. Upstream decode limitation: "
                  r"ARS-DETR scales both x and y by the image width, which shifts y on non-square images (about "
                  r"1.4\% of RSAR images; DIOR-R is all square); kept as in the official 31.56 reproduction. "
                  r"$^{b}$CGA calibration: on DETR, C/D/F fall far below source-only (mPC: " + cga + r"). "
-                 r"From the train logs: on RSAR, D/F keep only 23--28\% of the pseudo-labels (about 75\% vetoed) "
-                 r"and CGA label probabilities are 0.04--0.36; on DIOR, C/D/F keep $\geq$98.9\% of the "
-                 r"candidates, but D/F blend 96--100\% of them at CGA label probabilities of 0.009--0.066 "
-                 r"(C: 0.17--0.59). The two matrices' log statistics are not defined identically, so the RSAR and "
-                 r"DIOR rates are not directly comparable. Read as a calibration mismatch between the CGA "
+                 r"Whole-run train-log statistics (same cga.py, veto\_soft config and counters on both datasets): "
+                 r"on RSAR, C keeps every candidate (blended 0.416--0.752), D/F keep 0.361--0.675 (blended "
+                 r"0.325--0.567) at CGA label probabilities of 0.014--0.120; on DIOR, C/D/F keep $\geq$0.989, D/F "
+                 r"blend 0.96--1.00 at label probabilities of 0.009--0.066. The much lower DIOR drop rate is "
+                 r"observed but its cause is unverified (pred\_prob is not logged). Read as a calibration mismatch "
+                 r"between the CGA "
                  r"thresholds and DETR outputs, not a confirmed bug; run as-is with no tuning, on the CGA "
                  r"flip-fixed code. "
                  r"$^{c}$SF-YOLO has its own 2-epoch budget.")
