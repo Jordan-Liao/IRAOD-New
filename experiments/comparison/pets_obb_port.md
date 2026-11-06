@@ -11,7 +11,13 @@ mechanics in `sfod/pets_dynamics.py`). Not method B.
   main-table method. RSAR source
   `/mnt/shared/zechuan/iraod_artifacts/rsar_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`,
   sha256 `e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c`.
-  DIOR source: the protocol's DIOR `epoch_100.pth`.
+  DIOR source (train-only): the protocol's DIOR `epoch_100.pth`,
+  `/mnt/shared/zechuan/iraod_artifacts/dior_source/seed42-orthonet-ddp4-gpu4567-spg16-gbs64/train/epoch_100.pth`,
+  sha256 `74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a`
+  (= `source_ids.DIOR` in `results/completed_snapshot_20260912T014556Z/provenance.json`). On 2026-11-05
+  `sha256sum` on gpu-67 gave this value both for that file and for the
+  `/home/zechuan/iraod_artifacts/dior_source/...` copy that `train_d17_seed_1gpu.sh` loads; the RSAR
+  value above was re-checked the same way.
 
 ## Official hyperparameters used
 
@@ -61,8 +67,14 @@ without the hook raises.
 | 9 | Loss weights: `weight_u=1`, `use_bbox_reg=False` (RPN and ROI box regression off) instead of `UNSUP_LOSS_WEIGHT=2`, box regression weight 1 and focal loss. | Shared protocol |
 | 10 | Weak/strong views are the shared strict pipelines (flip; colour jitter, grayscale, blur), not the official ones (random erasing, flip, colour). | Shared protocol |
 | 11 | EMA updates every iteration; the C2F config alone updates every 2. | Faithfulness choice |
-| 12 | EMA keep rates are the official per-step values (0.9996, then 0.999 from the first exchange), not rescaled to the shorter run. Table-wide rule: per-step constants keep their official values; only schedule events (exchange periods) are mapped to the 1-epoch budget. No other port re-tunes per-step constants (B uses 0.998 per step). Effect: the Dynamic Teacher keeps 0.9996^53 · 0.999^212 ≈ 79% of the source weights at the end of the RSAR run, vs ≈ 4% in the official 10-epoch C2F schedule (373 iters/epoch) with per-step updates, and ≈ 19% with C2F's every-2-step updates. | Decided: not adapted |
+| 12 | EMA keep rates are the official per-step values (0.9996, then 0.999 from the first exchange), not rescaled to the shorter run. Table-wide rule: per-step constants keep their official values; only schedule events (exchange periods) are mapped to the 1-epoch budget. No other port re-tunes per-step constants (B uses 0.998 per step). Effect: the Dynamic Teacher keeps 0.9996^53 · 0.999^212 ≈ 79% of the source weights at the end of the RSAR run (DIOR, N = 184: 0.9996^36 · 0.999^148 ≈ 85%), vs ≈ 4% in the official 10-epoch C2F schedule (373 iters/epoch) with per-step updates, and ≈ 19% with C2F's every-2-step updates. | Decided: not adapted |
 | 13 | The Static Teacher is not saved in checkpoints; only the Student and the Dynamic Teacher (`iter_*_ema.pth`, the evaluated model) are. | Implementation |
+
+Not rerun (user's no-rerun rule, 2026-11-02): differences 1 (two-way exchange) and
+12 (keep rates not recalibrated) stay as run. Both are footnoted in
+`main_table_rcnn_obb.tex` / `main_table_detr_obb.tex` (footnote d) and in the
+`notes` column of `architecture_generalization.csv`; the DETR port shares this
+code (39% / 52% source weight left at the end, `detr_portability_audit.md` §10.7).
 
 No CGA, SARCLIP, VLST, SOGC or SLRP. No target labels are used in training or
 for choosing hyperparameters.

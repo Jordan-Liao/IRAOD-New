@@ -21,6 +21,7 @@ Mean +- std is over seeds where a method has 3 seeds; where seeds = 1 the std is
 architecture_generalization.csv status columns: ok = every needed cell present; "not_inferred (k/n missing)" =
 AP50 complete but k of the n needed (seed x domain) cells have no mAP50-95 (no saved pkl), so no mean is given;
 "pending (k/n missing)" = k of n AP50 cells not run yet; not_ported / user_reported as stated in the row.
+notes = role label (C/D/F = 本文方法 variants) and the known gaps that are footnoted, not rerun.
 """
 import argparse
 import csv
@@ -253,6 +254,18 @@ def build_rows(cells):
                      AP50_status_corruptions="user_reported (DIOR trainval source + weight_l=1; not strict)",
                      std_over="domains", n_corruptions=19, n_all_domains=21,
                      mAP50_95_status_corruptions="not_inferred (no artifact)"))
+    for r in rows:
+        n = NOTES.get(r["method"], "")
+        if r["method"] == "PETS":
+            n %= PETS_KEEP[(r["architecture"], r["dataset"])]
+        if r["method"] in ("C", "D", "F"):
+            n += "; CGA flip bug, not rerun (gate delta ~0.002)" if r["architecture"] == "R-CNN" else \
+                "; CGA flip-fixed code"
+        if r["method"] == "OURS":
+            n = "本文方法: user-reported, DIOR trainval source + weight_l=1, DIOR only; not strict, not ranked"
+        if n and r["architecture"] == "DETR" and str(r.get("AP50_status_corruptions", "")).startswith("not_ported"):
+            n = ""
+        r["notes"] = n
     return rows
 
 
@@ -262,7 +275,15 @@ FIELDS = ["architecture", "dataset", "method", "method_name", "seeds", "n_seeds"
           "AP50_delta_vs_A_corruptions", "AP50_delta_vs_A_all_domains", "rPC",
           "mAP50_95_clean", "mAP50_95_mean_corruptions", "mAP50_95_std_corruptions", "mAP50_95_status_corruptions",
           "mAP50_95_mean_all_domains", "mAP50_95_std_all_domains", "mAP50_95_status_all_domains",
-          "n_corruptions", "n_all_domains"]
+          "n_corruptions", "n_all_domains", "notes"]
+NOTES = {"C": "本文方法 variant (CGA ± VLST)", "D": "本文方法 variant (CGA ± VLST)", "F": "本文方法 variant (CGA ± VLST)",
+         "SFYOLO": "2-epoch budget (others 1 epoch)",
+         "PETS": "two-way exchange per paper Eq. 2 (official code copies one way); official per-step EMA keep rates "
+                 "not recalibrated for the 1-epoch budget: Dynamic Teacher keeps ~%s source weight at the end "
+                 "(official C2F config, EMA every 2 steps: ~19%%)",
+         "LODS": "alpha 0.4 set after a GT-box visual check on target val (no AP computed): not strictly label-free; "
+                 "SEM output has fake texture and loses fine structure"}
+PETS_KEEP = {("R-CNN", "RSAR"): "79%", ("R-CNN", "DIOR"): "85%", ("DETR", "RSAR"): "39%", ("DETR", "DIOR"): "52%"}
 
 
 def write_csv(rows):
@@ -300,7 +321,7 @@ def tex_table(rows, arch, methods, caption, label, foot, groups):
         vals = [idx[(ds, m)]["AP50_mean_corruptions"] for m in methods if m != "OURS" and (ds, m) in idx
                 and idx[(ds, m)].get("AP50_mean_corruptions", "") != ""]
         best[ds] = max(vals) if vals else None
-    lines = ([XELATEX] if "OURS" in methods else []) + [
+    lines = ([XELATEX] if "本文方法" in foot else []) + [
              r"\begin{table*}[t]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{3.2pt}",
              r"\renewcommand{\arraystretch}{1.1}", r"\caption{%s}" % caption, r"\label{%s}" % label,
              r"\begin{tabular}{@{}l ccccc c ccccc@{}}", r"\toprule",
@@ -311,8 +332,8 @@ def tex_table(rows, arch, methods, caption, label, foot, groups):
     for m in methods:
         if m in groups:
             lines.append(r"\midrule")
-        name = TEX_NAMES[m] + {"C": "$^{b}$", "D": "$^{b}$", "F": "$^{b}$", "SFYOLO": "$^{c}$",
-                               "PETS": "$^{d}$" if arch == "R-CNN" else ""}.get(m, "")
+        marks = {"C": r"\star,b", "D": r"\star,b", "F": r"\star,b", "SFYOLO": "c", "PETS": "d", "LODS": "e"}
+        name = TEX_NAMES[m] + ("$^{%s}$" % marks[m] if m in marks else "")
         rs = cell_tex(idx.get(("RSAR", m)), best["RSAR"], "pending")
         rd = cell_tex(idx.get(("DIOR", m)), best["DIOR"], "pending")
         lines.append(" & ".join([name] + rs + [""] + rd) + r" \\")
@@ -326,6 +347,14 @@ COMMON_FOOT = (r"AP50 and mAP50-95 in \%; Clean = clean TEST; mPC = mean over th
                r"official DIOR-C names, cloudy excluded); rPC = mPC / A$_{\mathrm{clean}}$ $\times$ 100; "
                r"$\Delta$ada = mPC $-$ mPC of A; mPC$_{50:95}$ = mean mAP50-95 over the same corruptions, "
                r"n/i = not\_inferred (a cell has no saved predictions.pkl; never backfilled). ")
+VARIANT_FOOT = (r"$^{\star}$C/D/F: 本文方法 variants (CGA $\pm$ VLST; method\_matrix.csv: C CLIP-CGA, D SARCLIP-CGA, "
+                r"F CGA+VLST), run under this table's strict protocol. ")
+# The shortened 1-epoch budget with the official per-step EMA keep rates (0.9996 to the first exchange, then 0.999):
+# 0.9996^w * 0.999^(N-w), w = 2N//10; R-CNN N = 265 / 184, DETR N = 1059 / 733; official C2F 10 x 373 iters, EMA every 2 steps -> ~19% (3.7% if every step).
+PETS_FOOT = (r"PETS exchanges Static Teacher and Student two-way (paper Eq.~2), whereas the official code copies one "
+             r"way (Static := Student); its EMA keep rates keep the official per-step values and were not "
+             r"recalibrated for the 1-epoch budget, so the evaluated Dynamic Teacher still holds about %s of the "
+             r"source weights at the end, vs.\ about 19\%% under the official 10-epoch C2F config (EMA every 2 steps). ")
 
 
 def write_tex(rows):
@@ -346,16 +375,24 @@ def write_tex(rows):
                  r"mPC is the 3-seed (42/43/44) mean $\pm$ sample std over seeds. "
                  r"$^{\dagger}$Seeds = 1 (A is the eval-only source): $\pm$ is the std across domains. "
                  r"Bold = best mPC among the strict methods. "
-                 r"$^{a}$本文方法 (as reported by the user; no evaluation artifact was found) used the DIOR "
+                 r"Sources (sha256): RSAR epoch\_100 e489f015cc2b67926a415436c97532ff814f826c4861b659cbc712fb9413b98c; "
+                 r"DIOR epoch\_100 (train-only) 74d7eafdc547976a86f8f35b2652dba384948e33ab5c15bb908fa3e54025782a. "
+                 + VARIANT_FOOT + r"They are not the separate 本文方法 row (footnote a). "
+                 r"$^{a}$本文方法, DIOR only (as reported by the user; no evaluation artifact was found), used the DIOR "
                  r"\emph{trainval} source (its own clean 57.71) plus weight\_l=1 (source labels during "
                  r"adaptation), not the strict train-only source (A clean 29.49) and weight\_l=0 of every other "
                  r"row; its $\pm$ is across domains, its rPC/$\Delta$ada are not comparable and it is not ranked. "
                  r"$^{b}$C/D/F carry the reviewed CGA flip bug (CGA crops the unflipped image while the teacher "
                  r"boxes are flipped); not rerun by the user's decision (gate $\Delta\approx$0.002). "
                  r"$^{c}$SF-YOLO has its own 2-epoch budget (all others 1 epoch). "
-                 r"$^{d}$PETS cells mix DDP 2$\times$16 and 1$\times$32 runs at the same global batch 32 "
+                 r"$^{d}$" + PETS_FOOT % r"79\% (RSAR) / 85\% (DIOR)" +
+                 r"PETS cells mix DDP 2$\times$16 and 1$\times$32 runs at the same global batch 32 "
                  r"(DDP cells: " + pets_mix + r"); DDP-vs-1-GPU gate $\Delta$=0.00455 AP50 "
-                 r"(RSAR chaff s42).")
+                 r"(RSAR chaff s42). "
+                 r"$^{e}$LODS style\_add\_alpha = 0.4 was set after a GT-box visual check on target val images "
+                 r"(GT only located and outlined objects; no AP was computed), so it is not strictly label-free "
+                 r"hyperparameter selection; the SEM output shows fake texture and loses fine structure "
+                 r"(lods\_visual\_check.md).")
     rcnn = tex_table(rows, "R-CNN", RCNN_METHODS + ["OURS"],
                      r"Strict source-free OBB comparison, Oriented R-CNN + OrthoNet-50 (shared frozen source per "
                      r"dataset, final-iteration EMA teacher, corruption TEST).", "tab:rcnn-obb-sfod", rcnn_foot,
@@ -363,7 +400,11 @@ def write_tex(rows):
     detr_foot = (COMMON_FOOT +
                  r"Separate fairness group (ARS-DETR, R-50 ImageNet init, own source per dataset); never ranked "
                  r"together with the Oriented R-CNN table. Seed 42 only, so $\pm$ is the std across domains "
-                 r"(seeds = 1). Bold = best mPC in this group. Mixed hardware per cell (RTX A6000 / RTX 4090D / "
+                 r"(seeds = 1). Bold = best mPC in this group. "
+                 r"Sources (sha256): RSAR official ARS-DETR epoch\_36 "
+                 r"1927e1cf11244cc53dac3b99d10bccbda19d0808a0ab97684133fbb57b8ff185; DIOR epoch\_72 "
+                 r"7cb9dbe03398c81554e8a2e8838a71e474d0888dab5acc14a85d18b2bacb0810. "
+                 + VARIANT_FOOT + r"Mixed hardware per cell (RTX A6000 / RTX 4090D / "
                  r"A100; per-cell gpu\_type in the matrix CSVs); a cross-hardware gate (B clean, RSAR, RTX 4090D "
                  r"vs RTX A6000) differs by $\Delta$=0.0070 AP50 and is unresolved; DIOR has no cross-hardware "
                  r"replicate, so its cross-hardware agreement is unmeasured. Upstream decode limitation: "
@@ -378,7 +419,8 @@ def write_tex(rows):
                  r"between the CGA "
                  r"thresholds and DETR outputs, not a confirmed bug; run as-is with no tuning, on the CGA "
                  r"flip-fixed code. "
-                 r"$^{c}$SF-YOLO has its own 2-epoch budget.")
+                 r"$^{c}$SF-YOLO has its own 2-epoch budget. "
+                 r"$^{d}$" + PETS_FOOT % r"39\% (RSAR) / 52\% (DIOR)")
     detr = tex_table(rows, "DETR", DETR_METHODS,
                      r"Detector-architecture generalization: the same strict source-free protocol on ARS-DETR "
                      r"(DETR-based OBB), seed 42.", "tab:detr-obb-sfod", detr_foot, groups=("C",))

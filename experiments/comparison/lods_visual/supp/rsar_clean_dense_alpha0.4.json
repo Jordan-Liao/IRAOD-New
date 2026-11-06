@@ -1,0 +1,29 @@
+[
+ {
+  "image": "0065776.png",
+  "mode": "dense",
+  "n_targets": 47,
+  "n_focus": 24,
+  "grad_corr_in_targets": 0.23605452991003303,
+  "contrast_orig": 0.10463817588474997,
+  "contrast_enh": 0.08552741240586399
+ },
+ {
+  "image": "0029624.png",
+  "mode": "dense",
+  "n_targets": 62,
+  "n_focus": 20,
+  "grad_corr_in_targets": 0.32878456326974914,
+  "contrast_orig": 0.011703004621670418,
+  "contrast_enh": 0.06531632743961328
+ },
+ {
+  "image": "0024255.jpg",
+  "mode": "dense",
+  "n_targets": 87,
+  "n_focus": 18,
+  "grad_corr_in_targets": 0.458747585023876,
+  "contrast_orig": 1.5755833934388184,
+  "contrast_enh": 2.085026981767591
+ }
+]

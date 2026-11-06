@@ -309,6 +309,8 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 1. CGA 不还原翻转是真实缺陷（§10.2 末段），本分支已打上修复（`b447347`，加 `e4e9703` 的裁剪修复）。**已定**：DETR 组最终矩阵的 C/D/F 全部用修复后的 `cga.py`（sha256 `5cd1ed64…`）跑，§10.3 里 C/D/F 的门控数字作废；R-CNN 组的 C/D/F 按用户 2026-11-02 的决定（"之前跑过了的就不用跑了"）不重跑，主表保留原格子并加脚注（门控 Δ≈0.002）。
 2. strong 视图沿用 R-CNN 组的"原分辨率"（RSAR 大多是 256×256），而 DETR 源模型是在 1024 上训练、800 上测试的；teacher 的 weak 视图是 800。是否另给 DETR 组的 strong 视图加 RResize，属于协议变更，没有做。
 3. 上游 `_get_bboxes_single` 用图像宽度同时缩放 x、y（§5），对 RSAR 里的非方形图（test 1.36% / val 1.37% / train 1.14% 的图像，test 实例的 1.73%；DIOR-R 全部是方形）会让 teacher 框和评测框的 y 坐标偏移。作为上游限制保留，不修：官方的 31.56 就是在这个解码下复现的，且 DETR 组所有方法都用同一个解码。
+4. PETS（不重跑，只加脚注）：交换沿用 R-CNN 端口的双向互换（论文 Eq. 2），官方代码是单向拷贝（Static := Student），见 `pets_obb_port.md` 第 1 条。EMA 保留率用官方的每步值（首次交换前 0.9996，之后 0.999），没有按缩短的单 epoch 预算重新标定，所以评测用的 Dynamic Teacher 在结束时仍保留约 39%（RSAR，1,059 iter，0.9996^211 × 0.999^848）/ 52%（DIOR，733 iter，0.9996^146 × 0.999^587）的源权重；官方 10 epoch C2F 配置（EMA 每 2 步更新一次）下约 19%。`main_table_detr_obb.tex` 的脚注 d 和 `architecture_generalization.csv` 的 `notes` 列写了同样的说明。
+5. C/D/F 是本文方法的变体（CGA ± VLST：C = CLIP-CGA，D = SARCLIP-CGA，F = CGA+VLST）；主表用 `$^{\star}$` 标出，CSV 的 `notes` 列同样标注。
 
 ## 11. 最终 seed-42 矩阵（2026-11-04）
 
@@ -331,7 +333,7 @@ python test.py configs/ars_detr/arcsl_detr_r50_<dataset>.py <ema> --eval mAP --o
 
 ### 11.3 DIOR-R（189 格，全部完成）
 
-- 源模型：ARS-DETR DIOR seed-42 源，`ImageSets/train.txt` 训练 72 个 epoch，取最后一个 epoch（`epoch_72.pth`，sha256 `7cb9dbe0…`，clean TEST AP50 0.5400）；中途停卡后从 `epoch_48.pth` 续训，丢失的 49–53 epoch 重新训练；每段都是 batch 8、每 epoch 734 iter。每台机器上都核对过 sha。
+- 源模型：ARS-DETR DIOR seed-42 源，`ImageSets/train.txt` 训练 72 个 epoch，取最后一个 epoch（`epoch_72.pth`，sha256 `7cb9dbe03398c81554e8a2e8838a71e474d0888dab5acc14a85d18b2bacb0810`，clean TEST AP50 0.5400；2026-11-05 在 gpu-67 上对 `/mnt/shared/zechuan/iraod_artifacts/ars_detr/dior_source/seed42-r50-1gpu-spg8/epoch_72.pth` 重新 `sha256sum` 核对一致。`final_inputs/detr_dior_matrix_README.md` 是 sha 锁定的输入，里面只写了前缀，不改；全长值记在这里和 `main_table_detr_obb.tex` 的脚注里）；中途停卡后从 `epoch_48.pth` 续训，丢失的 49–53 epoch 重新训练；每段都是 batch 8、每 epoch 734 iter。每台机器上都核对过 sha。
 - 范围：9 个方法 × 21 个域 = 189 格，全部 `status=ok`、`eval_exit=0`。SFYOLO 覆盖全部 21 个域：一开始只排了 6 个域是运行方的错误，漏掉的 15 格于 2026-11-05（北京时间）作为新格子补跑，不是重跑；前 174 行队列没有改动。SFYOLO 用自己的 2 epoch 预算。
 - 指标：每格的 AP50 和 mAP50-95 都由 `tools/eval_map50_95.py` 在产出 `predictions.pkl` 的机器上用 CPU 算出（每个 pkl 必须有 11,738 个结果）。AP50 与该格 `eval.log` 里 `test.py` 的全精度 mAP 在 189 格上完全相等（最大 |Δ| = 0）。`AP50_json` 列是 `test.py` 存的两位小数值，只因取整与 AP50 相差至多约 0.0005。
 - 硬件：RTX 4090D 48GB（两台，14 + 58 格）、RTX A6000 48GB（69 格）、A100 64GB（48 格）；每格的 `gpu_type` 都在 CSV 里，9 个方法的格子都跨了不止一种卡。DIOR 没有跨硬件的重复运行，所以 DIOR 上不同卡之间的一致性**没有测过**；Δ = −0.0070 是 RSAR B clean 的一对重复（§11.2），不是 DIOR 的结果。DIOR 矩阵里的 B clean 只有 A6000 上的那一格（AP50 0.526575）。`gpu_type` 列是审计记录。

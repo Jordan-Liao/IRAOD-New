@@ -45,7 +45,8 @@ Official DIOR-C (19, severity 3). Already compared: brightness, contrast. Extra 
 - mAP50-95 (`tools/eval_map50_95.py`, PR #44) only from saved `predictions.pkl`; a cell without one is `not_inferred` and is never backfilled (user decision 2026-11-02)
 - Final tables: `build_final_tables.py` (R-CNN and DETR main tables, `architecture_generalization.csv`, corrected DIOR-C table), recomputed from `raw_results.csv` and the reviewed CSVs in `final_inputs/`, with an assert-based self-check
 - `architecture_generalization.csv` status: `not_inferred (k/n missing)` = AP50 complete but k of the n needed cells have no mAP50-95; `pending (k/n missing)` = k AP50 cells not run yet
-- Tables with Chinese text (`main_table_rcnn_obb.tex`, `dior_c_table_corrected.tex`) need XeLaTeX with xeCJK or ctex; they are not compiled in this repo
+- `architecture_generalization.csv` `notes`: method-level caveats that also appear as table footnotes (C/D/F = 本文方法 variants, PETS exchange/EMA gap, LODS alpha choice, SFYOLO 2-epoch budget, the user-reported 本文方法 row)
+- Tables with Chinese text (`main_table_rcnn_obb.tex`, `main_table_detr_obb.tex`, `dior_c_table_corrected.tex`) need XeLaTeX with xeCJK or ctex; they are not compiled in this repo
 
 ## DETR group (separate fairness group)
 Not ranked together with the Oriented R-CNN group above: backbone, initialization and source models differ (the R-CNN sources are random-init OrthoNet-50). Details and evidence: [`detr_portability_audit.md`](detr_portability_audit.md).

@@ -50,28 +50,62 @@ def poly_stats(poly):
     return w * h, max(w, h) / max(min(w, h), 1e-3)
 
 
-def select(img_dir, ann_dir, fmt, classes, mode, n, seed):
+def window_members(centers, i, half):
+    return [j for j, c in enumerate(centers) if abs(c[0] - centers[i][0]) <= half and abs(c[1] - centers[i][1]) <= half]
+
+
+def det_ratio(path, scale=(800, 800)):
+    """Resize ratio detector_scale() will apply, from the image header only."""
+    from PIL import Image
+    w, h = Image.open(path).size
+    return min(max(scale) / max(h, w), min(scale) / min(h, w))
+
+
+def select(img_dir, ann_dir, fmt, classes, mode, n, seed, exclude=(), win=160, ratio=det_ratio):
+    """Rank images for one mode and return (score, file, objs, focus).
+
+    focus is the subset of objs the zoom crop centres on, so each mode shows its
+    own kind of target: the tightest cluster of small (<20x20 px) targets, the
+    single most elongated target (aspect >= 3), or the densest window. The window
+    is win px at detector scale (the scale the zoom is cut at), so the focus set
+    fits inside the zoom. Degenerate GT boxes (a side under 2 px) are ignored.
+    Images already used by another mode (exclude) are skipped so modes don't repeat.
+    """
     rng = random.Random(seed)
     names = sorted(f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.png', '.bmp', '.tif')))
     ext = '.txt' if fmt == 'rsar' else '.xml'
     scored = []
     for f in names:
+        if f in exclude:
+            continue
         ap = osp.join(ann_dir, osp.splitext(f)[0] + ext)
         if not osp.exists(ap):
             continue
-        objs = [(c, p) for c, p in read_ann(ap, fmt) if c in classes]
+        objs = [(c, p) for c, p in read_ann(ap, fmt) if c in classes and min(cv2.minAreaRect(p)[1]) >= 2]
         if not objs:
             continue
         stats = [poly_stats(p) for _, p in objs]
+        centers = [p.mean(0) for _, p in objs]
+        half = win / 2 / ratio(osp.join(img_dir, f))  # in original-image pixels
         if mode == 'small':
-            score = sum(a < 20 * 20 for a, _ in stats)
+            idx = [i for i, (a, _) in enumerate(stats) if a < 20 * 20]
+            if not idx:
+                continue
+            small_c = [centers[i] for i in idx]
+            best = max(range(len(idx)), key=lambda k: len(window_members(small_c, k, half)))
+            focus = [objs[idx[j]] for j in window_members(small_c, best, half)]
+            score = len(focus)
         elif mode == 'slender':
-            score = max(r for _, r in stats) if max(r for _, r in stats) >= 3 else 0
+            i = max(range(len(stats)), key=lambda k: stats[k][1])
+            if stats[i][1] < 3:
+                continue
+            focus, score = [objs[i]], stats[i][1]
         else:  # dense
-            score = len(objs)
-        if score > 0:
-            scored.append((score + rng.random() * 1e-3, f, objs))
-    scored.sort(reverse=True)
+            best = max(range(len(centers)), key=lambda k: len(window_members(centers, k, half)))
+            focus = [objs[j] for j in window_members(centers, best, half)]
+            score = len(focus)
+        scored.append((score + rng.random() * 1e-3, f, objs, focus))
+    scored.sort(key=lambda t: t[0], reverse=True)
     return scored[:n]
 
 
@@ -106,7 +140,8 @@ def target_metrics(orig, enh, polys):
 
 
 def zoom_box(polys, shape, size=160):
-    c = np.concatenate(polys).mean(0)
+    pts = np.concatenate(polys)
+    c = (pts.min(0) + pts.max(0)) / 2  # bbox midpoint keeps a window-sized focus set inside the crop
     x0 = int(np.clip(c[0] - size / 2, 0, max(shape[1] - size, 0)))
     y0 = int(np.clip(c[1] - size / 2, 0, max(shape[0] - size, 0)))
     return x0, y0, size
@@ -123,6 +158,8 @@ def main():
     ap.add_argument('--n', type=int, default=4)
     ap.add_argument('--alpha', type=float, default=1.0)
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--exclude', nargs='*', default=[],
+                    help='image files already shown by another mode (skipped)')
     ap.add_argument('--out', required=True)
     args = ap.parse_args()
 
@@ -133,13 +170,16 @@ def main():
     names = sorted(os.listdir(args.img_dir))
     rng = random.Random(args.seed)
     rows, report = [], []
-    for _, f, objs in select(args.img_dir, args.ann_dir, args.fmt, set(args.classes), args.mode, args.n, args.seed):
+    for _, f, objs, focus in select(args.img_dir, args.ann_dir, args.fmt, set(args.classes), args.mode,
+                                    args.n, args.seed, exclude=set(args.exclude)):
         img, r = detector_scale(cv2.imread(osp.join(args.img_dir, f), cv2.IMREAD_COLOR))
         style = cv2.imread(osp.join(args.img_dir, names[rng.randrange(len(names))]), cv2.IMREAD_COLOR)
         enh = enhance(sem, img, style, args.alpha, device)
         polys = [p * r for _, p in objs]
-        report.append(dict(image=f, n_targets=len(polys), **target_metrics(img, enh, polys)))
-        x0, y0, s = zoom_box(polys, img.shape)
+        fpolys = [p * r for _, p in focus]
+        report.append(dict(image=f, mode=args.mode, n_targets=len(polys), n_focus=len(fpolys),
+                           **target_metrics(img, enh, fpolys)))
+        x0, y0, s = zoom_box(fpolys, img.shape)
         zo, ze = img[y0:y0 + s, x0:x0 + s].copy(), enh[y0:y0 + s, x0:x0 + s].copy()
         for p in polys:
             cv2.polylines(zo, [(p - [x0, y0]).astype(np.int32)], True, (0, 255, 0), 1)

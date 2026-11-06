@@ -1,0 +1,29 @@
+[
+ {
+  "image": "06325.jpg",
+  "mode": "small",
+  "n_targets": 60,
+  "n_focus": 27,
+  "grad_corr_in_targets": 0.09252752991506201,
+  "contrast_orig": 0.16705326956229175,
+  "contrast_enh": 0.04442819561883742
+ },
+ {
+  "image": "11480.jpg",
+  "mode": "small",
+  "n_targets": 29,
+  "n_focus": 23,
+  "grad_corr_in_targets": 0.19667197770883918,
+  "contrast_orig": 0.42638567978840575,
+  "contrast_enh": 0.5293484534353454
+ },
+ {
+  "image": "08494.jpg",
+  "mode": "small",
+  "n_targets": 21,
+  "n_focus": 18,
+  "grad_corr_in_targets": 0.16175631964482445,
+  "contrast_orig": 0.1719067492375615,
+  "contrast_enh": 0.06714568563295861
+ }
+]
